@@ -87,7 +87,7 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px 1
 .nav button{width:38px;height:38px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:18px}
 .nav b{font-size:15px;text-transform:capitalize}
 .seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
-.seg button{flex:1;padding:8px 4px;border-radius:9px;font-weight:600;font-size:13.5px;color:var(--muted)}
+.seg button{flex:1;padding:8px 2px;border-radius:9px;font-weight:600;font-size:12.5px;color:var(--muted);white-space:nowrap}
 .seg button.on{background:var(--primary);color:var(--primary-ink)}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}
@@ -145,7 +145,7 @@ td.n,th.n{text-align:right;white-space:nowrap}
       <div class="card" style="padding:4px 12px"><div class="list" id="mvList"></div></div>
     </section>
     <section class="page" id="p-anal">
-      <div class="seg" id="anSeg"><button data-a="mes" class="on">Mes</button><button data-a="anio">Año</button><button data-a="ing">Ingresos</button><button data-a="autos">Autos</button></div>
+      <div class="seg" id="anSeg"><button data-a="cat" class="on">Catorcena</button><button data-a="mes">Mes</button><button data-a="anio">Año</button><button data-a="ing">Ingresos</button><button data-a="autos">Autos</button></div>
       <div class="nav"><button id="anPrev" aria-label="Anterior">‹</button><b id="anPer"></b><button id="anNext" aria-label="Siguiente">›</button></div>
       <div id="anBody" style="display:flex;flex-direction:column;gap:12px"></div>
     </section>
@@ -224,7 +224,7 @@ td.n,th.n{text-align:right;white-space:nowrap}
 <script>
 "use strict";
 /* ================= estado ================= */
-const S = { d:null, movs:[], byId:{}, view:"inicio", sub:null, mes:"", anio:0, an:"mes", anMes:"", anAnio:0, filtro:"todos", q:"", lim:200 };
+const S = { d:null, movs:[], byId:{}, view:"inicio", sub:null, mes:"", anio:0, an:"cat", anMes:"", anAnio:0, filtro:"todos", q:"", lim:200 };
 const MES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const MESL = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const $ = (s,r=document)=>r.querySelector(s), $$ = (s,r=document)=>[...r.querySelectorAll(s)];
@@ -236,6 +236,7 @@ const pad = n => String(n).padStart(2,"0");
 const addMonth = (ym,k)=>{ let [y,m]=ym.split("-").map(Number); m+=k; while(m<1){m+=12;y--} while(m>12){m-=12;y++} return y+"-"+pad(m); };
 const mLabel = ym => MESL[+ym.slice(5)-1]+" "+ym.slice(0,4);
 const dLabel = f => { const d=new Date(f+"T12:00"); return d.toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"short"}); };
+const dm2 = f => +f.slice(8)+"/"+(+f.slice(5,7));
 const sDate = f => +f.slice(8)+" "+MES[+f.slice(5,7)-1];
 const daysBetween = (a,b)=> Math.round((new Date(b+"T12:00")-new Date(a+"T12:00"))/864e5);
 const sum = a => a.reduce((s,x)=>s+(+x.Monto||0),0);
@@ -341,6 +342,17 @@ function render(){
 const inRange = (a,b)=> S.movs.filter(m=>m.Fecha>=a && m.Fecha<=b);
 const inMonth = ym => S.movs.filter(m=>m.Fecha.startsWith(ym));
 function catorcenaActual(f){ return S.d.catorcenas.find(c=>c.Inicio<=f && f<=c.Fin); }
+const NOMINA="Nómina (catorcena)", VALES="Vales de despensa";
+function catList(){ return S.d.catorcenas.filter(c=>c.Inicio<=S.hoy).sort((a,b)=>a.Inicio<b.Inicio?-1:1); }
+function catRes(c){
+  const r=inRange(c.Inicio,c.Fin);
+  const gas=r.filter(m=>m.Tipo==="Gasto"&&m.Cuenta!==VALES);
+  const nom=r.filter(m=>m.Tipo==="Ingreso"&&m.Fuente===NOMINA);
+  const ext=r.filter(m=>m.Tipo==="Ingreso"&&m.Fuente!==NOMINA&&m.Fuente!==VALES);
+  const G=sum(gas), N=nom.length? sum(nom) : (+c.IngresoEsperado||0), P=+c.PptoGastos||0, E=sum(ext);
+  return {r, gas, G, N, P, E, ext, queda:P-G, ahorro:N-G, valesG:sum(r.filter(m=>m.Tipo==="Gasto"&&m.Cuenta===VALES))};
+}
+const catLabel = c => "Catorcena "+(+c.Num)+" · "+sDate(c.Inicio)+" – "+sDate(c.Fin)+" "+c.Fin.slice(0,4);
 const perKey = p => String(p.Periodo)==="BASE" ? "BASE" : String(p.Periodo).slice(0,7);
 function presupuesto(ym){ const o={}; S.d.presupuesto.forEach(p=>{ if(perKey(p)==="BASE") o[p.Categoria]=+p.Monto; }); S.d.presupuesto.forEach(p=>{ if(perKey(p)===ym) o[p.Categoria]=+p.Monto; }); return o; }
 function group(arr,key){ const o={}; arr.forEach(m=>{ const k=typeof key==="function"?key(m):(m[key]||"—"); o[k]=(o[k]||0)+m.Monto; }); return Object.entries(o).sort((a,b)=>b[1]-a[1]); }
@@ -398,24 +410,22 @@ function saldosInversion(){
 
 /* ================= Inicio ================= */
 function rInicio(){
-  const h=S.hoy, c=catorcenaActual(h), ym=h.slice(0,7), mes=inMonth(ym);
-  const I=sum(mes.filter(m=>m.Tipo==="Ingreso")), G=sum(mes.filter(m=>m.Tipo==="Gasto"));
-  let hero="";
+  const h=S.hoy, c=catorcenaActual(h);
+  let hero="", kpis="";
   if(c){
-    const g=sum(inRange(c.Inicio,c.Fin).filter(m=>m.Tipo==="Gasto" && m.Cuenta!=="Vales de despensa"));
-    const ppto=+c.PptoGastos||0, p=ppto?g/ppto:0, dias=daysBetween(h,c.Fin)+1, disp=ppto-g;
-    hero=`<div class="card hero"><div class="between"><span class="small muted">Catorcena ${+c.Num} · ${sDate(c.Inicio)} – ${sDate(c.Fin)}</span><span class="small muted">${dias} día${dias!==1?"s":""}</span></div>
-      <div><div class="small muted">Disponible para gastos</div><div class="big">${mx(disp)}</div></div>
+    const x=catRes(c), p=x.P? x.G/x.P : 0, dias=Math.max(0,daysBetween(h,c.Fin)+1);
+    hero=`<div class="card hero"><div class="between"><span class="small muted">${esc(catLabel(c))}</span><span class="small muted">${dias} día${dias!==1?"s":""}</span></div>
+      <div><div class="small muted">Queda del presupuesto</div><div class="big">${mx(x.queda)}</div></div>
       <div class="track"><div class="fill" style="width:${Math.min(100,p*100)}%"></div></div>
-      <div class="between small"><span>Gastado ${mx(g)} de ${mx(ppto)}</span><span>${dias>0&&disp>0? mx(disp/dias)+" por día":""}</span></div>
-      <div class="between small muted"><span>Ingreso esperado ${mx(c.IngresoEsperado)}</span><span>Meta de ahorro ${mx(c.MetaAhorro)}</span></div></div>`;
+      <div class="between small"><span>Gastado ${mx(x.G)} de ${mx(x.P)}</span><span>${dias>0&&x.queda>0? mx(x.queda/dias)+" por día":""}</span></div></div>`;
+    kpis=`<div class="kpis"><div class="kpi"><div class="l">Ingreso catorcena</div><div class="v pos">${mx(x.N)}</div></div>
+      <div class="kpi"><div class="l">Gastado</div><div class="v neg">${mx(x.G)}</div></div>
+      <div class="kpi"><div class="l">Ahorro</div><div class="v ${x.ahorro<0?"neg":""}">${mx(x.ahorro)}</div></div></div>
+      <div class="small muted" style="margin-top:-4px">Meta de ahorro ${mx(c.MetaAhorro)}${x.E? " · Ingresos extra a ahorro "+mx(x.E):""}${x.valesG? " · Vales usados "+mx(x.valesG):""}</div>`;
   }
   const quick = Object.entries(S.freq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k])=>S.mem[k]);
   const last = S.movs.slice(0,8);
-  $("#p-inicio").innerHTML = hero + `
-    <div class="kpis"><div class="kpi"><div class="l">Ingresos ${MES[+ym.slice(5)-1]}</div><div class="v pos">${mx(I)}</div></div>
-    <div class="kpi"><div class="l">Gastos ${MES[+ym.slice(5)-1]}</div><div class="v neg">${mx(G)}</div></div>
-    <div class="kpi"><div class="l">Ahorro</div><div class="v ${I-G<0?"neg":""}">${mx(I-G)}</div></div></div>
+  $("#p-inicio").innerHTML = hero + kpis + `
     <div class="card"><h2>Registro rápido</h2><div class="chips">${quick.map(m=>`<button class="chip" data-q="${esc(norm(m.Descripcion))}">${esc(m.Descripcion)}</button>`).join("")||'<span class="muted small">Aparecerán tus gastos más frecuentes.</span>'}</div></div>
     <div class="card" style="padding:12px 12px 4px"><div class="between"><h2>Últimos movimientos</h2><button class="btn sm" id="verTodos">Ver todos</button></div><div class="list">${last.map(itemHTML).join("")||'<div class="empty">Sin movimientos</div>'}</div></div>`;
   $$("[data-q]",$("#p-inicio")).forEach(b=>b.onclick=()=>{ const m=S.mem[b.dataset.q]; openForm({Tipo:"Gasto", Descripcion:m.Descripcion, Categoria:m.Categoria, Subcategoria:m.Subcategoria, Vehiculo:m.Vehiculo, Cuenta:m.Cuenta}); });
@@ -425,17 +435,34 @@ function rInicio(){
 
 /* ================= Movimientos ================= */
 const FILTROS = [["todos","Todos"],["Gasto","Gastos"],["Ingreso","Ingresos"],["Pago tarjeta","Pagos"],["Transferencia","Transferencias"],["Inversión","Inversión"]];
-$("#mvPrev").onclick=()=>{ S.mes=addMonth(S.mes,-1); S.lim=200; rMovs(); };
-$("#mvNext").onclick=()=>{ S.mes=addMonth(S.mes,1); S.lim=200; rMovs(); };
+S.mvModo="cat";
+function mvShift(k){
+  if(S.mvModo==="mes"){ S.mes=addMonth(S.mes,k); }
+  else { const L=catList(); let i=L.findIndex(c=>c.ID===S.mvCat); if(i<0) i=L.length-1; i=Math.max(0,Math.min(L.length-1,i+k)); S.mvCat=L[i].ID; }
+  S.lim=200; rMovs();
+}
+$("#mvPrev").onclick=()=>mvShift(-1);
+$("#mvNext").onclick=()=>mvShift(1);
 let qT; $("#mvQ").oninput=e=>{ clearTimeout(qT); qT=setTimeout(()=>{ S.q=norm(e.target.value); S.lim=200; rMovs(); },200); };
 function rMovs(){
-  $("#mvMes").textContent = S.q? "Resultados de búsqueda" : mLabel(S.mes);
-  $("#mvChips").innerHTML = FILTROS.map(([k,l])=>`<button class="chip ${S.filtro===k?"on":""}" data-f="${k}">${l}</button>`).join("");
+  const L=catList(); if(!S.mvCat){ const c=catorcenaActual(S.hoy)||L[L.length-1]; S.mvCat=c&&c.ID; }
+  const cat = S.d.catorcenas.find(c=>c.ID===S.mvCat);
+  $("#mvMes").textContent = S.q? "Resultados de búsqueda" : S.mvModo==="cat"&&cat ? "Catorcena "+(+cat.Num)+" · "+sDate(cat.Inicio)+"–"+sDate(cat.Fin)+" "+cat.Fin.slice(0,4) : mLabel(S.mes);
+  $("#mvChips").innerHTML = `<button class="chip ${S.mvModo==="cat"?"on":""}" data-modo="cat">Por catorcena</button><button class="chip ${S.mvModo==="mes"?"on":""}" data-modo="mes">Por mes</button><span style="width:8px;flex:none"></span>` + FILTROS.map(([k,l])=>`<button class="chip ${S.filtro===k?"on":""}" data-f="${k}">${l}</button>`).join("");
   $$("[data-f]").forEach(b=>b.onclick=()=>{ S.filtro=b.dataset.f; rMovs(); });
-  let rows = S.q ? S.movs.filter(m=>norm([m.Descripcion,m.Categoria,m.Subcategoria,m.Fuente,m.Cuenta,m.Vehiculo,m.Nota].join(" ")).includes(S.q)) : inMonth(S.mes);
+  $$("[data-modo]").forEach(b=>b.onclick=()=>{ S.mvModo=b.dataset.modo; S.lim=200; rMovs(); });
+  let rows = S.q ? S.movs.filter(m=>norm([m.Descripcion,m.Categoria,m.Subcategoria,m.Fuente,m.Cuenta,m.Vehiculo,m.Nota].join(" ")).includes(S.q))
+    : S.mvModo==="cat"&&cat ? inRange(cat.Inicio,cat.Fin) : inMonth(S.mes);
   if(S.filtro!=="todos") rows = rows.filter(m=>m.Tipo===S.filtro);
-  const G=sum(rows.filter(m=>m.Tipo==="Gasto")), I=sum(rows.filter(m=>m.Tipo==="Ingreso"));
-  $("#mvSum").textContent = rows.length.toLocaleString("es-MX")+" movimientos · Gastos "+mx(G)+" · Ingresos "+mx(I);
+  if(!S.q && S.mvModo==="cat" && cat){
+    const x=catRes(cat);
+    $("#mvSum").innerHTML = `<div class="card" style="gap:8px"><div class="kpis"><div><div class="l small muted">Presupuesto</div><div class="mid">${mx(x.P)}</div></div><div><div class="l small muted">Gastado</div><div class="mid neg">${mx(x.G)}</div></div><div><div class="l small muted">Queda</div><div class="mid ${x.queda<0?"neg":"pos"}">${mx(x.queda)}</div></div></div>
+      <div class="track"><div class="fill ${x.G>x.P?"over":x.G>x.P*.85?"warn":""}" style="width:${x.P?Math.min(100,x.G/x.P*100):0}%"></div></div>
+      <div class="small muted">Nómina ${mx(x.N)} · Ahorro ${mx(x.ahorro)}${x.E? " · Extras a ahorro "+mx(x.E):""}${x.valesG? " · Vales "+mx(x.valesG):""}</div></div>`;
+  } else {
+    const G=sum(rows.filter(m=>m.Tipo==="Gasto")), I=sum(rows.filter(m=>m.Tipo==="Ingreso"));
+    $("#mvSum").textContent = rows.length.toLocaleString("es-MX")+" movimientos · Gastos "+mx(G)+" · Ingresos "+mx(I);
+  }
   let html="", day="";
   const shown = rows.slice(0,S.lim);
   const daySum = {}; shown.forEach(m=>{ if(m.Tipo==="Gasto") daySum[m.Fecha]=(daySum[m.Fecha]||0)+m.Monto; });
@@ -451,11 +478,35 @@ function rMovs(){
 
 /* ================= Análisis ================= */
 $$("#anSeg button").forEach(b=>b.onclick=()=>{ S.an=b.dataset.a; $$("#anSeg button").forEach(x=>x.classList.toggle("on",x===b)); rAnal(); });
-$("#anPrev").onclick=()=>{ if(S.an==="mes") S.anMes=addMonth(S.anMes,-1); else S.anAnio--; rAnal(); };
-$("#anNext").onclick=()=>{ if(S.an==="mes") S.anMes=addMonth(S.anMes,1); else S.anAnio++; rAnal(); };
+function anShift(k){
+  if(S.an==="mes") S.anMes=addMonth(S.anMes,k);
+  else if(S.an==="cat"){ const L=catList(); let i=L.findIndex(c=>c.ID===S.anCat); if(i<0) i=L.length-1; i=Math.max(0,Math.min(L.length-1,i+k)); S.anCat=L[i].ID; }
+  else S.anAnio+=k;
+  rAnal();
+}
+$("#anPrev").onclick=()=>anShift(-1);
+$("#anNext").onclick=()=>anShift(1);
 function rAnal(){
-  $("#anPer").textContent = S.an==="mes"? mLabel(S.anMes) : String(S.anAnio);
-  ({mes:anMes, anio:anAnio, ing:anIng, autos:anAutos})[S.an]();
+  if(!S.anCat){ const L=catList(); const c=catorcenaActual(S.hoy)||L[L.length-1]; S.anCat=c&&c.ID; }
+  const ac=S.d.catorcenas.find(c=>c.ID===S.anCat);
+  $("#anPer").textContent = S.an==="mes"? mLabel(S.anMes) : S.an==="cat"&&ac ? "Cat. "+(+ac.Num)+" · "+sDate(ac.Inicio)+"–"+sDate(ac.Fin)+" "+ac.Fin.slice(0,4) : String(S.anAnio);
+  ({cat:anCat, mes:anMes, anio:anAnio, ing:anIng, autos:anAutos})[S.an]();
+}
+function anCat(){
+  const c=S.d.catorcenas.find(x=>x.ID===S.anCat); if(!c){ $("#anBody").innerHTML='<div class="empty">Sin catorcenas</div>'; return; }
+  const x=catRes(c), L=catList(), i=L.findIndex(k=>k.ID===c.ID);
+  const prev = i>0? catRes(L[i-1]).G : 0;
+  const top = group(x.gas, m=>m.Descripcion||"—").slice(0,8);
+  $("#anBody").innerHTML = `
+   <div class="kpis"><div class="kpi"><div class="l">Presupuesto</div><div class="v">${mx(x.P)}</div></div><div class="kpi"><div class="l">Gastado</div><div class="v neg">${mx(x.G)}</div></div><div class="kpi"><div class="l">Queda</div><div class="v ${x.queda<0?"neg":"pos"}">${mx(x.queda)}</div></div></div>
+   <div class="card"><div class="between"><h2>Ingreso y ahorro</h2><span class="small muted">${prev? "Gasto vs catorcena anterior "+(x.G>=prev?"+":"")+Math.round((x.G-prev)/prev*100)+"%":""}</span></div>
+     <div class="between"><span>Nómina</span><b class="pos">${mx(x.N)}</b></div>
+     <div class="between"><span>Gastado</span><b class="neg">−${mx(x.G)}</b></div>
+     <div class="between"><span>Ahorro de la catorcena <span class="small muted">(meta ${mx(c.MetaAhorro)})</span></span><b>${mx(x.ahorro)}</b></div>
+     ${x.E? `<div class="between"><span>Ingresos extra a ahorro</span><b class="pos">${mx(x.E)}</b></div><div class="small muted">${esc(group(x.ext,"Fuente").map(([k,v])=>k+" "+mx(v)).join(" · "))}</div>`:""}
+     ${x.valesG? `<div class="between small muted"><span>Gastado con vales (fuera del presupuesto)</span><span>${mx(x.valesG)}</span></div>`:""}</div>
+   <div class="card"><h2>Por categoría</h2>${x.gas.length? barsHTML(group(x.gas,"Categoria"),x.G) : '<div class="empty">Sin gastos</div>'}</div>
+   <div class="card"><h2>En qué se fue más</h2>${x.gas.length? barsHTML(top,x.G) : '<div class="empty">Sin gastos</div>'}</div>`;
 }
 function anMes(){
   const ym=S.anMes, mes=inMonth(ym), gas=mes.filter(m=>m.Tipo==="Gasto"), G=sum(gas), I=sum(mes.filter(m=>m.Tipo==="Ingreso"));
@@ -490,14 +541,16 @@ function anAnio(){
 function anIng(){
   const ys=String(S.anAnio), ing=S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fecha.startsWith(ys)), I=sum(ing);
   const cats=S.d.catorcenas.filter(c=>String(c.Anio)===ys && c.Inicio<=S.hoy).sort((a,b)=>a.Inicio<b.Inicio?-1:1);
-  const rows=cats.map(c=>{ const r=inRange(c.Inicio,c.Fin); const n=sum(r.filter(m=>m.Tipo==="Ingreso"&&m.Fuente==="Nómina (catorcena)")); const g=sum(r.filter(m=>m.Tipo==="Gasto"&&m.Cuenta!=="Vales de despensa")); return {c,n,g}; });
+  const rows=cats.map(c=>Object.assign({c},catRes(c)));
   $("#anBody").innerHTML = `
    <div class="card"><div class="between"><h2>Ingresos ${ys}</h2><span class="mid pos">${mx(I)}</span></div>${ing.length? barsHTML(group(ing,"Fuente"),I) : '<div class="empty">Sin ingresos</div>'}</div>
    <div class="card"><h2>Catorcenas ${ys}</h2><div class="small muted">Gasto sin vales de despensa, como en tu control por catorcena.</div>
-    <div class="tbl"><table><thead><tr><th>#</th><th>Periodo</th><th class="n">Nómina</th><th class="n">Gasto</th><th class="n">Queda</th></tr></thead><tbody>
-    ${rows.map(({c,n,g})=>`<tr><td>${+c.Num}</td><td>${sDate(c.Inicio)}–${sDate(c.Fin)}</td><td class="n">${mx(n)}</td><td class="n">${mx(g)}</td><td class="n ${n-g<0?"neg":"pos"}">${mx(n-g)}</td></tr>`).join("") || '<tr><td colspan="5" class="muted">Sin catorcenas</td></tr>'}
+    <div class="tbl"><table style="font-size:12px"><thead><tr><th>#</th><th>Periodo</th><th class="n">Ppto</th><th class="n">Gasto</th><th class="n">Dif.</th><th class="n">Ahorro</th></tr></thead><tbody>
+    ${rows.map(x=>`<tr data-cat="${esc(x.c.ID)}"><td>${+x.c.Num}</td><td style="white-space:nowrap">${dm2(x.c.Inicio)}–${dm2(x.c.Fin)}</td><td class="n muted">${mx(x.P)}</td><td class="n">${mx(x.G)}</td><td class="n ${x.queda<0?"neg":"pos"}">${mx(x.queda)}</td><td class="n">${mx(x.ahorro)}</td></tr>`).join("") || '<tr><td colspan="6" class="muted">Sin catorcenas</td></tr>'}
+    <tr><td></td><td><b>Total</b></td><td class="n muted">${mx(rows.reduce((a,x)=>a+x.P,0))}</td><td class="n"><b>${mx(rows.reduce((a,x)=>a+x.G,0))}</b></td><td class="n">${mx(rows.reduce((a,x)=>a+x.queda,0))}</td><td class="n"><b>${mx(rows.reduce((a,x)=>a+x.ahorro,0))}</b></td></tr>
     </tbody></table></div></div>`;
 }
+document.addEventListener("click",e=>{ const tr=e.target.closest("tr[data-cat]"); if(!tr) return; S.anCat=tr.dataset.cat; S.an="cat"; $$("#anSeg button").forEach(x=>x.classList.toggle("on",x.dataset.a==="cat")); rAnal(); $("#scr").scrollTop=0; });
 function anAutos(){
   const ys=String(S.anAnio);
   const autos=S.movs.filter(m=>m.Tipo==="Gasto"&&S.autoCats.has(m.Categoria));
