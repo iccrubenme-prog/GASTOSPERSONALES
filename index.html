@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#2F3A8F">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Finanzas">
-<title>Finanzas de Casa</title>
+<meta name="apple-mobile-web-app-title" content="Finanzas RME">
+<title>Finanzas RME</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -143,7 +143,7 @@ td.n,th.n{text-align:right;white-space:nowrap}
 </head>
 <body>
 <div id="app">
-  <header class="bar" id="bar"><button class="back" id="back" aria-label="Regresar">‹</button><h1 id="vTitle">Finanzas de Casa</h1><span class="sync" id="sync"></span><button id="privBtn" class="iconbtn" aria-label="Ocultar ingresos y ahorro" title="Ocultar ingresos y ahorro"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button><button id="salir" class="sync" style="color:inherit;font-weight:700;padding:6px 12px" aria-label="Salir de la app">Salir</button></header>
+  <header class="bar" id="bar"><button class="back" id="back" aria-label="Regresar">‹</button><h1 id="vTitle">Finanzas RME</h1><span class="sync" id="sync"></span><button id="privBtn" class="iconbtn" aria-label="Ocultar ingresos y ahorro" title="Ocultar ingresos y ahorro"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button><button id="salir" class="sync" style="color:inherit;font-weight:700;padding:6px 12px" aria-label="Salir de la app">Salir</button></header>
   <main id="scr">
     <section class="page on" id="p-inicio"></section>
     <section class="page" id="p-movs">
@@ -168,6 +168,7 @@ td.n,th.n{text-align:right;white-space:nowrap}
       </div>
       <div class="card menu" style="padding:2px 12px">
         <button class="item" id="reload"><span class="ico">↻</span><span class="grow"><div class="t">Actualizar datos</div><div class="s" id="lastSync">Vuelve a leer la hoja de Google</div></span></button>
+        <button class="item hide" id="olvidar"><span class="ico">🔑</span><span class="grow"><div class="t">Olvidar clave guardada</div><div class="s">La app te la pedirá la próxima vez</div></span></button>
         <a class="item" id="sheetLink" href="#" target="_blank" rel="noopener" style="color:inherit;text-decoration:none"><span class="ico">⊞</span><span class="grow"><div class="t">Abrir la hoja de Google</div><div class="s">Catálogos, saldos iniciales y respaldo</div></span><span class="arrow">↗</span></a>
       </div>
       <p class="small muted" id="about"></p>
@@ -224,7 +225,7 @@ td.n,th.n{text-align:right;white-space:nowrap}
   <div class="actions"><button type="button" class="btn danger hide" id="fDel">Eliminar</button><button type="button" class="btn" id="fAgain">Guardar y otro</button><button type="submit" class="btn primary">Guardar</button></div>
 </form>
 <div id="toast" role="status"></div>
-<div id="splash"><div>Finanzas de Casa</div><small id="splashMsg">Cargando tu historial…</small>
+<div id="splash"><div>Finanzas RME</div><small id="splashMsg">Cargando tu historial…</small>
   <form id="claveForm" class="hide" style="display:flex;flex-direction:column;gap:8px;width:260px">
     <div class="pw oculta" id="pwBox"><input id="claveIn" type="text" placeholder="Clave de acceso" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Clave de acceso"><span class="mask" id="pwMask"></span><button type="button" id="pwEye" aria-label="Mostrar clave"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <button class="btn" type="submit" style="background:#fff;color:#2f3a8f">Entrar</button>
@@ -255,7 +256,7 @@ let toastT; function toast(m){ const t=$("#toast"); t.textContent=m; t.classList
 const API_URL = "https://script.google.com/macros/s/AKfycbwGIeHfWXEUl7U7PtOCsCBfqeAPuGp2Dvm7jEDhtK8vN2y29mITmKA7ss8lU7M7iolwYg/exec";
 function api(fn, ...args){
   // GET: es la forma que Apps Script acepta sin problemas desde otra página (POST falla por CORS)
-  const q = new URLSearchParams({action:fn, args:JSON.stringify(args), clave:store("fc_clave")||"", t:Date.now()});
+  const q = new URLSearchParams({action:fn, args:JSON.stringify(args), clave:getClave(), t:Date.now()});
   return fetch(API_URL+"?"+q.toString(), {redirect:"follow"})
     .then(r=>{ if(!r.ok) throw new Error("El servidor respondió "+r.status); return r.json(); })
     .then(j=>{ if(!j.ok){ const e=new Error(j.error||"Error"); e.auth=!!j.auth; throw e; } return j.data; });
@@ -263,10 +264,30 @@ function api(fn, ...args){
 function pwSync(){ const v=$("#claveIn").value; $("#pwMask").textContent="*".repeat(v.length); }
 document.addEventListener("input",e=>{ if(e.target.id==="claveIn") pwSync(); });
 document.addEventListener("click",e=>{ if(!e.target.closest("#pwEye")) return; const box=$("#pwBox"), oc=box.classList.toggle("oculta"); $("#pwEye").innerHTML = oc? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>' : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l18 18M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.9 8.3 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>'; $("#pwEye").setAttribute("aria-label", oc?"Mostrar clave":"Ocultar clave"); $("#claveIn").focus(); });
+// clave: guardada en el teléfono (si aceptas) o solo mientras la app esté abierta
+function getClave(){ let s=""; try{ s=sessionStorage.getItem("fc_clave_ses")||""; }catch(e){} return store("fc_clave")||s; }
+function claveGuardada(){ return !!store("fc_clave"); }
+function setClaveSesion(v){ try{ sessionStorage.setItem("fc_clave_ses",v); }catch(e){} }
+function olvidarClave(){ store("fc_clave",""); try{ sessionStorage.removeItem("fc_clave_ses"); localStorage.removeItem("fc_cache"); }catch(e){} }
+function preguntarGuardar(){
+  if(claveGuardada() || store("fc_noPreguntar")) return;
+  const box=document.createElement("div");
+  box.id="askSave";
+  box.style.cssText="position:fixed;inset:0;background:rgb(8 10 20 / .5);display:flex;align-items:flex-end;z-index:45";
+  box.innerHTML=`<div class="sheet on" style="position:relative;transform:none;max-height:none">
+    <div class="grab"></div><h2 style="margin:0;font-size:18px">¿Guardar tu clave en este teléfono?</h2>
+    <p class="small muted" style="margin:0">Así la app entra directo y no te la vuelve a pedir. Puedes olvidarla cuando quieras desde Más.</p>
+    <label class="small muted"><input type="checkbox" id="askNo"> No volver a preguntar</label>
+    <div class="actions"><button class="btn" id="askNot">Ahora no</button><button class="btn primary" id="askYes">Guardar clave</button></div></div>`;
+  document.body.appendChild(box);
+  $("#askYes").onclick=()=>{ store("fc_clave", getClave()); box.remove(); toast("Clave guardada en este teléfono"); renderMas(); };
+  $("#askNot").onclick=()=>{ if($("#askNo").checked) store("fc_noPreguntar",true); box.remove(); };
+}
+function renderMas(){ const b=$("#olvidar"); if(b) b.classList.toggle("hide", !claveGuardada()); }
 function pedirClave(msg){
   $("#splash").classList.remove("hide"); $("#splashMsg").textContent = msg || "Escribe la clave de acceso de tu app.";
   const f=$("#claveForm"); f.classList.remove("hide"); setTimeout(()=>$("#claveIn").focus(),100);
-  f.onsubmit=ev=>{ ev.preventDefault(); store("fc_clave",$("#claveIn").value.trim()); $("#claveIn").value=""; pwSync(); f.classList.add("hide"); load(); };
+  f.onsubmit=ev=>{ ev.preventDefault(); const v=$("#claveIn").value.trim(); if(!v) return; S.claveNueva=true; if(claveGuardada()) store("fc_clave",v); else setClaveSesion(v); $("#claveIn").value=""; pwSync(); f.classList.add("hide"); load(); };
 }
 if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 
@@ -277,9 +298,10 @@ function load(){
     S.d = d; build(); $("#splash").classList.add("hide");
     $("#lastSync").textContent = "Última lectura: "+new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
     if(d.url) $("#sheetLink").href = d.url;
-    render(); flush();
+    render(); flush(); renderMas();
+    if(S.claveNueva){ S.claveNueva=false; setTimeout(preguntarGuardar, 400); }
   }).catch(e=>{
-    if(e && e.auth) return pedirClave(store("fc_clave")? "Clave incorrecta. Vuelve a escribirla." : null);
+    if(e && e.auth){ const habia=!!getClave(); olvidarClave(); return pedirClave(habia? "La clave no es correcta o cambió. Escríbela de nuevo." : null); }
     const cache = store("fc_cache");
     if(cache){ S.d=cache; build(); $("#splash").classList.add("hide"); render(); toast("Sin conexión: mostrando la última copia guardada."); }
     else $("#splashMsg").textContent = "No pude leer la hoja: "+(e&&e.message||e)+". Revisa tu conexión y vuelve a abrir la app.";
@@ -288,7 +310,7 @@ function load(){
 function rowToObj(r){ const o={}; S.d.movH.forEach((h,i)=>o[h]=r[i]); o.Monto=+o.Monto||0; o.Fecha=String(o.Fecha).slice(0,10); return o; }
 function build(){
   const d=S.d;
-  S.hoy = d.hoy || new Date().toISOString().slice(0,10);
+  S.hoy = hoyLocal();
   if(!S.mes){ S.mes=S.hoy.slice(0,7); S.anMes=S.mes; S.anAnio=+S.hoy.slice(0,4); }
   S.movs = d.movs.map(rowToObj).filter(m=>m.Fecha && m.Tipo);
   applyPending();
@@ -335,7 +357,7 @@ async function flush(){
 window.addEventListener("online", flush);
 
 /* ================= navegación ================= */
-const TITLES = {inicio:"Finanzas de Casa", movs:"Movimientos", anal:"Análisis", mas:"Más"};
+const TITLES = {inicio:"Finanzas RME", movs:"Movimientos", anal:"Análisis", mas:"Más"};
 function go(v){ S.view=v; S.sub=null; $$(".page").forEach(p=>p.classList.toggle("on", p.id==="p-"+v)); $$(".tab[data-v]").forEach(t=>t.classList.toggle("on", t.dataset.v===v)); $("#bar").classList.remove("sub"); $("#vTitle").textContent=TITLES[v]; $("#scr").scrollTop=0; render(); }
 function openSub(k){ S.sub=k; $$(".page").forEach(p=>p.classList.toggle("on", p.id==="p-sub")); $("#bar").classList.add("sub"); $("#scr").scrollTop=0; render(); }
 $("#back").onclick=()=>go("mas");
@@ -350,15 +372,29 @@ $("#salir").onclick=()=>{
   const b=$("#salir");
   if(b.dataset.arm!=="1"){ b.dataset.arm="1"; b.textContent="¿Salir?"; setTimeout(()=>{ b.dataset.arm=""; b.textContent="Salir"; },3000); return; }
   if(pend().length){ toast("Hay registros sin sincronizar; espera a tener señal antes de salir."); b.dataset.arm=""; b.textContent="Salir"; return; }
-  store("fc_clave",""); try{ localStorage.removeItem("fc_cache"); }catch(e){}
+  const guardada=claveGuardada();
+  try{ sessionStorage.removeItem("fc_clave_ses"); if(!guardada) localStorage.removeItem("fc_cache"); }catch(e){}
   S.d=null; closeForm();
   try{ window.close(); }catch(e){}
-  if(typeof pedirClave==="function") pedirClave("Sesión cerrada. Escribe tu clave para volver a entrar.");
+  if(guardada){
+    $("#splash").classList.remove("hide"); $("#splashMsg").textContent="Saliste de la app. Tu clave sigue guardada en este teléfono.";
+    $("#claveForm").classList.add("hide");
+    let r=$("#reentrar"); if(!r){ r=document.createElement("button"); r.id="reentrar"; r.className="btn"; r.style.cssText="background:#fff;color:#2f3a8f;width:260px"; r.textContent="Entrar"; $("#splash").appendChild(r); }
+    r.classList.remove("hide"); r.onclick=()=>{ r.classList.add("hide"); load(); };
+  }
+  else if(typeof pedirClave==="function") pedirClave("Sesión cerrada. Escribe tu clave para volver a entrar.");
   else { $("#splash").classList.remove("hide"); $("#splashMsg").textContent="Sesión cerrada. Puedes cerrar esta ventana."; }
 };
+$("#olvidar").onclick=()=>{ const b=$("#olvidar"); if(b.dataset.arm!=="1"){ b.dataset.arm="1"; $(".t",b).textContent="Toca otra vez para olvidarla"; setTimeout(()=>{ b.dataset.arm=""; $(".t",b).textContent="Olvidar clave guardada"; },3000); return; }
+  const c=getClave(); olvidarClave(); setClaveSesion(c); store("fc_noPreguntar",false); b.dataset.arm=""; $(".t",b).textContent="Olvidar clave guardada"; renderMas(); toast("Clave olvidada en este teléfono"); };
 $("#reload").onclick=()=>{ $("#splash").classList.remove("hide"); load(); };
+function hoyLocal(){ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+// la fecha se toma del teléfono en cada pantalla, así el conteo de días cambia aunque la app quede abierta
+setInterval(()=>{ if(S.d && hoyLocal()!==S.hoy) render(); }, 60000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && S.d){ render(); if(navigator.onLine) flush(); } });
 function render(){
   if(!S.d) return;
+  const h=hoyLocal(); if(h!==S.hoy){ const cambioMes = S.mes===S.hoy.slice(0,7); S.hoy=h; if(cambioMes){ S.mes=h.slice(0,7); S.anMes=S.mes; } S.mvCat=null; S.anCat=null; }
   syncBadge();
   if(S.sub) return renderSub();
   ({inicio:rInicio, movs:rMovs, anal:rAnal, mas:()=>{}}[S.view])();
@@ -458,10 +494,10 @@ function rInicio(){
   let hero="", kpis="";
   if(c){
     const x=catRes(c), p=x.P? x.G/x.P : 0, dias=Math.max(0,daysBetween(h,c.Fin)+1);
-    hero=`<div class="card hero"><div class="between"><span class="small muted">${esc(catLabel(c))}</span><span class="small muted">${dias} día${dias!==1?"s":""}</span></div>
+    hero=`<div class="card hero"><div class="between"><span class="small muted">${esc(catLabel(c))}</span><span class="small muted" style="white-space:nowrap">${dias===1? "Último día" : "Quedan "+dias+" días"}</span></div>
       <div><div class="small muted">Queda del presupuesto</div><div class="big">${mx(x.queda)}</div></div>
       <div class="track"><div class="fill" style="width:${Math.min(100,p*100)}%"></div></div>
-      <div class="between small"><span>Gastado ${mx(x.G)} de ${mx(x.P)}</span><span>${dias>0&&x.queda>0? "Puedes "+mx(x.queda/dias)+"/día":""}</span></div>
+      <div class="between small"><span>Gastado ${mx(x.G)} de ${mx(x.P)}</span><span>${dias>0&&x.queda>0? "Puedes "+mx(x.queda/dias)+"/día" : x.queda<=0? "Presupuesto agotado" : ""}</span></div>
       ${ritmoHTML(c,x)}</div>`;
     kpis=`<div class="kpis"><div class="kpi"><div class="l">Ingreso catorcena</div><div class="v pos priv">${mx(x.N)}</div></div>
       <div class="kpi"><div class="l">Gastado</div><div class="v neg">${mx(x.G)}</div></div>
@@ -545,19 +581,30 @@ function rAnal(){
   $("#anPer").parentElement.style.display = isT? "none" : "";
   ({cat:anCat, tend:anTend, mes:anMes, anio:anAnio, ing:anIng, autos:anAutos})[S.an]();
 }
-/* ---------- Tendencia con detalle por año ---------- */
-S.trend = {}; S.trendGasto = false; S.trendSel = null;
+/* ---------- Tendencia con detalle y filtros ---------- */
+S.trend = {}; S.trendSel = null; S.trendNorm = null;
+S.tf = {years:null, months:null, cats:null};          // null = todos
+S.series = {I:true, A:true, G:false};
 function lvlDef(y){ const cy=+S.hoy.slice(0,4); return y===cy? "cat" : y===cy-1? "mes" : "anio"; }
+const tfHas = (k,v)=> !S.tf[k] || S.tf[k].has(v);
+function trendYears(){ return [...new Set(S.movs.map(m=>+m.Fecha.slice(0,4)))].filter(y=>y>=2019).sort(); }
 function trendPoints(){
-  const years=[...new Set(S.movs.map(m=>+m.Fecha.slice(0,4)))].filter(y=>y>=2019).sort();
   const pts=[];
-  const agg=(label, rows, y, lvl, key, a, b)=>{ const I=sum(rows.filter(m=>m.Tipo==="Ingreso")), G=sum(rows.filter(m=>m.Tipo==="Gasto")); const fin=b<S.hoy?b:S.hoy; const d=Math.max(1,daysBetween(a,fin)+1); if(I||G) pts.push({label, y, lvl, key, I, G, A:I-G, d}); };
-  for(const y of years){
+  const push=(label,rows,y,lvl,key,d)=>{ const I=sum(rows.filter(m=>m.Tipo==="Ingreso")), G=sum(rows.filter(m=>m.Tipo==="Gasto")); if(I||G) pts.push({label,y,lvl,key,I,G,A:I-G,d:Math.max(1,d)}); };
+  const dias=(a,b)=>{ const fin=b<S.hoy?b:S.hoy; return fin<a? 0 : daysBetween(a,fin)+1; };
+  const catsY = ys => S.d.catorcenas.filter(c=>String(c.Anio)===ys && c.Inicio<=S.hoy && tfHas("months",+c.Inicio.slice(5,7)) && tfHas("cats",+c.Num)).sort((a,b)=>a.Inicio<b.Inicio?-1:1);
+  for(const y of trendYears()){
+    if(!tfHas("years",y)) continue;
     const lvl=S.trend[y]||lvlDef(y), ys=String(y);
-    if(lvl==="anio") agg(ys, S.movs.filter(m=>m.Fecha.startsWith(ys)), y, lvl, ys, ys+"-01-01", ys+"-12-31");
-    else if(lvl==="mes"){ for(let m=1;m<=12;m++){ const ym=ys+"-"+pad(m); if(ym>S.hoy.slice(0,7)) break; agg(MES[m-1]+" "+ys.slice(2), inMonth(ym), y, lvl, ym, ym+"-01", finMes(ym)); } }
-    else S.d.catorcenas.filter(c=>String(c.Anio)===ys && c.Inicio<=S.hoy).sort((a,b)=>a.Inicio<b.Inicio?-1:1)
-          .forEach(c=>agg("C"+(+c.Num)+" "+ys.slice(2), inRange(c.Inicio,c.Fin), y, lvl, c.ID, c.Inicio, c.Fin));
+    const meses=[]; for(let m=1;m<=12;m++){ const ym=ys+"-"+pad(m); if(ym<=S.hoy.slice(0,7) && tfHas("months",m)) meses.push(ym); }
+    if(lvl==="anio"){
+      let rows, d=0, tag="";
+      if(S.tf.cats){ const cs=catsY(ys); rows=cs.flatMap(c=>inRange(c.Inicio,c.Fin)); cs.forEach(c=>d+=dias(c.Inicio,c.Fin)); tag=" ("+cs.length+" cat.)"; }
+      else { rows=S.movs.filter(m=>meses.includes(m.Fecha.slice(0,7))); meses.forEach(ym=>d+=dias(ym+"-01",finMes(ym))); if(S.tf.months) tag=" ("+[...S.tf.months].sort((a,b)=>a-b).map(m=>MES[m-1]).join(",")+")"; }
+      push(ys+tag, rows, y, lvl, ys, d);
+    } else if(lvl==="mes"){
+      meses.forEach(ym=>push(MES[+ym.slice(5)-1]+" "+ys.slice(2), inMonth(ym), y, lvl, ym, dias(ym+"-01",finMes(ym))));
+    } else catsY(ys).forEach(c=>push("C"+(+c.Num)+" "+ys.slice(2), inRange(c.Inicio,c.Fin), y, lvl, c.ID, dias(c.Inicio,c.Fin)));
   }
   const mixed = new Set(pts.map(p=>p.lvl)).size>1;
   S.trendNormOn = S.trendNorm==null ? mixed : S.trendNorm;
@@ -565,25 +612,53 @@ function trendPoints(){
   return pts;
 }
 function kfmt(v){ const a=Math.abs(v); return (v<0?"−":"")+"$"+(a>=1e6? (a/1e6).toFixed(1)+"M" : a>=1000? Math.round(a/1000)+"k" : Math.round(a)); }
+function chipSet(k, vals, label){
+  const all=!S.tf[k];
+  return `<div class="f"><label>${label}</label><div class="chips" style="flex-wrap:wrap"><button class="chip ${all?"on":""}" data-tfa="${k}" style="padding:5px 10px">Todos</button>${vals.map(([v,l])=>`<button style="padding:5px 10px;min-width:38px" class="chip ${!all&&S.tf[k].has(v)?"on":""}" data-tfk="${k}" data-tfv="${v}">${l}</button>`).join("")}</div></div>`;
+}
 function anTend(){
-  const years=[...new Set(S.movs.map(m=>+m.Fecha.slice(0,4)))].filter(y=>y>=2019).sort();
+  const years=trendYears(), cy=+S.hoy.slice(0,4), cm=+S.hoy.slice(5,7), cc=catorcenaActual(S.hoy);
   const LV=[["anio","Año"],["mes","Mes"],["cat","Catorcena"]];
+  const SER=[["I","Ingreso","var(--pos)"],["A","Ahorro","var(--primary)"],["G","Gasto","var(--neg)"]];
+  const nf=(S.tf.years?1:0)+(S.tf.months?1:0)+(S.tf.cats?1:0);
   $("#anBody").innerHTML = `
-   <div class="card priv" style="gap:8px">
-     <div class="between"><h2>Ingreso y ahorro</h2><label class="small muted"><input type="checkbox" id="tG" ${S.trendGasto?"checked":""}> Ver gasto</label></div>
+   <div class="card ${S.series.G&&!S.series.I&&!S.series.A?"":"priv"}" style="gap:8px">
+     <div class="between"><h2>Tendencia</h2><span class="small muted">${nf? nf+" filtro"+(nf>1?"s":"")+" activo"+(nf>1?"s":"") : "Sin filtros"}</span></div>
+     <div class="chips">${SER.map(([k,l,c])=>`<button class="chip ${S.series[k]?"on":""}" data-ser="${k}" style="${S.series[k]?`background:${c};border-color:${c}`:""}">${l}</button>`).join("")}</div>
      <label class="small muted"><input type="checkbox" id="tN"> Comparar en montos por 14 días <span id="tNnote"></span></label>
-     <div class="legend"><span><i style="background:var(--pos)"></i>Ingreso</span><span><i style="background:var(--primary)"></i>Ahorro</span>${S.trendGasto?'<span><i style="background:var(--neg)"></i>Gasto</span>':""}</div>
      <div id="tInfo" class="small" style="min-height:36px"></div>
      <div id="tChart" style="position:relative;touch-action:pan-y"></div>
    </div>
-   <div class="card" style="gap:8px"><h2>Detalle por año</h2>
+   <div class="card" style="gap:10px"><div class="between"><h2>Filtros</h2><button class="btn sm" id="tfClear">Limpiar</button></div>
+     <div class="f"><label>Comparaciones rápidas</label><div class="chips">
+       <button class="chip" data-pre="mes">${esc(MESL[cm-1])} de cada año</button>
+       ${cc? `<button class="chip" data-pre="cat">Catorcena ${+cc.Num} de cada año</button>`:""}
+       <button class="chip" data-pre="ult2">${cy-1} vs ${cy} por mes</button>
+       <button class="chip" data-pre="hist">Toda la historia por catorcena</button></div></div>
+     ${chipSet("years", years.map(y=>[y,String(y)]), "Años")}
+     ${chipSet("months", MES.map((m,i)=>[i+1,m]), "Meses")}
+     ${chipSet("cats", Array.from({length:26},(_,i)=>[i+1,String(i+1)]), "Número de catorcena")}
+   </div>
+   <div class="card" style="gap:8px"><h2>Nivel de detalle por año</h2>
      <div class="row small"><span class="muted">Todo:</span>${LV.map(([k,l])=>`<button class="chip" data-all="${k}">${l}</button>`).join("")}</div>
-     ${years.map(y=>{ const lv=S.trend[y]||lvlDef(y); return `<div class="between"><b>${y}</b><div class="seg" style="width:220px">${LV.map(([k,l])=>`<button data-ty="${y}" data-tl="${k}" class="${lv===k?"on":""}">${l}</button>`).join("")}</div></div>`; }).join("")}
-     <div class="small muted">Ingreso = todos los ingresos del periodo (nómina, prestaciones, extras y vales). Ahorro = ingreso − gasto.</div>
+     ${years.filter(y=>tfHas("years",y)).map(y=>{ const lv=S.trend[y]||lvlDef(y); return `<div class="between"><b>${y}</b><div class="seg" style="width:220px">${LV.map(([k,l])=>`<button data-ty="${y}" data-tl="${k}" class="${lv===k?"on":""}">${l}</button>`).join("")}</div></div>`; }).join("")}
+     <div class="small muted">Ingreso = todo lo que entró (nómina, prestaciones, extras y vales). Ahorro = ingreso − gasto. Los filtros de mes y número de catorcena también aplican cuando ves un año completo: suman solo esos periodos.</div>
    </div>`;
-  $$("[data-ty]").forEach(b=>b.onclick=()=>{ S.trend[b.dataset.ty]=b.dataset.tl; S.trendSel=null; anTend(); });
-  $$("[data-all]").forEach(b=>b.onclick=()=>{ years.forEach(y=>S.trend[y]=b.dataset.all); S.trendSel=null; anTend(); });
-  $("#tG").onchange=e=>{ S.trendGasto=e.target.checked; anTend(); };
+  const redo=()=>{ S.trendSel=null; anTend(); };
+  $$("[data-ty]").forEach(b=>b.onclick=()=>{ S.trend[b.dataset.ty]=b.dataset.tl; redo(); });
+  $$("[data-all]").forEach(b=>b.onclick=()=>{ years.forEach(y=>S.trend[y]=b.dataset.all); redo(); });
+  $$("[data-ser]").forEach(b=>b.onclick=()=>{ const k=b.dataset.ser; S.series[k]=!S.series[k]; if(!S.series.I&&!S.series.A&&!S.series.G) S.series[k]=true; redo(); });
+  $$("[data-tfa]").forEach(b=>b.onclick=()=>{ S.tf[b.dataset.tfa]=null; redo(); });
+  $$("[data-tfk]").forEach(b=>b.onclick=()=>{ const k=b.dataset.tfk, v=+b.dataset.tfv; const s=new Set(S.tf[k]||[]); s.has(v)? s.delete(v) : s.add(v); S.tf[k]=s.size? s : null; redo(); });
+  $("#tfClear").onclick=()=>{ S.tf={years:null,months:null,cats:null}; S.trend={}; S.trendNorm=null; redo(); };
+  $$("[data-pre]").forEach(b=>b.onclick=()=>{
+    const p=b.dataset.pre; S.tf={years:null,months:null,cats:null}; S.trendNorm=null;
+    if(p==="mes"){ years.forEach(y=>S.trend[y]="mes"); S.tf.months=new Set([cm]); }
+    if(p==="cat"){ years.forEach(y=>S.trend[y]="cat"); S.tf.cats=new Set([+cc.Num]); }
+    if(p==="ult2"){ S.tf.years=new Set([cy-1,cy]); S.trend[cy-1]="mes"; S.trend[cy]="mes"; }
+    if(p==="hist"){ years.forEach(y=>S.trend[y]="cat"); }
+    redo();
+  });
   $("#tN").onchange=e=>{ S.trendNorm=e.target.checked; S.trendSel=null; drawTrend(); };
   drawTrend();
 }
@@ -591,33 +666,31 @@ function drawTrend(){
   const box=$("#tChart"); if(!box) return;
   const pts=trendPoints(), n=pts.length;
   $("#tN").checked=!!S.trendNormOn; $("#tNnote").textContent = S.trendNorm==null&&S.trendNormOn? "(activado porque mezclas años, meses y catorcenas)" : "";
-  if(!n){ box.innerHTML='<div class="empty">Sin datos</div>'; return; }
+  if(!n){ box.innerHTML='<div class="empty">No hay datos con estos filtros.</div>'; $("#tInfo").innerHTML=""; return; }
+  const keys=["I","A","G"].filter(k=>S.series[k]), COL={I:"var(--pos)",A:"var(--primary)",G:"var(--neg)"};
   const W=Math.max(300, box.clientWidth||320), Hh=230, L=44, Rr=10, T=12, B=34;
-  const vals=pts.flatMap(p=>[p.I,p.A].concat(S.trendGasto?[p.G]:[]));
+  const vals=pts.flatMap(p=>keys.map(k=>p[k]));
   let mx_=Math.max(1,...vals), mn=Math.min(0,...vals);
   const step=Math.pow(10,Math.floor(Math.log10((mx_-mn)/4||1))); const nice=[1,2,2.5,5,10].map(k=>k*step).find(s=>(mx_-mn)/s<=4.5)||step*10;
   mx_=Math.ceil(mx_/nice)*nice; mn=Math.floor(mn/nice)*nice;
   const X=i=> n===1? (L+W-Rr)/2 : L+i*(W-L-Rr)/(n-1), Y=v=> T+(mx_-v)*(Hh-T-B)/(mx_-mn||1);
   const path=k=>pts.map((p,i)=>(i?"L":"M")+X(i).toFixed(1)+","+Y(p[k]).toFixed(1)).join("");
   let g=""; for(let v=mn; v<=mx_+1e-6; v+=nice){ g+=`<line x1="${L}" x2="${W-Rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" ${v===0?'stroke-width="1.5"':""}/><text x="${L-6}" y="${Y(v)+4}" text-anchor="end" font-size="10.5" fill="var(--muted)">${kfmt(v)}</text>`; }
-  let sep=""; pts.forEach((p,i)=>{ if(i===0||p.y!==pts[i-1].y){ const x=i===0? L : (X(i)+X(i-1))/2; if(i>0) sep+=`<line x1="${x}" x2="${x}" y1="${T}" y2="${Hh-B}" stroke="var(--muted)" stroke-dasharray="3 3" opacity=".5"/>`; sep+=`<text x="${x+3}" y="${T+10}" font-size="10.5" font-weight="700" fill="var(--muted)">${p.lvl==="anio"?"":p.y}</text>`; } });
+  let sep=""; pts.forEach((p,i)=>{ if(i===0||p.y!==pts[i-1].y){ const x=i===0? L : (X(i)+X(i-1))/2; if(i>0) sep+=`<line x1="${x}" x2="${x}" y1="${T}" y2="${Hh-B}" stroke="var(--muted)" stroke-dasharray="3 3" opacity=".5"/>`; if(p.lvl!=="anio" && pts.filter(q=>q.y===p.y).length>2) sep+=`<text x="${x+3}" y="${T+10}" font-size="10.5" font-weight="700" fill="var(--muted)">${p.y}</text>`; } });
   const every=Math.max(1,Math.ceil(n/6)); let xl="";
-  pts.forEach((p,i)=>{ if(i%every===0||i===n-1&&n<=8) xl+=`<text x="${X(i)}" y="${Hh-B+16}" text-anchor="middle" font-size="10.5" fill="var(--muted)">${esc(p.label)}</text>`; });
-  const dots = n<=40 ? pts.map((p,i)=>`<circle cx="${X(i)}" cy="${Y(p.I)}" r="2.6" fill="var(--pos)"/><circle cx="${X(i)}" cy="${Y(p.A)}" r="2.6" fill="var(--primary)"/>`).join("") : "";
+  pts.forEach((p,i)=>{ if(i%every===0) xl+=`<text x="${X(i)}" y="${Hh-B+16}" text-anchor="middle" font-size="10.5" fill="var(--muted)">${esc(p.label.replace(/ \(.*\)$/,""))}</text>`; });
+  const dots = n<=40 ? pts.map((p,i)=>keys.map(k=>`<circle cx="${X(i)}" cy="${Y(p[k])}" r="2.6" fill="${COL[k]}"/>`).join("")).join("") : "";
   const sel=S.trendSel==null||S.trendSel>=n? n-1 : S.trendSel, sp=pts[sel];
-  box.innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${Hh}" style="display:block;overflow:visible" role="img" aria-label="Tendencia de ingreso y ahorro">
+  box.innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${Hh}" style="display:block;overflow:visible" role="img" aria-label="Tendencia">
     ${g}${sep}
-    ${S.trendGasto?`<path d="${path("G")}" fill="none" stroke="var(--neg)" stroke-width="1.6" stroke-dasharray="4 3" stroke-linejoin="round"/>`:""}
-    <path d="${path("I")}" fill="none" stroke="var(--pos)" stroke-width="2.2" stroke-linejoin="round"/>
-    <path d="${path("A")}" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linejoin="round"/>
+    ${keys.map(k=>`<path d="${path(k)}" fill="none" stroke="${COL[k]}" stroke-width="2.2" stroke-linejoin="round" ${k==="G"&&keys.length>1?'stroke-dasharray="5 3"':""}/>`).join("")}
     ${dots}${xl}
     <line x1="${X(sel)}" x2="${X(sel)}" y1="${T}" y2="${Hh-B}" stroke="var(--ink)" opacity=".35"/>
-    <circle cx="${X(sel)}" cy="${Y(sp.I)}" r="4.5" fill="var(--pos)" stroke="var(--surface)" stroke-width="2"/>
-    <circle cx="${X(sel)}" cy="${Y(sp.A)}" r="4.5" fill="var(--primary)" stroke="var(--surface)" stroke-width="2"/>
+    ${keys.map(k=>`<circle cx="${X(sel)}" cy="${Y(sp[k])}" r="4.5" fill="${COL[k]}" stroke="var(--surface)" stroke-width="2"/>`).join("")}
   </svg>`;
   const tasa = sp.I? Math.round(sp.A/sp.I*100) : 0;
-  $("#tInfo").innerHTML = `<b>${esc(sp.lvl==="anio"? "Año "+sp.label : sp.lvl==="mes"? sp.label.replace(/ (\d\d)$/," 20$1") : "Catorcena "+sp.label.replace(/^C/,"").replace(/ (\d\d)$/," de 20$1"))}</b><br>
-    ${S.trendNormOn? '<span class="muted">Equivalente a 14 días · </span>':""}<span class="pos">Ingreso ${mx(sp.I)}</span> · <span style="color:var(--primary);font-weight:700">Ahorro ${mx(sp.A)} (${tasa}%)</span> · <span class="neg">Gasto ${mx(sp.G)}</span>`;
+  const nom = sp.lvl==="anio"? "Año "+sp.label : sp.lvl==="mes"? sp.label.replace(/ (\d\d)$/," 20$1") : "Catorcena "+sp.label.replace(/^C/,"").replace(/ (\d\d)$/," de 20$1");
+  $("#tInfo").innerHTML = `<b>${esc(nom)}</b><br>${S.trendNormOn? '<span class="muted">Equivalente a 14 días · </span>':""}<span class="neg">Gasto ${mx(sp.G)}</span> · <span class="pos priv">Ingreso ${mx(sp.I)}</span> · <span class="priv" style="color:var(--primary);font-weight:700">Ahorro ${mx(sp.A)} (${tasa}%)</span>`;
   const svg=box.querySelector("svg");
   const pick=ev=>{ const r=svg.getBoundingClientRect(); const x=(ev.clientX-r.left)*W/r.width; let i=n===1?0:Math.round((x-L)/((W-L-Rr)/(n-1))); i=Math.max(0,Math.min(n-1,i)); if(i!==S.trendSel){ S.trendSel=i; drawTrend(); } };
   svg.addEventListener("pointerdown",pick); svg.addEventListener("pointermove",e=>{ if(e.buttons||e.pointerType==="mouse") pick(e); });

@@ -1,6 +1,6 @@
 {
-  "name": "Finanzas de Casa",
-  "short_name": "Finanzas",
+  "name": "Finanzas RME",
+  "short_name": "Finanzas RME",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
