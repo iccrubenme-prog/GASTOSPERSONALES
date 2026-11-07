@@ -537,7 +537,7 @@ function rInicio(){
       ${(()=>{ const mc=metaCat(c), ay=ahorrosAnio(c.Anio), tot=totalDinero();
         return `<button class="card priv" id="goAhorro" style="text-align:left;gap:6px">
           <div class="between"><h2>Ahorro ${c.Anio}</h2><span class="small muted">Ver detalle ›</span></div>
-          <div class="between"><span class="muted small">Acumulado del año</span><b class="mid">${mx(ay.acum)}</b></div>
+          <div class="between"><span class="muted small">Acumulado del año</span><b class="mid">${mx(ay.total)}</b></div>
           <div class="between"><span class="muted small">Nueva meta por catorcena (${mc.rest} restantes)</span><b>${mx(mc.nuevo)}</b></div>
           <div class="between"><span class="muted small">Total de dinero</span><b>${mx(tot.T)}</b></div>
           <div class="small muted">${x.queda>0? "Sobrante del presupuesto "+mx(x.queda)+" · ":""}${x.E? "Extras "+mx(x.E)+" · ":""}${x.PR? "Prestaciones al fondo "+mx(x.PR):""}</div></button>`; })()}`;
@@ -832,10 +832,10 @@ function renderSub(){
     let acum=0; const serie=cs.map(k=>{ acum+=ahorroCat(k)||0; return {n:+k.Num, a:acum, m:M.base*(+k.Num)}; });
     const gf=[...ay.gfHist, ...ay.gfApp.map(m=>({Fecha:m.Fecha, Monto:m.Monto, Descripcion:m.Descripcion}))].sort((a,b)=>a.Fecha<b.Fecha?-1:1);
     el.innerHTML = `<div class="nav"><button id="ahPrev" aria-label="Año anterior">‹</button><b>${y}</b><button id="ahNext" aria-label="Año siguiente">›</button></div>
-      <div class="card hero priv"><div class="small muted">Ahorro acumulado ${y}</div><div class="big">${mx(ay.acum)}</div>
+      <div class="card hero priv"><div class="small muted">Ahorro acumulado ${y}</div><div class="big">${mx(ay.total)}</div>
         <div class="between small"><span>Ahorro de catorcenas</span><b>${mx(ay.AC)}</b></div>
         <div class="between small"><span>Fondo: prestaciones ${mx(ay.PR)} − gastos ${mx(ay.GF)}</span><b>${mx(ay.fondo)}</b></div>
-        <div class="between small" style="border-top:1px solid rgb(255 255 255 / .2);padding-top:6px"><span>Con ingresos extra (${mx(ay.EX)})</span><b>${mx(ay.total)}</b></div>
+        <div class="between small"><span>Ingresos extra (${esc(group(ay.ext,"Fuente").map(([k])=>k).join(", ")||"ninguno")})</span><b>${mx(ay.EX)}</b></div>
         ${M.total? `<div class="track"><div class="fill" style="width:${Math.min(100,ay.total/M.total*100)}%"></div></div><div class="between small muted"><span>Meta total ${mx(M.total)}</span><span>${ay.total>=M.total? "¡Meta cumplida!" : "Faltan "+mx(M.total-ay.total)}</span></div>`:""}</div>
       ${mc? `<div class="card priv"><h2>Meta de ahorro por catorcena</h2>
         <div class="between"><span class="muted">Meta ${y} (${mx(M.base)} × ${M.n})</span><b>${mx(M.meta)}</b></div>
