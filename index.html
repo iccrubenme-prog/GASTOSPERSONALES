@@ -308,8 +308,8 @@ async function apiGrande(fn, payload, extra, prog){
 }
 function avisoCarga(){
   let b=$("#avisoCarga");
-  if(!b){ b=document.createElement("div"); b.id="avisoCarga"; b.style.cssText="background:#fde8e6;color:#8a1f17;padding:10px 14px;font-size:13px;display:flex;gap:8px;align-items:flex-start"; $("#app").insertBefore(b,$("#scr")); }
-  b.innerHTML=`<span style="flex:1"><b>Mostrando la última copia guardada.</b> ${esc(S.errCarga||"")}</span><button class="btn sm" id="reintentar" style="background:#8a1f17;color:#fff">Reintentar</button>`;
+  if(!b){ b=document.createElement("div"); b.id="avisoCarga"; b.style.cssText="background:#fde8e6;color:#8a1f17;padding:10px 14px;font-size:13px;display:flex;flex-direction:column;gap:8px;overflow-wrap:anywhere"; $("#app").insertBefore(b,$("#scr")); }
+  b.innerHTML=`<span><b>Mostrando la última copia guardada.</b> ${esc(S.errCarga||"")}</span><button class="btn sm" id="reintentar" style="background:#8a1f17;color:#fff;align-self:flex-start">Reintentar</button>`;
   $("#reintentar").onclick=()=>{ b.remove(); $("#splash").classList.remove("hide"); load(); };
 }
 function pedirClave(msg){
