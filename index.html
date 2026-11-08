@@ -137,8 +137,32 @@ table.compacta th,table.compacta td{padding:6px 3px}
 .actions .btn{flex:1}
 #toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:12px;font-size:14px;z-index:30;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;text-align:center}
 #toast.on{opacity:1}
-#splash{position:fixed;inset:0;background:var(--primary);color:var(--primary-ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:40;font-weight:700;font-size:18px}
-#splash small{font-weight:400;opacity:.8;font-size:13px;max-width:280px;text-align:center}
+#splash{position:fixed;inset:0;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:40;padding:24px;
+  background:radial-gradient(120% 80% at 50% 0%, #4a58c9 0%, #2f3a8f 45%, #161c4d 100%);transition:opacity .45s ease, transform .45s ease}
+#splash.out{opacity:0;transform:scale(1.04);pointer-events:none}
+#splash small{font-weight:500;opacity:.85;font-size:13px;max-width:300px;text-align:center;min-height:1.2em}
+.sp-logo{filter:drop-shadow(0 10px 30px rgb(0 0 0 / .35));animation:spIn .7s cubic-bezier(.2,.9,.3,1.3) both}
+.sp-orbit{transform-origin:60px 60px;animation:spSpin 1.6s linear infinite}
+.sp-bar{transform-box:fill-box;transform-origin:bottom;animation:spGrow 1.4s ease-in-out infinite alternate}
+.sp-bar.b2{animation-delay:.2s}.sp-bar.b3{animation-delay:.4s}
+.sp-line{stroke-dasharray:70;stroke-dashoffset:70;animation:spDraw 1.4s .3s ease forwards}
+.sp-dot{animation:spPulse 1.4s 1.2s ease-in-out infinite}
+.sp-title{font-size:30px;font-weight:800;letter-spacing:-.02em;animation:spUp .6s .15s ease both}
+.sp-title span{background:linear-gradient(90deg,#ffd36e,#9fe3c0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sp-sub{font-size:14px;opacity:.8;margin-top:-6px;animation:spUp .6s .25s ease both}
+.sp-prog{width:240px;height:8px;border-radius:99px;background:rgb(255 255 255 / .16);overflow:hidden;margin-top:14px;animation:spUp .6s .35s ease both}
+.sp-fill{height:100%;width:4%;border-radius:99px;background:linear-gradient(90deg,#9fe3c0,#ffd36e);position:relative;transition:width .5s ease}
+.sp-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgb(255 255 255 / .6),transparent);animation:spShine 1.1s linear infinite}
+.sp-tip{font-size:12.5px;opacity:.7;max-width:280px;text-align:center;min-height:2.6em;transition:opacity .4s}
+#splash.listo .sp-prog,#splash.listo .sp-tip{display:none}
+@keyframes spSpin{to{transform:rotate(360deg)}}
+@keyframes spGrow{from{transform:scaleY(.45)}to{transform:scaleY(1)}}
+@keyframes spDraw{to{stroke-dashoffset:0}}
+@keyframes spPulse{0%,100%{r:4;opacity:1}50%{r:6;opacity:.6}}
+@keyframes spIn{from{opacity:0;transform:scale(.6) rotate(-20deg)}to{opacity:1;transform:none}}
+@keyframes spUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes spShine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.sp-orbit,.sp-bar,.sp-fill::after,.sp-dot{animation:none}.sp-line{stroke-dashoffset:0}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -226,6 +250,7 @@ table.compacta th,table.compacta td{padding:6px 3px}
     <input type="file" id="tkFile" accept="image/*" capture="environment" class="hide">
     <button type="button" class="btn" id="tkBtn" style="width:100%">📷 Escanear ticket</button>
     <div class="small muted" id="tkInfo">Toma foto al ticket y se llenan tienda, artículos y total.</div>
+    <div class="small priv" id="valesSaldo" style="font-weight:700"></div>
   </div>
   <div class="f hide" id="tkVer"><label>Artículos del ticket</label><div class="small" id="tkLista"></div></div>
   <div class="f"><label for="fNota">Nota</label><input id="fNota" placeholder="Opcional"></div>
@@ -233,7 +258,23 @@ table.compacta th,table.compacta td{padding:6px 3px}
   <div class="actions"><button type="button" class="btn danger hide" id="fDel">Eliminar</button><button type="button" class="btn" id="fAgain">Guardar y otro</button><button type="submit" class="btn primary">Guardar</button></div>
 </form>
 <div id="toast" role="status"></div>
-<div id="splash"><div>Finanzas RME</div><small id="splashMsg">Cargando tu historial…</small>
+<div id="splash"><div class="sp-logo" aria-hidden="true">
+    <svg viewBox="0 0 120 120" width="120" height="120">
+      <defs><linearGradient id="spg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9fb0ff"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs>
+      <circle cx="60" cy="60" r="54" fill="none" stroke="rgb(255 255 255 / .14)" stroke-width="3"/>
+      <circle class="sp-orbit" cx="60" cy="60" r="54" fill="none" stroke="url(#spg)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="70 270"/>
+      <circle cx="60" cy="60" r="40" fill="rgb(255 255 255 / .1)"/>
+      <rect class="sp-bar b1" x="38" y="58" width="10" height="22" rx="3" fill="#fff"/>
+      <rect class="sp-bar b2" x="55" y="46" width="10" height="34" rx="3" fill="#fff"/>
+      <rect class="sp-bar b3" x="72" y="36" width="10" height="44" rx="3" fill="#9fe3c0"/>
+      <path class="sp-line" d="M36 52 L52 42 L66 46 L86 28" fill="none" stroke="#ffd36e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle class="sp-dot" cx="86" cy="28" r="4" fill="#ffd36e"/>
+    </svg></div>
+  <div class="sp-title">Finanzas <span>RME</span></div>
+  <div class="sp-sub">Tu dinero, catorcena a catorcena</div>
+  <div class="sp-prog" role="progressbar" aria-label="Cargando" aria-valuemin="0" aria-valuemax="100"><div class="sp-fill" id="spFill"></div></div>
+  <small id="splashMsg">Cargando tu historial…</small>
+  <div class="sp-tip" id="spTip"></div>
   <form id="claveForm" class="hide" style="display:flex;flex-direction:column;gap:8px;width:260px">
     <div class="pw oculta" id="pwBox"><input id="claveIn" type="text" placeholder="Clave de acceso" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Clave de acceso"><span class="mask" id="pwMask"></span><button type="button" id="pwEye" aria-label="Mostrar clave"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <button class="btn" type="submit" style="background:#fff;color:#2f3a8f">Entrar</button>
@@ -313,17 +354,32 @@ function avisoCarga(){
   $("#reintentar").onclick=()=>{ b.remove(); $("#splash").classList.remove("hide"); load(); };
 }
 function pedirClave(msg){
-  $("#splash").classList.remove("hide"); $("#splashMsg").textContent = msg || "Escribe la clave de acceso de tu app.";
+  spStop(); $("#splash").classList.remove("hide"); $("#splash").classList.add("listo"); $("#splashMsg").textContent = msg || "Escribe la clave de acceso de tu app.";
   const f=$("#claveForm"); f.classList.remove("hide"); setTimeout(()=>$("#claveIn").focus(),100);
   f.onsubmit=ev=>{ ev.preventDefault(); const v=$("#claveIn").value.trim(); if(!v) return; S.claveNueva=true; if(claveGuardada()) store("fc_clave",v); else setClaveSesion(v); $("#claveIn").value=""; pwSync(); f.classList.add("hide"); load(); };
 }
 if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 
+/* ---- pantalla de entrada: avance y consejos ---- */
+const TIPS=["Toca + para registrar un gasto en segundos.","Escanea tus tickets de vales y se llenan los artículos solos.","El ojo de arriba oculta tus ingresos y ahorros si enseñas la app.","En Análisis toca una categoría para ver en qué se fue el dinero.","En Ahorros ves tu meta por catorcena y tu total de dinero."];
+let spT=null, spP=0, spTipT=null, spTipI=0;
+function spSet(p,msg){ spP=Math.max(spP,p); const f=$("#spFill"); if(f) f.style.width=spP+"%"; if(msg) $("#splashMsg").textContent=msg; }
+function spStart(){
+  const s=$("#splash"); s.classList.remove("hide","out","listo"); spP=0; spSet(6,"Conectando con tu hoja de Google…");
+  clearInterval(spT); spT=setInterval(()=>{ if(spP<82) spSet(spP+Math.max(1,(82-spP)*0.08), spP>35? "Leyendo tus movimientos…" : null); },300);
+  const tip=$("#spTip"); clearInterval(spTipT); spTipI=Math.floor(Math.random()*TIPS.length); tip.textContent=TIPS[spTipI];
+  spTipT=setInterval(()=>{ tip.style.opacity=0; setTimeout(()=>{ spTipI=(spTipI+1)%TIPS.length; tip.textContent=TIPS[spTipI]; tip.style.opacity=.7; },400); },3200);
+}
+function spStop(){ clearInterval(spT); clearInterval(spTipT); }
+function spDone(){
+  spStop(); spSet(100,"¡Listo!");
+  const s=$("#splash"); setTimeout(()=>{ s.classList.add("out"); setTimeout(()=>{ s.classList.add("hide"); s.classList.remove("out"); },460); },250);
+}
 /* ================= carga ================= */
 function load(){
-  $("#splashMsg").textContent = "Cargando tu historial…";
+  spStart();
   api("getData").then(d=>{
-    S.d = d; build(); $("#splash").classList.add("hide"); const av=$("#avisoCarga"); if(av) av.remove();
+    spSet(90,"Calculando catorcenas y ahorros…"); S.d = d; build(); spDone(); const av=$("#avisoCarga"); if(av) av.remove();
     $("#lastSync").textContent = "Última lectura: "+new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
     if(d.url) $("#sheetLink").href = d.url;
     render(); flush(); renderMas();
@@ -333,8 +389,8 @@ function load(){
     const cache = store("fc_cache");
     const msg = String(e&&e.message||e);
     S.errCarga = e&&e.srv ? "Tu hoja respondió con un error: "+msg : (navigator.onLine===false? "Sin señal" : "No se pudo contactar a Google ("+msg+")");
-    if(cache){ S.d=cache; build(); $("#splash").classList.add("hide"); render(); avisoCarga(); }
-    else $("#splashMsg").textContent = "No pude leer la hoja: "+(e&&e.message||e)+". Revisa tu conexión y vuelve a abrir la app.";
+    if(cache){ S.d=cache; build(); spDone(); render(); avisoCarga(); }
+    else { spStop(); $("#splash").classList.add("listo"); $("#splashMsg").textContent = "No pude leer la hoja: "+(e&&e.message||e)+". Revisa tu conexión y vuelve a abrir la app."; }
   });
 }
 function rowToObj(r){ const o={}; S.d.movH.forEach((h,i)=>o[h]=r[i]); o.Monto=+o.Monto||0; o.Fecha=String(o.Fecha).slice(0,10); return o; }
@@ -408,7 +464,7 @@ $("#salir").onclick=()=>{
   S.d=null; closeForm();
   try{ window.close(); }catch(e){}
   if(guardada){
-    $("#splash").classList.remove("hide"); $("#splashMsg").textContent="Saliste de la app. Tu clave sigue guardada en este teléfono.";
+    spStop(); $("#splash").classList.remove("hide"); $("#splash").classList.add("listo"); $("#splashMsg").textContent="Saliste de la app. Tu clave sigue guardada en este teléfono.";
     $("#claveForm").classList.add("hide");
     let r=$("#reentrar"); if(!r){ r=document.createElement("button"); r.id="reentrar"; r.className="btn"; r.style.cssText="background:#fff;color:#2f3a8f;width:260px"; r.textContent="Entrar"; $("#splash").appendChild(r); }
     r.classList.remove("hide"); r.onclick=()=>{ r.classList.add("hide"); load(); };
@@ -967,10 +1023,20 @@ function renderSub(){
     const vm=S.movs.filter(m=>(m.Tipo==="Ingreso"&&m.Fuente==="Vales de despensa")||(m.Tipo==="Gasto"&&m.Cuenta==="Vales de despensa"));
     const saldo=vm.reduce((s,m)=>s+(m.Tipo==="Ingreso"?m.Monto:-m.Monto),0);
     const meses=[]; for(let i=0;i<12;i++) meses.push(addMonth(S.hoy.slice(0,7),-i));
-    el.innerHTML = `<div class="card hero priv"><div class="small muted">Saldo calculado de vales</div><div class="big">${mx2(saldo)}</div><div class="small muted">Depósitos menos gastos registrados con la cuenta “Vales de despensa”.</div></div>
-      <div class="card"><h2>Últimos 12 meses</h2><div class="tbl"><table><thead><tr><th>Mes</th><th class="n">Depósito</th><th class="n">Gasto</th></tr></thead><tbody>
-      ${meses.map(ym=>{ const r=vm.filter(m=>m.Fecha.startsWith(ym)); return `<tr><td>${mLabel(ym)}</td><td class="n pos">${mx2(sum(r.filter(m=>m.Tipo==="Ingreso")))}</td><td class="n neg">${mx2(sum(r.filter(m=>m.Tipo==="Gasto")))}</td></tr>`; }).join("")}
-      </tbody></table></div></div>
+    const ymH=S.hoy.slice(0,7), mesAct=vm.filter(m=>m.Fecha.startsWith(ymH));
+    const depMes=sum(mesAct.filter(m=>m.Tipo==="Ingreso")), gasMes=sum(mesAct.filter(m=>m.Tipo==="Gasto"));
+    const ult=vm.filter(m=>m.Tipo==="Ingreso").sort((a,b)=>a.Fecha<b.Fecha?1:-1)[0];
+    const saldoAl = f => vm.filter(m=>m.Fecha<=f).reduce((s,m)=>s+(m.Tipo==="Ingreso"?m.Monto:-m.Monto),0);
+    const filas=meses.map(ym=>{ const r=vm.filter(m=>m.Fecha.startsWith(ym)); const d=sum(r.filter(m=>m.Tipo==="Ingreso")), g=sum(r.filter(m=>m.Tipo==="Gasto")); return {ym,d,g,dif:d-g,saldo:saldoAl(finMes(ym))}; });
+    const TD=filas.reduce((s,x)=>s+x.d,0), TG=filas.reduce((s,x)=>s+x.g,0);
+    el.innerHTML = `<div class="card hero priv"><div class="small muted">Saldo disponible en vales</div><div class="big" style="${saldo<0?"color:#ff9a90":""}">${mx2(saldo)}</div>
+        <div class="between small"><span>Depositado en ${MES[+ymH.slice(5)-1]}</span><b>${mx2(depMes)}</b></div>
+        <div class="between small"><span>Gastado en ${MES[+ymH.slice(5)-1]}</span><b>${mx2(gasMes)}</b></div>
+        <div class="small muted">${ult? "Último depósito: "+mx2(ult.Monto)+" el "+sDate(ult.Fecha)+" "+ult.Fecha.slice(0,4)+" · ":""}Saldo = depósitos − gastos pagados con “Vales de despensa”.</div></div>
+      <div class="card priv"><h2>Últimos 12 meses <span class="small muted">(pesos)</span></h2><div class="tbl"><table class="compacta" style="font-size:12px"><thead><tr><th>Mes</th><th class="n">Depósito</th><th class="n">Gasto</th><th class="n">Diferencia</th><th class="n">Saldo</th></tr></thead><tbody>
+      ${filas.map(x=>`<tr><td style="white-space:nowrap">${MES[+x.ym.slice(5)-1]} ${x.ym.slice(2,4)}</td><td class="n pos">${nmx(x.d)}</td><td class="n neg">${nmx(x.g)}</td><td class="n ${x.dif<0?"neg":"pos"}">${x.dif>0?"+":""}${nmx(x.dif)}</td><td class="n"><b>${nmx(x.saldo)}</b></td></tr>`).join("")}
+      <tr><td><b>Total</b></td><td class="n pos"><b>${nmx(TD)}</b></td><td class="n neg"><b>${nmx(TG)}</b></td><td class="n ${TD-TG<0?"neg":"pos"}"><b>${TD-TG>0?"+":""}${nmx(TD-TG)}</b></td><td></td></tr>
+      </tbody></table></div><div class="small muted">Diferencia = depósito − gasto del mes. Saldo = lo que quedaba al cierre de cada mes.</div></div>
       ${(()=>{ const desde=addMonth(S.hoy.slice(0,7),-5)+"-01"; const tk=(S.d.tickets||[]).filter(t=>t.Fecha>=desde); if(!tk.length) return `<div class="card"><h2>Artículos comprados con vales</h2><div class="empty">Escanea tus tickets al registrar un gasto con vales y aquí verás qué compras más.</div></div>`;
         const T=tk.reduce((s,t)=>s+(+t.Monto||0),0); const porArt=group(tk.map(t=>({Monto:+t.Monto, A:String(t.Articulo).toUpperCase()})),"A").slice(0,12); const porT=group(tk.map(t=>({Monto:+t.Monto,T:t.Tienda||"—"})),"T");
         return `<div class="card"><h2>Artículos comprados con vales <span class="small muted">(6 meses)</span></h2>${barsHTML(porArt,T)}</div><div class="card"><h2>Por tienda</h2>${barsHTML(porT,T)}</div>`; })()}
@@ -1213,6 +1279,7 @@ function tipo(t, keep){
     msi: t==="Gasto" && (ctaTipo==="Crédito"||ctaTipo==="Departamental") && !F.edit,
     vales: t==="Gasto" && ctaTipo==="Vales"};
   $$("#sheet [data-for]").forEach(el=>el.classList.toggle("hide", !show[el.dataset.for]));
+  if(show.vales){ const sv=S.movs.filter(m=>(m.Tipo==="Ingreso"&&m.Fuente===VALES)||(m.Tipo==="Gasto"&&m.Cuenta===VALES)).reduce((s,m)=>s+(m.Tipo==="Ingreso"?m.Monto:-m.Monto),0); $("#valesSaldo").textContent="Saldo disponible en vales: "+mx2(sv); }
   const L = {Gasto:["Pagado con",""], Ingreso:["","Entra a"], "Pago tarjeta":["Pagado desde","Tarjeta que pagas"], Transferencia:["Sale de","Llega a"], "Inversión":[$("#fInvM").value==="Retiro"?"Cuenta que recibe":"Sale de",""]}[t];
   if(L[0]) $("#fCtaL").textContent=L[0]; if(L[1]) $("#fDstL").textContent=L[1];
   $("#fCta").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Débito","Efectivo"] : null, cuenta);
