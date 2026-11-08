@@ -185,6 +185,11 @@ table.compacta th,table.compacta td{padding:6px 3px}
 .ddi button .dd-ic{width:26px;height:26px;border-radius:50%;font-size:14px}
 .ddi button.on{border-color:var(--primary);background:var(--primary);color:var(--primary-ink)}
 .ddi button.on .dd-ic{background:rgba(255,255,255,.25)}
+.f input.cp-hidden{position:absolute;opacity:0;pointer-events:none;height:0;min-height:0;padding:0;border:0;width:0}
+.dd .dd-card{width:44px;height:30px;border-radius:7px;flex:none;background:linear-gradient(135deg,var(--c1),var(--c2));display:grid;place-items:center;font-size:14px;box-shadow:0 2px 6px -2px rgba(0,0,0,.4)}
+.dd .dd-l small{display:block;font-weight:500;font-size:12px;color:var(--muted);margin-top:1px}
+#pk .cpick{gap:8px}
+#pk .pk-new{display:flex;align-items:center;gap:8px;width:100%;padding:12px;border-radius:14px;border:1.5px dashed var(--primary);color:var(--primary);font-weight:700;margin-bottom:10px;background:var(--primary-soft)}
 .f input,.f select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);min-height:44px}
 .f input.monto{font-size:30px;font-weight:800;padding:8px 12px;text-align:center}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -1369,7 +1374,7 @@ function tipo(t, keep){
   if(t==="Ingreso" && !dst){ const fu=$("#fFuente").value; dst = /vales/i.test(fu)? "Vales de despensa" : /tenate/i.test(fu)? "Efectivo" : (S.d.cuentas.find(c=>c.Tipo==="Débito")||{}).Cuenta; }
   $("#fDst").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Crédito","Departamental"] : null, LK.dst||dst, LK.dst);
   renderPicks();
-  $("#fSub").setAttribute("list","dlSub"); $("#dlSub").innerHTML = (S.cats[$("#fCat").value]||[]).map(s=>`<option value="${esc(s)}">`).join("");
+  $("#dlSub").innerHTML = (S.cats[$("#fCat").value]||[]).map(s=>`<option value="${esc(s)}">`).join("");
   $("#fVeh").innerHTML = (LK.veh?[LK.veh]:S.vehs).map(v=>`<button type="button" class="chip ${F.veh===v?"on":""}" data-v="${esc(v)}">${esc(v)}</button>`).join("");
   $$("#fVeh .chip").forEach(b=>b.onclick=()=>{ F.veh=b.dataset.v; tipo(F.t,true); });
   const q = t==="Gasto" ? Object.entries(S.freq).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k])=>S.mem[k]) : [];
@@ -1381,26 +1386,6 @@ const CP_COL=[[/banamex/i,"#d4243a","#7a0f1f"],[/^nu\b/i,"#9b3df0","#4b0d8c"],[/
  [/palacio/i,"#5b5548","#1d1a14"],[/sears/i,"#1f7fd1","#0b3f73"],[/vales/i,"#27a86a","#0d5c37"],[/fondo/i,"#e0a43a","#8a5a0c"],[/efectivo/i,"#3fae7c","#1b6b49"]];
 const CP_ICO={"Débito":"🏦","Crédito":"💳","Departamental":"🛍️","Vales":"🧺","Fondo":"🐷","Efectivo":"💵"};
 function cpCol(n,i){ for(const [re,a,b] of CP_COL) if(re.test(n)) return [a,b]; const p=[["#4f5bd5","#232a7a"],["#e0703a","#8a3410"],["#2a9bb0","#10525e"]]; return p[i%p.length]; }
-function renderPick(id){
-  const sel=$(id); if(!sel) return; sel.classList.add("cp-hidden");
-  let box=sel.nextElementSibling; if(!box||!box.classList.contains("cpick")){ box=document.createElement("div"); box.className="cpick"; sel.after(box); }
-  let sal={}; try{ sal=saldosCuentas(); }catch(e){}
-  let i=0; const v=sel.value;
-  box.innerHTML=[...sel.querySelectorAll("optgroup")].map(g=>{
-    const ops=[...g.querySelectorAll("option")];
-    return `<div class="cp-g">${esc(g.label)}</div><div class="cp-row">`+ops.map(o=>{
-      const n=o.value||o.textContent, c=S.cta[n]||{}, t=c.Tipo||g.label, [c1,c2]=cpCol(n,i++), s=sal[n]||0;
-      const cred=t==="Crédito"||t==="Departamental";
-      const sub= cred ? (s<0?"Debes "+mx(-s):"Sin saldo") : `<span class="priv">Disponible ${mx(s)}</span>`;
-      return `<button type="button" class="cp ${n===v?"on":""} ${ops.length===1?"wide":""}" data-cp="${esc(n)}" style="--c1:${c1};--c2:${c2}">
-        <div class="cp-top"><span class="cp-ico">${CP_ICO[t]||"💳"}</span><span class="cp-chk">${n===v?"✓":""}</span></div>
-        <div><div class="cp-n">${esc(n)}</div><div class="cp-s">${sub}</div></div></button>`;
-    }).join("")+`</div>`;
-  }).join("");
-  box.classList.toggle("has",!!v);
-  $$(".cp",box).forEach(b=>b.onclick=()=>{ if(navigator.vibrate) navigator.vibrate(8); sel.value=b.dataset.cp; sel.dispatchEvent(new Event("change")); renderPick(id); });
-}
-function renderPicks(){ renderPick("#fCta"); renderPick("#fDst"); }
 /* ===== Listas desplegables con estilo ===== */
 const DD_ICO=[
  [/^autos?$|gasolin|auto/i,"🚗"],[/ayuda|donativ/i,"🤝"],[/^comida/i,"🍽️"],[/comision|inter[eé]s/i,"🧾"],[/cuidado/i,"🧴"],[/deuda/i,"📉"],
@@ -1416,6 +1401,7 @@ function ddBg(t){ let h=0; for(const ch of t) h=(h*31+ch.charCodeAt(0))>>>0; con
 function ddTxt(sel,o){ const t=o.textContent.trim(); return sel.id==="fMsi" && /^\d+$/.test(t) ? t+" meses" : t; }
 function ddIcon(t,raw){ return `<span class="dd-ic" style="--ic-bg:${ddBg(raw||t)}">${ddIco(raw||t)}</span>`; }
 const CHEV='<svg class="dd-ch" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+const d0get=el=>Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").get.call(el);
 function ddSync(sel){
   const w=sel._dd; if(!w) return;
   if(w.inline){
@@ -1424,7 +1410,9 @@ function ddSync(sel){
     $$("button",w.el).forEach(b=>b.onclick=()=>ddPick(sel,b.dataset.v));
     return;
   }
-  const o=sel.options[sel.selectedIndex], ph=!o||o.value==="";
+  if(sel.tagName==="INPUT"){ const v=d0get(sel); w.el.innerHTML=(v?ddIcon(v,$("#fCat").value):`<span class="dd-ic" style="--ic-bg:var(--bg)">🏷️</span>`)+`<span class="dd-l ${v?"":"ph"}">${esc(v||"Opcional")}</span>`+CHEV; return; }
+  if(w.cards){ w.el.innerHTML=cardTrigger(sel); return; }
+  const o=sel.options[sel.selectedIndex], ph=!o||(o.value===""&&/elige/i.test(o.textContent));
   const t=o?o.textContent.trim():"Elige…";
   w.el.innerHTML=(ph?`<span class="dd-ic" style="--ic-bg:var(--bg)">🔎</span>`:ddIcon(t))+`<span class="dd-l ${ph?"ph":""}">${esc(ph?"Elige una opción":ddTxt(sel,o))}</span>`+CHEV;
 }
@@ -1434,10 +1422,10 @@ function ddEnhance(sel,inline){
   const el=document.createElement(inline?"div":"button"); if(!inline){ el.type="button"; el.className="dd"; } else el.className="ddi";
   sel.after(el); sel._dd={el,inline};
   const lab=sel.closest(".f")?.querySelector("label"); if(lab) lab.onclick=e=>{ e.preventDefault(); if(!inline) el.click(); };
-  if(!inline) el.onclick=()=>ddOpen(sel);
-  const d=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value");
+  if(!inline) el.onclick=()=>{ if(sel.tagName==="INPUT") subOpen(); else if(sel._dd.cards) ddSheet(sel.closest(".f")?.querySelector("label")?.textContent||"Cuenta", false, ()=>cardsHTML(sel), v=>ddPick(sel,v), sel._dd); else ddOpen(sel); };
+  const d=Object.getOwnPropertyDescriptor(sel.tagName==="INPUT"?HTMLInputElement.prototype:HTMLSelectElement.prototype,"value");
   Object.defineProperty(sel,"value",{configurable:true,get(){return d.get.call(this);},set(v){d.set.call(this,v); ddSync(this);}});
-  new MutationObserver(()=>ddSync(sel)).observe(sel,{childList:true,subtree:true});
+  if(sel.tagName!=="INPUT") new MutationObserver(()=>ddSync(sel)).observe(sel,{childList:true,subtree:true});
   ddSync(sel);
 }
 function ddOpen(sel){
@@ -1446,7 +1434,7 @@ function ddOpen(sel){
     $("#pkScrim").onclick=ddClose; $(".pk-x",pk).onclick=ddClose; }
   const lab=sel.closest(".f")?.querySelector("label")?.textContent||"Elige";
   $(".pk-h b",pk).textContent=lab;
-  const opts=[...sel.options].filter(o=>o.value!==""), srch=$(".pk-s",pk);
+  const opts=[...sel.options].filter(o=>o.value!==""||!/elige/i.test(o.textContent)), srch=$(".pk-s",pk);
   srch.style.display=opts.length>9?"":"none"; srch.value="";
   const pintar=q=>{
     const n=x=>norm(x);
@@ -1457,11 +1445,66 @@ function ddOpen(sel){
     $$(".pk-t",pk).forEach(b=>b.onclick=()=>{ ddPick(sel,b.dataset.v); ddClose(); });
   };
   srch.oninput=()=>pintar(srch.value); pintar("");
-  sel._dd.el.classList.add("open"); pk._sel=sel;
+  sel._dd.el.classList.add("open"); pk._trig=sel._dd;
   $("#pkScrim").classList.add("on"); requestAnimationFrame(()=>pk.classList.add("on"));
 }
-function ddClose(){ const pk=$("#pk"); if(!pk) return; pk.classList.remove("on"); $("#pkScrim").classList.remove("on"); if(pk._sel) pk._sel._dd.el.classList.remove("open"); }
+function ddClose(){ const pk=$("#pk"); if(!pk) return; pk.classList.remove("on"); $("#pkScrim").classList.remove("on"); if(pk._trig) pk._trig.el.classList.remove("open"); }
 ["#fCat","#fFuente","#fIns","#fInvM","#fMsi"].forEach(s=>ddEnhance($(s),false));
+$("#fSub").removeAttribute("list"); ddEnhance($("#fSub"),false);
+/* ===== Cuentas y subcategoría como desplegables ===== */
+function cardsHTML(sel){
+  let sal={}; try{ sal=saldosCuentas(); }catch(e){}
+  let i=0; const v=sel.value;
+  return '<div class="cpick">'+[...sel.querySelectorAll("optgroup")].map(g=>{
+    const ops=[...g.querySelectorAll("option")];
+    return `<div class="cp-g">${esc(g.label)}</div><div class="cp-row">`+ops.map(o=>{
+      const n=o.value||o.textContent, c=S.cta[n]||{}, t=c.Tipo||g.label, [c1,c2]=cpCol(n,i++), s=sal[n]||0;
+      const cred=t==="Crédito"||t==="Departamental";
+      const sub= cred ? (s<0?"Debes "+mx(-s):"Sin saldo") : `<span class="priv">Disponible ${mx(s)}</span>`;
+      return `<button type="button" class="cp ${n===v?"on":""} ${ops.length===1?"wide":""}" data-cp="${esc(n)}" style="--c1:${c1};--c2:${c2}">
+        <div class="cp-top"><span class="cp-ico">${CP_ICO[t]||"💳"}</span><span class="cp-chk">${n===v?"✓":""}</span></div>
+        <div><div class="cp-n">${esc(n)}</div><div class="cp-s">${sub}</div></div></button>`;
+    }).join("")+`</div>`;
+  }).join("")+'</div>';
+}
+function cardTrigger(sel){
+  const o=sel.options[sel.selectedIndex], n=o&&o.value;
+  if(!n) return `<span class="dd-ic" style="--ic-bg:var(--bg)">💳</span><span class="dd-l ph">Elige una cuenta</span>`+CHEV;
+  let sal={}; try{ sal=saldosCuentas(); }catch(e){}
+  const all=[...sel.options].filter(x=>x.value), idx=all.indexOf(o), c=S.cta[n]||{}, t=c.Tipo||"", [c1,c2]=cpCol(n,idx), s=sal[n]||0;
+  const cred=t==="Crédito"||t==="Departamental";
+  const sub= cred ? (s<0?"Debes "+mx(-s):"Sin saldo") : `<span class="priv">Disponible ${mx(s)}</span>`;
+  return `<span class="dd-card" style="--c1:${c1};--c2:${c2}">${CP_ICO[t]||"💳"}</span><span class="dd-l">${esc(n)}<small>${sub}</small></span>`+CHEV;
+}
+function renderPick(id){
+  const sel=$(id); if(!sel) return;
+  if(!sel._dd){ ddEnhance(sel,false); sel._dd.cards=true; }
+  ddSync(sel);
+}
+function renderPicks(){ renderPick("#fCta"); renderPick("#fDst"); }
+function subOpen(){
+  const inp=$("#fSub"), list=S.cats[$("#fCat").value]||[];
+  ddSheet("Subcategoría", true, q=>{
+    const n=x=>norm(x), l=list.filter(s=>!q||n(s).includes(n(q)));
+    const nuevo= q && !list.some(s=>n(s)===n(q)) ? `<button type="button" class="pk-new" data-v="${esc(q)}">＋ Usar “${esc(q)}”</button>` : "";
+    const quitar= inp.value ? `<button type="button" class="pk-t" data-v=""><span class="dd-ic" style="--ic-bg:var(--bg)">✕</span><span>Sin subcategoría</span></button>` : "";
+    return nuevo+`<div class="pk-grid">${l.map(s=>`<button type="button" class="pk-t ${s===inp.value?"on":""}" data-v="${esc(s)}">${ddIcon(s,$("#fCat").value)}<span>${esc(s)}</span></button>`).join("")}${quitar}</div>`
+      + (!l.length&&!nuevo ? '<div class="empty">Escribe arriba para crear una subcategoría</div>' : "");
+  }, v=>{ inp.value=v; }, inp._dd);
+}
+function ddSheet(title, search, body, onPick, trig){
+  let pk=$("#pk");
+  if(!pk){ document.body.insertAdjacentHTML("beforeend",'<div id="pkScrim"></div><div id="pk" role="dialog" aria-modal="true"><div class="pk-grab"></div><div class="pk-h"><b></b><button type="button" class="pk-x" aria-label="Cerrar">✕</button></div><input class="pk-s" type="search" placeholder="Buscar…"><div class="pk-b"></div></div>'); pk=$("#pk");
+    $("#pkScrim").onclick=ddClose; $(".pk-x",pk).onclick=ddClose; }
+  $(".pk-h b",pk).textContent=title;
+  const srch=$(".pk-s",pk); srch.style.display=search?"":"none"; srch.value="";
+  srch.placeholder = title==="Subcategoría" ? "Buscar o escribir nueva…" : "Buscar…";
+  const pintar=q=>{ $(".pk-b",pk).innerHTML=body(q);
+    $$("[data-v],[data-cp]",$(".pk-b",pk)).forEach(b=>b.onclick=()=>{ if(navigator.vibrate) navigator.vibrate(8); onPick(b.dataset.cp!==undefined?b.dataset.cp:b.dataset.v); ddClose(); }); };
+  srch.oninput=()=>pintar(srch.value.trim()); pintar("");
+  if(trig) trig.el.classList.add("open"); pk._trig=trig;
+  $("#pkScrim").classList.add("on"); requestAnimationFrame(()=>pk.classList.add("on"));
+}
 function applyMem(m, setDesc){
   if(!m) return;
   if(setDesc) $("#fDesc").value=m.Descripcion;
