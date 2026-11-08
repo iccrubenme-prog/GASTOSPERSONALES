@@ -103,6 +103,7 @@ th,td{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}
 th{font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase}
 td.n,th.n{text-align:right;white-space:nowrap}
 .tbl{overflow-x:auto}
+table.compacta th,table.compacta td{padding:6px 3px}
 .search{width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
 .menu .item{padding:14px 4px}
 .menu .item .arrow{color:var(--muted);font-size:18px}
@@ -241,6 +242,7 @@ const MESL = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto",
 const $ = (s,r=document)=>r.querySelector(s), $$ = (s,r=document)=>[...r.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const mx = n => (n<0?"−$":"$") + Math.abs(Math.round(n||0)).toLocaleString("es-MX");
+const nmx = n => Math.round(n||0).toLocaleString("es-MX");
 const mx2 = n => ((+n||0)<0?"−$":"$") + Math.abs(+n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2});
 const norm = s => String(s??"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g," ").trim();
 const pad = n => String(n).padStart(2,"0");
@@ -480,11 +482,41 @@ function itemHTML(m){
 }
 function pendIds(){ return new Set(pend().filter(p=>p.op==="save").map(p=>p.o.ID)); }
 function bindItems(root){ $$("[data-id]",root).forEach(b=>b.onclick=()=>{ const m=S.byId[b.dataset.id]; if(m) openForm(m); }); }
-function barsHTML(rows,total,budget){
+function barsHTML(rows,total,budget,drill){
   const max=Math.max(1,...rows.map(r=>Math.max(r[1], budget?.[r[0]]||0)));
   return `<div class="bars">${rows.map(([k,v])=>{ const b=budget?.[k]; const over=b&&v>b;
-    return `<div class="bar-r"><div class="between"><span>${esc(k)}</span><span class="${over?"neg":""}">${mx(v)}${b?` <span class="muted small">/ ${mx(b)}</span>`:total?` <span class="muted small">${Math.round(v/total*100)}%</span>`:""}</span></div>
-    <div class="track"><div class="fill" style="width:${v/max*100}%;${over?"background:var(--neg)":""}"></div>${b?`<span class="mark" style="left:${b/max*100}%"></span>`:""}</div></div>`; }).join("")}</div>`;
+    return `<${drill?`button type="button" data-drill="${esc(drill)}" data-k="${esc(k)}" style="text-align:left;width:100%"`:"div"} class="bar-r"><div class="between"><span>${esc(k)}${drill?' <span class="muted small">›</span>':""}</span><span class="${over?"neg":""}">${mx(v)}${b?` <span class="muted small">/ ${mx(b)}</span>`:total?` <span class="muted small">${Math.round(v/total*100)}%</span>`:""}</span></div>
+    <div class="track"><div class="fill" style="width:${v/max*100}%;${over?"background:var(--neg)":""}"></div>${b?`<span class="mark" style="left:${b/max*100}%"></span>`:""}</div></${drill?"button":"div"}>`; }).join("")}</div>`;
+}
+/* ---- zoom: detalle de una categoría, medio de pago o descripción ---- */
+S.drill = {};
+function setDrill(key, rows, titulo){ S.drill[key]={rows, titulo}; return key; }
+function setDrillCampo(key, rows, titulo, campo){ S.drill[key]={rows, titulo, campo}; return key; }
+function setDrillFn(key, rows, titulo, fn){ S.drill[key]={rows, titulo, fn, campo:"Medio"}; return key; }
+function medioPago(m){ return m.Cuenta ? (S.cta[m.Cuenta]?.Tipo||m.Cuenta) : "Sin medio (histórico)"; }
+document.addEventListener("click", e=>{
+  const b=e.target.closest("[data-drill]"); if(!b) return;
+  const D=S.drill[b.dataset.drill]; if(!D) return;
+  const k=b.dataset.k, campo=D.campo||"Categoria";
+  const rows=D.rows.filter(m=> (D.fn? D.fn(m) : (m[campo]||"—"))===k);
+  abrirZoom(k, D.titulo, rows, campo);
+});
+function abrirZoom(k, titulo, rows, campo){
+  const T=sum(rows), subs=group(rows, m=>m.Subcategoria||"Sin subcategoría"), desc=group(rows, m=>m.Descripcion||"—").slice(0,10);
+  const meses=group(rows, m=>m.Fecha.slice(0,7)).sort((a,b)=>a[0]<b[0]?-1:1);
+  const box=document.createElement("div");
+  box.style.cssText="position:fixed;inset:0;background:rgb(8 10 20 / .5);display:flex;align-items:flex-end;z-index:44";
+  box.innerHTML=`<div class="sheet on" style="position:relative;transform:none;max-height:90%">
+    <div class="grab"></div><div class="between"><span><h2 style="margin:0;font-size:18px">${esc(k)}</h2><div class="small muted">${esc(titulo)} · ${rows.length} gastos</div></span><button type="button" class="btn sm" data-x>Cerrar</button></div>
+    <div class="between"><span class="muted">Total</span><b class="mid neg">${mx(T)}</b></div>
+    ${campo==="Categoria" && subs.length>1? `<div class="card"><h2>Por subcategoría</h2>${barsHTML(subs,T)}</div>`:""}
+    ${campo!=="Descripcion"? `<div class="card"><h2>En qué se fue más</h2>${barsHTML(desc,T)}</div>`:""}
+    ${meses.length>1? `<div class="card"><h2>Por mes</h2>${barsHTML(meses.map(([ym,v])=>[mLabel(ym),v]),T)}</div>`:""}
+    <div class="card" style="padding:4px 12px"><div class="list">${rows.slice(0,60).map(itemHTML).join("")}</div>${rows.length>60? `<div class="small muted" style="padding:8px 0">Se muestran 60 de ${rows.length}.</div>`:""}</div></div>`;
+  document.body.appendChild(box);
+  box.querySelector("[data-x]").onclick=()=>box.remove();
+  box.addEventListener("click",ev=>{ if(ev.target===box) box.remove(); });
+  $$("[data-id]",box).forEach(b=>b.onclick=()=>{ const m=S.byId[b.dataset.id]; if(m){ box.remove(); openForm(m); } });
 }
 function effects(m){
   const v=m.Monto, o=[];
@@ -527,7 +559,7 @@ function rInicio(){
   if(c){
     const x=catRes(c), p=x.P? x.G/x.P : 0, dias=Math.max(0,daysBetween(h,c.Fin)+1);
     hero=`<div class="card hero"><div class="between"><span class="small muted">${esc(catLabel(c))}</span><span class="small muted" style="white-space:nowrap">${dias===1? "Último día" : "Quedan "+dias+" días"}</span></div>
-      <div><div class="small muted">Queda del presupuesto</div><div class="big">${mx(x.queda)}</div></div>
+      <div><div class="small muted">${x.queda<0?"Te pasaste del presupuesto":"Queda del presupuesto"}</div><div class="big" style="${x.queda<0?"color:#ff9a90":""}">${mx(x.queda)}</div></div>
       <div class="track"><div class="fill" style="width:${Math.min(100,p*100)}%"></div></div>
       <div class="between small"><span>Gastado ${mx(x.Gord)} de ${mx(x.P)}${x.GF? " (+"+mx(x.GF)+" del fondo)":""}</span><span>${dias>0&&x.queda>0? "Puedes "+mx(x.queda/dias)+"/día" : x.queda<=0? "Presupuesto agotado" : ""}</span></div>
       ${ritmoHTML(c,x)}</div>`;
@@ -754,21 +786,21 @@ function anCat(){
      ${x.E? `<div class="between"><span>Ingresos extra</span><b class="pos">${mx(x.E)}</b></div><div class="small muted">${esc(group(x.ext,"Fuente").map(([k,v])=>k+" "+mx(v)).join(" · "))}</div>`:""}
      ${x.valesG? `<div class="between small muted"><span>Gastado con vales (fuera del presupuesto)</span><span>${mx(x.valesG)}</span></div>`:""}</div>
    <button class="btn" id="planBtn">Editar plan de esta catorcena</button>
-   <div class="card"><h2>Por categoría</h2>${x.gas.length? barsHTML(group(x.gas,"Categoria"),x.G) : '<div class="empty">Sin gastos</div>'}</div>
-   <div class="card"><h2>En qué se fue más</h2>${x.gas.length? barsHTML(top,x.G) : '<div class="empty">Sin gastos</div>'}</div>`;
+   <div class="card"><h2>Por categoría</h2><div class="small muted">Toca una categoría para ver el detalle.</div>${x.gas.length? barsHTML(group(x.gas,"Categoria"),x.G,null,setDrill("cat",x.gas,"Catorcena "+(+c.Num))) : '<div class="empty">Sin gastos</div>'}</div>
+   <div class="card"><h2>En qué se fue más</h2>${x.gas.length? barsHTML(top,x.G,null,setDrillCampo("catd",x.gas,"Catorcena "+(+c.Num),"Descripcion")) : '<div class="empty">Sin gastos</div>'}</div>`;
   $("#planBtn").onclick=()=>planForm(c, ()=>rAnal());
 }
 function anMes(){
   const ym=S.anMes, mes=inMonth(ym), gas=mes.filter(m=>m.Tipo==="Gasto"), G=sum(gas), I=sum(mes.filter(m=>m.Tipo==="Ingreso"));
   const prev=sum(inMonth(addMonth(ym,-1)).filter(m=>m.Tipo==="Gasto"));
   const bud=presupuesto(ym);
-  const porTipo = group(gas, m=> m.Cuenta ? (S.cta[m.Cuenta]?.Tipo||m.Cuenta) : "Sin medio (histórico)");
+  const porTipo = group(gas, medioPago);
   const top = group(gas, m=>m.Descripcion||"—").slice(0,8);
   $("#anBody").innerHTML = `
    <div class="kpis"><div class="kpi"><div class="l">Ingresos</div><div class="v pos priv">${mx(I)}</div></div><div class="kpi"><div class="l">Gastos</div><div class="v neg">${mx(G)}</div></div><div class="kpi"><div class="l">vs mes ant.</div><div class="v ${G>prev?"neg":"pos"}">${prev? (G>=prev?"+":"")+Math.round((G-prev)/prev*100)+"%":"—"}</div></div></div>
-   <div class="card"><h2>Por categoría</h2><div class="small muted">La línea marca el presupuesto del mes.</div>${gas.length? barsHTML(group(gas,"Categoria"),G,bud) : '<div class="empty">Sin gastos</div>'}</div>
-   <div class="card"><h2>¿Con qué se pagó?</h2>${gas.length? barsHTML(porTipo,G) : '<div class="empty">Sin gastos</div>'}</div>
-   <div class="card"><h2>En qué se fue más</h2>${gas.length? barsHTML(top,G) : '<div class="empty">Sin gastos</div>'}</div>`;
+   <div class="card"><h2>Por categoría</h2><div class="small muted">La línea marca el presupuesto del mes. Toca una categoría para ver el detalle.</div>${gas.length? barsHTML(group(gas,"Categoria"),G,bud,setDrill("mes",gas,mLabel(ym))) : '<div class="empty">Sin gastos</div>'}</div>
+   <div class="card"><h2>¿Con qué se pagó?</h2>${gas.length? barsHTML(porTipo,G,null,setDrillFn("mesp",gas,mLabel(ym),medioPago)) : '<div class="empty">Sin gastos</div>'}</div>
+   <div class="card"><h2>En qué se fue más</h2>${gas.length? barsHTML(top,G,null,setDrillCampo("mesd",gas,mLabel(ym),"Descripcion")) : '<div class="empty">Sin gastos</div>'}</div>`;
 }
 function anAnio(){
   const y=S.anAnio, ys=String(y), yp=String(y-1);
@@ -778,15 +810,19 @@ function anAnio(){
   cur.forEach(m=>{ const k=+m.Fecha.slice(5,7)-1; if(m.Tipo==="Ingreso") mi[k]+=m.Monto; else if(m.Tipo==="Gasto") mg[k]+=m.Monto; });
   const max=Math.max(1,...mi,...mg);
   const gc=group(cur.filter(m=>m.Tipo==="Gasto"),"Categoria"), gp=Object.fromEntries(group(prv.filter(m=>m.Tipo==="Gasto"),"Categoria"));
-  const G=sum(cur.filter(m=>m.Tipo==="Gasto")), GP=sum(prv.filter(m=>m.Tipo==="Gasto")), I=sum(cur.filter(m=>m.Tipo==="Ingreso"));
+  const gasY=cur.filter(m=>m.Tipo==="Gasto"), G=sum(gasY), GP=sum(prv.filter(m=>m.Tipo==="Gasto")), I=sum(cur.filter(m=>m.Tipo==="Ingreso"));
   $("#anBody").innerHTML = `
    <div class="kpis"><div class="kpi"><div class="l">Ingresos</div><div class="v pos priv">${mx(I)}</div></div><div class="kpi"><div class="l">Gastos</div><div class="v neg">${mx(G)}</div></div><div class="kpi"><div class="l">Ahorro</div><div class="v priv">${I? Math.round((I-G)/I*100)+"%":"—"}</div></div></div>
    <div class="card priv"><h2>Mes a mes</h2><div class="months">${mi.map((v,i)=>`<div class="mcol"><span style="height:${v/max*100}%;background:var(--pos)"></span><span style="height:${mg[i]/max*100}%;background:var(--neg)"></span></div>`).join("")}</div>
      <div class="mlab">${MES.map(m=>`<span>${m}</span>`).join("")}</div><div class="legend"><span><i style="background:var(--pos)"></i>Ingresos</span><span><i style="background:var(--neg)"></i>Gastos</span></div></div>
    <div class="card"><h2>Categorías vs ${yp}</h2><div class="small muted">${lastM<12? "Comparado contra ene–"+MES[lastM-1]+" de "+yp : "Año completo"}</div>
      <div class="tbl"><table><thead><tr><th>Categoría</th><th class="n">${ys}</th><th class="n">${yp}</th><th class="n">Var.</th></tr></thead><tbody>
-     ${gc.map(([k,v])=>{ const p=gp[k]||0; const d=p? (v-p)/p : null; return `<tr><td>${esc(k)}</td><td class="n">${mx(v)}</td><td class="n muted">${mx(p)}</td><td class="n ${d>0?"neg":"pos"}">${d==null?"—":(d>0?"+":"")+Math.round(d*100)+"%"}</td></tr>`; }).join("")}
-     <tr><td><b>Total</b></td><td class="n"><b>${mx(G)}</b></td><td class="n muted">${mx(GP)}</td><td class="n ${G>GP?"neg":"pos"}">${GP?(G>GP?"+":"")+Math.round((G-GP)/GP*100)+"%":"—"}</td></tr></tbody></table></div></div>`;
+     ${gc.map(([k,v])=>{ const p=gp[k]||0; const d=p? (v-p)/p : null; return `<tr data-catk="${esc(k)}" style="cursor:pointer"><td>${esc(k)} <span class="muted small">›</span></td><td class="n">${mx(v)}</td><td class="n muted">${mx(p)}</td><td class="n ${d>0?"neg":"pos"}">${d==null?"—":(d>0?"+":"")+Math.round(d*100)+"%"}</td></tr>`; }).join("")}
+     <tr><td><b>Total</b></td><td class="n"><b>${mx(G)}</b></td><td class="n muted">${mx(GP)}</td><td class="n ${G>GP?"neg":"pos"}">${GP?(G>GP?"+":"")+Math.round((G-GP)/GP*100)+"%":"—"}</td></tr></tbody></table></div></div>
+   <div class="card"><h2>Por categoría</h2><div class="small muted">Toca una categoría para ver el detalle.</div>${gasY.length? barsHTML(gc,G,null,setDrill("anio",gasY,"Año "+ys)) : '<div class="empty">Sin gastos</div>'}</div>
+   <div class="card"><h2>¿Con qué se pagó?</h2>${gasY.length? barsHTML(group(gasY,medioPago),G,null,setDrillFn("aniop",gasY,"Año "+ys,medioPago)) : '<div class="empty">Sin gastos</div>'}</div>
+   <div class="card"><h2>En qué se fue más</h2>${gasY.length? barsHTML(group(gasY,m=>m.Descripcion||"—").slice(0,10),G,null,setDrillCampo("aniod",gasY,"Año "+ys,"Descripcion")) : '<div class="empty">Sin gastos</div>'}</div>`;
+  $$("#anBody tr[data-catk]").forEach(tr=>tr.onclick=()=>abrirZoom(tr.dataset.catk,"Año "+ys,gasY.filter(m=>m.Categoria===tr.dataset.catk),"Categoria"));
 }
 function anIng(){
   const ys=String(S.anAnio), ing=S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fecha.startsWith(ys)), I=sum(ing);
@@ -794,10 +830,10 @@ function anIng(){
   const rows=cats.map(c=>Object.assign({c},catRes(c)));
   $("#anBody").innerHTML = `
    <div class="card priv"><div class="between"><h2>Ingresos ${ys}</h2><span class="mid pos">${mx(I)}</span></div>${ing.length? barsHTML(group(ing,"Fuente"),I) : '<div class="empty">Sin ingresos</div>'}</div>
-   <div class="card priv"><h2>Catorcenas ${ys}</h2><div class="small muted">Gasto sin vales de despensa, como en tu control por catorcena.</div>
-    <div class="tbl"><table style="font-size:12px"><thead><tr><th>#</th><th>Periodo</th><th class="n">Ppto</th><th class="n">Gasto</th><th class="n">Dif.</th><th class="n">Ahorro</th></tr></thead><tbody>
-    ${rows.map(x=>`<tr data-cat="${esc(x.c.ID)}"><td>${+x.c.Num}</td><td style="white-space:nowrap">${dm2(x.c.Inicio)}–${dm2(x.c.Fin)}</td><td class="n muted">${mx(x.P)}</td><td class="n">${mx(x.G)}</td><td class="n ${x.queda<0?"neg":"pos"}">${mx(x.queda)}</td><td class="n">${mx(x.ahorro)}</td></tr>`).join("") || '<tr><td colspan="6" class="muted">Sin catorcenas</td></tr>'}
-    <tr><td></td><td><b>Total</b></td><td class="n muted">${mx(rows.reduce((a,x)=>a+x.P,0))}</td><td class="n"><b>${mx(rows.reduce((a,x)=>a+x.G,0))}</b></td><td class="n">${mx(rows.reduce((a,x)=>a+x.queda,0))}</td><td class="n"><b>${mx(rows.reduce((a,x)=>a+x.ahorro,0))}</b></td></tr>
+   <div class="card priv"><h2>Catorcenas ${ys} <span class="small muted">(pesos)</span></h2><div class="small muted">Ingreso = nómina + prestaciones + extras del periodo (sin vales). Gasto sin vales; en rojo si el gasto ordinario pasó el presupuesto. Toca un renglón para abrir la catorcena.</div>
+    <div class="tbl"><table class="compacta" style="font-size:11.5px"><thead><tr><th>Cat.</th><th class="n">Ingreso</th><th class="n">Ppto</th><th class="n">Gasto</th><th class="n">Ahorro</th></tr></thead><tbody>
+    ${rows.map(x=>`<tr data-cat="${esc(x.c.ID)}"><td><b>${+x.c.Num}</b><div class="muted" style="font-size:10.5px;white-space:nowrap">${dm2(x.c.Inicio)}–${dm2(x.c.Fin)}</div></td><td class="n pos">${nmx(x.N+x.E+x.PR)}</td><td class="n muted">${nmx(x.P)}</td><td class="n ${x.Gord>x.P?"neg":""}">${nmx(x.G)}</td><td class="n">${nmx(x.ahorro)}</td></tr>`).join("") || '<tr><td colspan="5" class="muted">Sin catorcenas</td></tr>'}
+    <tr><td><b>Total</b></td><td class="n pos"><b>${nmx(rows.reduce((a,x)=>a+x.N+x.E+x.PR,0))}</b></td><td class="n muted">${nmx(rows.reduce((a,x)=>a+x.P,0))}</td><td class="n"><b>${nmx(rows.reduce((a,x)=>a+x.G,0))}</b></td><td class="n"><b>${nmx(rows.reduce((a,x)=>a+x.ahorro,0))}</b></td></tr>
     </tbody></table></div></div>`;
 }
 document.addEventListener("click",e=>{ const tr=e.target.closest("tr[data-cat]"); if(!tr) return; S.anCat=tr.dataset.cat; S.an="cat"; $$("#anSeg button").forEach(x=>x.classList.toggle("on",x.dataset.a==="cat")); rAnal(); $("#scr").scrollTop=0; });
