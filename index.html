@@ -557,14 +557,15 @@ const perKey = p => String(p.Periodo)==="BASE" ? "BASE" : String(p.Periodo).slic
 function presupuesto(ym){ const o={}; S.d.presupuesto.forEach(p=>{ if(perKey(p)==="BASE") o[p.Categoria]=+p.Monto; }); S.d.presupuesto.forEach(p=>{ if(perKey(p)===ym) o[p.Categoria]=+p.Monto; }); return o; }
 function group(arr,key){ const o={}; arr.forEach(m=>{ const k=typeof key==="function"?key(m):(m[key]||"—"); o[k]=(o[k]||0)+m.Monto; }); return Object.entries(o).sort((a,b)=>b[1]-a[1]); }
 function icon(m){ const t=m.Tipo; const c = t==="Gasto"?"g": t==="Ingreso"?"i": t==="Inversión"?"v":""; const l=(t==="Gasto"? (m.Categoria||"?") : t==="Ingreso"?(m.Fuente||"Ingreso") : t).slice(0,2).toUpperCase(); return `<span class="ico ${c}">${esc(l)}</span>`; }
-function itemHTML(m){
+function itemHTML(m, conFecha){
   const sub = m.Tipo==="Gasto" ? [m.Categoria, m.Vehiculo, m.Cuenta].filter(Boolean).join(" · ")
     : m.Tipo==="Ingreso" ? [m.Fuente, m.CuentaDestino].filter(Boolean).join(" → ")
     : m.Tipo==="Inversión" ? [m.MovInversion, m.Instrumento].filter(Boolean).join(" · ")
     : [m.Cuenta, m.CuentaDestino].filter(Boolean).join(" → ");
   const cls = m.Tipo==="Gasto"?"neg": m.Tipo==="Ingreso"?"pos":"";
+  const fechaTxt = conFecha ? `<b style="color:var(--ink);font-weight:600">${sDate(m.Fecha)} ${m.Fecha.slice(2,4)}</b>${sub? " · ":""}` : "";
   const pend = S.pendSet && S.pendSet.has(m.ID);
-  return `<button class="item" data-id="${esc(m.ID)}">${icon(m)}<span class="grow"><div class="t">${esc(m.Descripcion||m.Subcategoria||m.Tipo)}</div><div class="s">${esc(sub)}${pend?" · por sincronizar":""}</div></span><span class="amt ${cls} ${m.Tipo==="Ingreso"||m.Tipo==="Inversión"?"priv":""}">${m.Tipo==="Gasto"?"−":m.Tipo==="Ingreso"?"+":""}${mx2(m.Monto)}</span></button>`;
+  return `<button class="item" data-id="${esc(m.ID)}">${icon(m)}<span class="grow"><div class="t">${esc(m.Descripcion||m.Subcategoria||m.Tipo)}</div><div class="s">${fechaTxt}${esc(sub)}${pend?" · por sincronizar":""}</div></span><span class="amt ${cls} ${m.Tipo==="Ingreso"||m.Tipo==="Inversión"?"priv":""}">${m.Tipo==="Gasto"?"−":m.Tipo==="Ingreso"?"+":""}${mx2(m.Monto)}</span></button>`;
 }
 function pendIds(){ return new Set(pend().filter(p=>p.op==="save").map(p=>p.o.ID)); }
 function bindItems(root){ $$("[data-id]",root).forEach(b=>b.onclick=()=>{ const m=S.byId[b.dataset.id]; if(m) openForm(m); }); }
@@ -598,7 +599,7 @@ function abrirZoom(k, titulo, rows, campo){
     ${campo==="Categoria" && subs.length>1? `<div class="card"><h2>Por subcategoría</h2>${barsHTML(subs,T)}</div>`:""}
     ${campo!=="Descripcion"? `<div class="card"><h2>En qué se fue más</h2>${barsHTML(desc,T)}</div>`:""}
     ${meses.length>1? `<div class="card"><h2>Por mes</h2>${barsHTML(meses.map(([ym,v])=>[mLabel(ym),v]),T)}</div>`:""}
-    <div class="card" style="padding:4px 12px"><div class="list">${rows.slice(0,60).map(itemHTML).join("")}</div>${rows.length>60? `<div class="small muted" style="padding:8px 0">Se muestran 60 de ${rows.length}.</div>`:""}</div></div>`;
+    <div class="card" style="padding:4px 12px"><div class="list">${rows.slice(0,60).map(m=>itemHTML(m,true)).join("")}</div>${rows.length>60? `<div class="small muted" style="padding:8px 0">Se muestran 60 de ${rows.length}.</div>`:""}</div></div>`;
   document.body.appendChild(box);
   box.querySelector("[data-x]").onclick=()=>box.remove();
   box.addEventListener("click",ev=>{ if(ev.target===box) box.remove(); });
