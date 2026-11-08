@@ -222,6 +222,12 @@ table.compacta th,table.compacta td{padding:6px 3px}
     <div class="f" data-for="cta"><label for="fCta" id="fCtaL">Pagado con</label><select id="fCta"></select></div>
     <div class="f" data-for="dst"><label for="fDst" id="fDstL">Entra a</label><select id="fDst"></select></div>
   </div>
+  <div class="f" data-for="vales">
+    <input type="file" id="tkFile" accept="image/*" capture="environment" class="hide">
+    <button type="button" class="btn" id="tkBtn" style="width:100%">📷 Escanear ticket</button>
+    <div class="small muted" id="tkInfo">Toma foto al ticket y se llenan tienda, artículos y total.</div>
+  </div>
+  <div class="f hide" id="tkVer"><label>Artículos del ticket</label><div class="small" id="tkLista"></div></div>
   <div class="f"><label for="fNota">Nota</label><input id="fNota" placeholder="Opcional"></div>
   <div class="err" id="fErr"></div>
   <div class="actions"><button type="button" class="btn danger hide" id="fDel">Eliminar</button><button type="button" class="btn" id="fAgain">Guardar y otro</button><button type="submit" class="btn primary">Guardar</button></div>
@@ -287,6 +293,19 @@ function preguntarGuardar(){
   $("#askNot").onclick=()=>{ if($("#askNo").checked) store("fc_noPreguntar",true); box.remove(); };
 }
 function renderMas(){ const b=$("#olvidar"); if(b) b.classList.toggle("hide", !claveGuardada()); }
+// para la foto del ticket: POST y, si el navegador lo bloquea, en partes por GET
+async function apiGrande(fn, payload, extra, prog){
+  try{
+    const r=await fetch(API_URL,{method:"POST",redirect:"follow",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:fn,args:[payload,extra],clave:getClave()})});
+    const j=await r.json(); if(!j.ok){ const e=new Error(j.error||"Error"); e.auth=!!j.auth; e.srv=true; throw e; } return j.data;
+  }catch(e){ if(e.srv) throw e; }
+  const id=uid(), size=5000, n=Math.ceil(payload.length/size);
+  for(let i=0;i<n;i+=6){
+    await Promise.all(Array.from({length:Math.min(6,n-i)},(_,k)=>api("subirParte",id,i+k,payload.slice((i+k)*size,(i+k+1)*size))));
+    if(prog) prog(Math.round(Math.min(n,i+6)/n*100));
+  }
+  return api(fn,{upload:id,partes:n},extra);
+}
 function pedirClave(msg){
   $("#splash").classList.remove("hide"); $("#splashMsg").textContent = msg || "Escribe la clave de acceso de tu app.";
   const f=$("#claveForm"); f.classList.remove("hide"); setTimeout(()=>$("#claveIn").focus(),100);
@@ -944,6 +963,9 @@ function renderSub(){
       <div class="card"><h2>Últimos 12 meses</h2><div class="tbl"><table><thead><tr><th>Mes</th><th class="n">Depósito</th><th class="n">Gasto</th></tr></thead><tbody>
       ${meses.map(ym=>{ const r=vm.filter(m=>m.Fecha.startsWith(ym)); return `<tr><td>${mLabel(ym)}</td><td class="n pos">${mx2(sum(r.filter(m=>m.Tipo==="Ingreso")))}</td><td class="n neg">${mx2(sum(r.filter(m=>m.Tipo==="Gasto")))}</td></tr>`; }).join("")}
       </tbody></table></div></div>
+      ${(()=>{ const desde=addMonth(S.hoy.slice(0,7),-5)+"-01"; const tk=(S.d.tickets||[]).filter(t=>t.Fecha>=desde); if(!tk.length) return `<div class="card"><h2>Artículos comprados con vales</h2><div class="empty">Escanea tus tickets al registrar un gasto con vales y aquí verás qué compras más.</div></div>`;
+        const T=tk.reduce((s,t)=>s+(+t.Monto||0),0); const porArt=group(tk.map(t=>({Monto:+t.Monto, A:String(t.Articulo).toUpperCase()})),"A").slice(0,12); const porT=group(tk.map(t=>({Monto:+t.Monto,T:t.Tienda||"—"})),"T");
+        return `<div class="card"><h2>Artículos comprados con vales <span class="small muted">(6 meses)</span></h2>${barsHTML(porArt,T)}</div><div class="card"><h2>Por tienda</h2>${barsHTML(porT,T)}</div>`; })()}
       <div class="actions"><button class="btn" id="vDep">+ Depósito</button><button class="btn primary" id="vGas">+ Gasto con vales</button></div>`;
     $("#vDep").onclick=()=>openForm({Tipo:"Ingreso",Fuente:"Vales de despensa",CuentaDestino:"Vales de despensa"});
     $("#vGas").onclick=()=>openForm({Tipo:"Gasto",Categoria:"Súper y despensa",Subcategoria:"Despensa (vales)",Cuenta:"Vales de despensa"});
@@ -1011,6 +1033,115 @@ function planForm(c, done){
   };
 }
 
+/* ================= Tickets de vales ================= */
+function guardarTicketLocal(o){ S.d.tickets=(S.d.tickets||[]).filter(t=>t.MovID!==o.ID).concat(o.Ticket.items.map(x=>({TicketID:o.Ticket.id||"", MovID:o.ID, Fecha:o.Fecha, Tienda:o.Ticket.tienda||o.Descripcion, Articulo:x.n, Monto:+x.m}))); }
+function pintarTicket(){
+  const t=F.ticket, v=$("#tkVer");
+  if(!t||!t.items||!t.items.length){ v.classList.add("hide"); $("#tkInfo").textContent="Toma foto al ticket y se llenan tienda, artículos y total."; return; }
+  v.classList.remove("hide");
+  $("#tkInfo").textContent = (t.tienda||"Ticket")+" · "+t.items.length+" artículos · "+mx2(t.items.reduce((s,x)=>s+(+x.m||0),0));
+  $("#tkLista").innerHTML = t.items.slice(0,40).map(x=>`<div class="between" style="padding:3px 0;border-bottom:1px solid var(--line)"><span>${esc(x.n)}</span><span>${mx2(x.m)}</span></div>`).join("")+`<button type="button" class="btn sm" id="tkEdit" style="margin-top:6px">Revisar artículos</button>`;
+  $("#tkEdit").onclick=()=>revisarTicket(F.ticket);
+}
+$("#tkBtn").onclick=()=>$("#tkFile").click();
+$("#tkFile").onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  const info=$("#tkInfo"), btn=$("#tkBtn"); btn.disabled=true;
+  try{
+    info.textContent="Preparando la foto…";
+    const b64=await comprimirFoto(f);
+    info.textContent="Leyendo el ticket… (puede tardar unos segundos)";
+    const r=await apiGrande("ocrTicket", b64, "image/jpeg", p=>{ info.textContent="Subiendo la foto… "+p+"%"; });
+    const t=parseTicket(r.texto||""); t.id="T"+Date.now().toString(36).toUpperCase();
+    if(!t.items.length && !t.total){ info.textContent="No pude leer artículos. Intenta con más luz, el ticket estirado y completo en la foto."; return; }
+    revisarTicket(t);
+  }catch(err){ info.textContent="No se pudo leer: "+(err.message||err); }
+  finally{ btn.disabled=false; }
+};
+function comprimirFoto(file){
+  return new Promise((res,rej)=>{
+    const img=new Image(), url=URL.createObjectURL(file);
+    img.onload=()=>{ const s=Math.min(1, 1400/img.width, 3600/img.height); const c=document.createElement("canvas"); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
+      const x=c.getContext("2d"); x.filter="grayscale(1) contrast(1.25)"; x.drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
+      res(c.toDataURL("image/jpeg",0.75).split(",")[1]); };
+    img.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error("No pude abrir la foto.")); };
+    img.src=url;
+  });
+}
+const TIENDAS=["BODEGA AURRERA","MI BODEGA","AURRERA","WALMART","WAL-MART","SAMS","SAM'S","SORIANA","CHEDRAUI","LA COMER","FRESKO","CITY MARKET","SUMESA","HEB","H-E-B","SUPERAMA","COSTCO","CASA LEY","LEY","CALIMAX","ALSUPER","MERZA","SMART","S-MART","NETO","TIENDAS 3B","3B","MERCO","OXXO","7-ELEVEN","7 ELEVEN","CIRCLE K","FARMACIAS GUADALAJARA","FARMACIA GUADALAJARA","FARMACIAS DEL AHORRO","FARMACIA SAN PABLO","SAN PABLO","BENAVIDES","SUPER KOMPRAS","SUPER ISSSTE","WALDOS","DEL SOL","COPPEL","LIVERPOOL"];
+const NO_ART=/\b(sub\s*-?total|total|iva|i\.v\.a|ieps|cambio|efectivo|tarjeta|vales?|pago|importe|su\s+ahorro|ahorro|redondeo|art[ií]culos|arts?\.?\b|saldo|monedero|puntos|rfc|folio|ticket|caja|cajero|tienda|sucursal|tel[eé]fono|gracias|cliente|autoriza|aprob|referencia|no\.\s*de|transacc|operaci|cuenta|venc|fecha|hora|d[eé]bito|cr[eé]dito|visa|master|electr[oó]nic|despensa|sodexo|edenred|si\s*vale|pluxee|bono)\b/i;
+function numTk(s){ return parseFloat(String(s).replace(/[$\s,]/g,"")); }
+function parseTicket(texto){
+  const L=texto.replace(/\r/g,"").split("\n").map(l=>l.replace(/\s+/g," ").trim()).filter(Boolean);
+  const up=texto.toUpperCase();
+  let tienda=TIENDAS.find(t=>up.includes(t)) || "";
+  if(!tienda){ const l=L.find(x=>/[A-Za-zÁÉÍÓÚÑ]{3,}/.test(x) && !/\d{3,}/.test(x)); tienda=l||""; }
+  tienda = tienda.toLowerCase().replace(/(^|[\s\-])([a-záéíóúñ])/g,(x,a,c)=>a+c.toUpperCase());
+  // fecha dd/mm/aa o dd-MMM-aaaa
+  let fecha="";
+  const MM={ENE:1,FEB:2,MAR:3,ABR:4,MAY:5,JUN:6,JUL:7,AGO:8,SEP:9,SEPT:9,OCT:10,NOV:11,DIC:12,JAN:1,APR:4,AUG:8,DEC:12};
+  let m=up.match(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/);
+  if(m){ let y=+m[3]; if(y<100) y+=2000; const d=+m[1], mo=+m[2]; if(mo>=1&&mo<=12&&d>=1&&d<=31&&y>2015) fecha=y+"-"+pad(mo)+"-"+pad(d); }
+  if(!fecha){ m=up.match(/\b(\d{1,2})[\/\-. ]?(ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEPT?|OCT|NOV|DIC|JAN|APR|AUG|DEC)[A-Z]*[\/\-. ]?(\d{2,4})\b/);
+    if(m){ let y=+m[3]; if(y<100) y+=2000; fecha=y+"-"+pad(MM[m[2]])+"-"+pad(+m[1]); } }
+  // total
+  let total=0;
+  const precio=/(-?\$?\s?\d{1,3}(?:,\d{3})*[.,]\d{2})\s*[A-Z*]{0,2}\s*$/;
+  for(let i=0;i<L.length;i++){
+    if(/\btotal\b/i.test(L[i]) && !/sub\s*-?total|art/i.test(L[i])){
+      let mm=L[i].match(precio) || (L[i+1]&&L[i+1].match(/^\$?\s?(\d{1,3}(?:,\d{3})*[.,]\d{2})/));
+      if(mm){ const v=numTk(mm[1].replace(/,(\d{2})$/,".$1")); if(v>total) total=v; }
+    }
+  }
+  // artículos: "DESCRIPCION ... 29.90" o descripción en una línea y precio en la siguiente
+  const items=[]; let pend="";
+  for(let i=0;i<L.length;i++){
+    const l=L[i];
+    if(NO_ART.test(l)){ pend=""; continue; }
+    const mm=l.match(precio);
+    if(mm){
+      let nombre=l.slice(0,mm.index).replace(/^\d{6,14}\s*/,"").replace(/\b\d+(\.\d+)?\s*[x@]\s*\$?\d+[.,]\d{2}\b/i,"").replace(/[$*]+/g,"").trim();
+      if(!/[A-Za-zÁÉÍÓÚÑ]{2,}/.test(nombre)) nombre=pend;
+      const v=numTk(mm[1].replace(/,(\d{2})$/,".$1"));
+      if(nombre && /[A-Za-zÁÉÍÓÚÑ]{2,}/.test(nombre) && v>0 && v<20000 && (!total || v<=total)) items.push({n:nombre.slice(0,60), m:v});
+      pend="";
+    } else if(/[A-Za-zÁÉÍÓÚÑ]{3,}/.test(l)) pend=l.replace(/^\d{6,14}\s*/,"").trim();
+  }
+  if(!total) total=Math.round(items.reduce((s,x)=>s+x.m,0)*100)/100;
+  return {tienda, fecha, total, items};
+}
+function revisarTicket(t){
+  const box=document.createElement("div");
+  box.style.cssText="position:fixed;inset:0;background:rgb(8 10 20 / .5);display:flex;align-items:flex-end;z-index:46";
+  const fila=(x,i)=>`<div class="row" data-i="${i}" style="gap:6px"><input class="grow" data-n value="${esc(x.n)}" aria-label="Artículo" style="padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);min-width:0"><input data-m type="number" inputmode="decimal" step="0.01" value="${x.m}" aria-label="Precio" style="width:86px;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);text-align:right"><button type="button" class="btn sm danger" data-del aria-label="Quitar">✕</button></div>`;
+  box.innerHTML=`<form class="sheet on" style="position:relative;transform:none;max-height:92%" novalidate>
+    <div class="grab"></div><div class="between"><h2 style="margin:0;font-size:18px">Revisa el ticket</h2><button type="button" class="btn sm" data-x>Cancelar</button></div>
+    <div class="two"><div class="f"><label for="rtT">Tienda</label><input id="rtT" value="${esc(t.tienda||"")}"></div><div class="f"><label for="rtF">Fecha</label><input id="rtF" type="date" value="${t.fecha||$("#fFecha").value}"></div></div>
+    <div class="f"><label for="rtTot">Total pagado con vales</label><input id="rtTot" type="number" inputmode="decimal" step="0.01" value="${t.total||""}"></div>
+    <div class="between small"><b>Artículos</b><span id="rtSum" class="muted"></span></div>
+    <div id="rtItems" style="display:flex;flex-direction:column;gap:6px">${t.items.map(fila).join("")}</div>
+    <button type="button" class="btn sm" id="rtAdd" style="align-self:flex-start">+ Agregar artículo</button>
+    <div class="actions"><button type="submit" class="btn primary">Usar este ticket</button></div></form>`;
+  document.body.appendChild(box);
+  const leer=()=>$$("[data-i]",box).map(r=>({n:$("[data-n]",r).value.trim(), m:parseFloat($("[data-m]",r).value)||0})).filter(x=>x.n&&x.m);
+  const suma=()=>{ const s=leer().reduce((a,x)=>a+x.m,0), T=parseFloat($("#rtTot",box).value)||0, d=Math.round((T-s)*100)/100;
+    $("#rtSum",box).innerHTML = "Suma "+mx2(s)+(T&&Math.abs(d)>0.5? ` · <span class="warn">diferencia ${mx2(d)} con el total</span>` : T? " · cuadra con el total":""); };
+  const bind=()=>{ $$("[data-del]",box).forEach(b=>b.onclick=()=>{ b.closest("[data-i]").remove(); suma(); }); $$("input",box).forEach(i=>i.oninput=suma); };
+  bind(); suma();
+  $("#rtAdd",box).onclick=()=>{ $("#rtItems",box).insertAdjacentHTML("beforeend", fila({n:"",m:""}, Date.now())); bind(); $("#rtItems [data-i]:last-child [data-n]",box).focus(); };
+  box.querySelector("[data-x]").onclick=()=>box.remove();
+  box.querySelector("form").onsubmit=ev=>{ ev.preventDefault();
+    const items=leer(), T=parseFloat($("#rtTot",box).value)||items.reduce((a,x)=>a+x.m,0);
+    F.ticket={id:t.id, tienda:$("#rtT",box).value.trim(), items};
+    $("#fMonto").value=Math.round(T*100)/100;
+    if($("#rtF",box).value) $("#fFecha").value=$("#rtF",box).value;
+    if(!$("#fDesc").value || F.ticket.tienda) $("#fDesc").value = F.ticket.tienda ? "Despensa "+F.ticket.tienda : "Despensa con vales";
+    if(!$("#fCat").value){ $("#fCat").value="Súper y despensa"; tipo(F.t,true); }
+    if(!$("#fSub").value) $("#fSub").value="Despensa (vales)";
+    box.remove(); pintarTicket(); toast("Ticket listo: revisa y guarda");
+  };
+}
+
 /* ================= Formulario ================= */
 const F = { t:"Gasto", edit:null };
 function opt(list, sel, ph){ return (ph!=null?`<option value="">${esc(ph)}</option>`:"")+list.map(v=>`<option${v===sel?" selected":""}>${esc(v)}</option>`).join(""); }
@@ -1035,6 +1166,9 @@ function openForm(m){
   F.veh = m.Vehiculo || "";
   F.cta = m.Cuenta !== undefined ? m.Cuenta : (F.t==="Gasto" ? (store("fc_lastCta")||"") : "");
   F.dst = m.CuentaDestino || "";
+  F.ticket = m.Ticket || null;
+  if(!F.ticket && m.ID){ const its=(S.d.tickets||[]).filter(t=>t.MovID===m.ID); if(its.length) F.ticket={id:its[0].TicketID, tienda:its[0].Tienda, items:its.map(t=>({n:t.Articulo,m:+t.Monto}))}; }
+  pintarTicket();
   $("#fErr").textContent = "";
   $("#fCta").innerHTML = ""; $("#fDst").innerHTML = "";
   tipo(F.t, true);
@@ -1051,7 +1185,8 @@ function tipo(t, keep){
   const show = {Gasto:t==="Gasto", Ingreso:t==="Ingreso", "Inversión":t==="Inversión", veh:isAuto,
     cta: t!=="Ingreso" && !(t==="Inversión" && $("#fInvM").value==="Rendimiento"),
     dst: ["Ingreso","Pago tarjeta","Transferencia"].includes(t),
-    msi: t==="Gasto" && (ctaTipo==="Crédito"||ctaTipo==="Departamental") && !F.edit};
+    msi: t==="Gasto" && (ctaTipo==="Crédito"||ctaTipo==="Departamental") && !F.edit,
+    vales: t==="Gasto" && ctaTipo==="Vales"};
   $$("#sheet [data-for]").forEach(el=>el.classList.toggle("hide", !show[el.dataset.for]));
   const L = {Gasto:["Pagado con",""], Ingreso:["","Entra a"], "Pago tarjeta":["Pagado desde","Tarjeta que pagas"], Transferencia:["Sale de","Llega a"], "Inversión":[$("#fInvM").value==="Retiro"?"Cuenta que recibe":"Sale de",""]}[t];
   if(L[0]) $("#fCtaL").textContent=L[0]; if(L[1]) $("#fDstL").textContent=L[1];
@@ -1106,13 +1241,14 @@ function submit(again){
   else if(t==="Pago tarjeta"||t==="Transferencia"){ o.Cuenta=v("#fCta"); o.CuentaDestino=v("#fDst"); if(!o.Cuenta||!o.CuentaDestino) return e.textContent="Elige origen y destino."; if(o.Cuenta===o.CuentaDestino) return e.textContent="Origen y destino deben ser distintos."; if(!o.Descripcion) o.Descripcion=t+" "+o.CuentaDestino; }
   else if(t==="Inversión"){ o.MovInversion=v("#fInvM"); o.Instrumento=v("#fIns"); if(!o.Instrumento) return e.textContent="Elige el instrumento."; if(o.MovInversion!=="Rendimiento"){ o.Cuenta=v("#fCta"); if(!o.Cuenta) return e.textContent="Elige la cuenta."; } if(!o.Descripcion) o.Descripcion=o.MovInversion+" "+o.Instrumento; }
   if(F.edit){ ["Origen","ConceptoExcel","Registrado","Usuario"].forEach(k=>{ if(F.edit[k]!==undefined) o[k]=F.edit[k]; }); }
+  if(t==="Gasto" && F.ticket && S.cta[o.Cuenta]?.Tipo==="Vales"){ o.Ticket=F.ticket; guardarTicketLocal(o); }
   // guardado optimista + cola
   const i=S.movs.findIndex(m=>m.ID===o.ID); if(i>=0) S.movs[i]=o; else S.movs.push(o); sortMovs();
   if(t==="Gasto" && o.Descripcion){ const k=norm(o.Descripcion); S.mem[k]=o; S.freq[k]=(S.freq[k]||0)+1; }
   const p=pend().filter(x=>!(x.op==="save"&&x.o.ID===o.ID)); p.push({op:"save",o}); setPend(p);
   toast((F.edit?"Actualizado: ":"Guardado: ")+(o.Descripcion||t)+" "+mx2(o.Monto));
   flush();
-  if(again){ $("#fMonto").value=""; $("#fDesc").value=""; $("#fNota").value=""; $("#fKm").value=""; $("#fLt").value=""; e.textContent=""; F.edit=null; tipo(t,true); $("#fMonto").focus(); }
+  if(again){ F.ticket=null; pintarTicket(); $("#fMonto").value=""; $("#fDesc").value=""; $("#fNota").value=""; $("#fKm").value=""; $("#fLt").value=""; e.textContent=""; F.edit=null; tipo(t,true); $("#fMonto").focus(); }
   else closeForm();
   render();
 }
