@@ -1004,7 +1004,7 @@ function anAutos(){
   }).join("");
   $("#anBody").innerHTML = html;
   bindItems($("#anBody"));
-  $$("[data-veh]").forEach(b=>b.onclick=()=>openForm({Tipo:"Gasto",Categoria:"Autos",Vehiculo:b.dataset.veh}));
+  $$("[data-veh]").forEach(b=>b.onclick=()=>openForm({Tipo:"Gasto",Categoria:"Autos",Vehiculo:b.dataset.veh},{veh:b.dataset.veh}));
 }
 
 /* ================= Sub-páginas de "Más" ================= */
@@ -1058,7 +1058,7 @@ function renderSub(){
           ${msiPend[c.Cuenta]? `<div class="small warn">Meses sin intereses por pagar: ${mx(msiPend[c.Cuenta])}</div>`:""}
           ${cred? `<button class="btn sm" data-pagar="${esc(c.Cuenta)}" style="align-self:flex-start">Registrar pago</button>`:""}</div>`; }).join("")}</div>`; }).join("") +
       `<p class="small muted">Captura el saldo real y la fecha de cada cuenta en la hoja CUENTAS (SaldoInicial y FechaSaldo); a partir de ahí la app suma los movimientos.</p>`;
-    $$("[data-pagar]",el).forEach(x=>x.onclick=()=>openForm({Tipo:"Pago tarjeta", CuentaDestino:x.dataset.pagar}));
+    $$("[data-pagar]",el).forEach(x=>x.onclick=()=>openForm({Tipo:"Pago tarjeta", CuentaDestino:x.dataset.pagar},{dst:x.dataset.pagar}));
   }
   if(k==="msi"){
     const act=S.d.msi.map(x=>Object.assign({},x,msiEstado(x))).filter(x=>x.restan>0).sort((a,b)=>b.pend-a.pend);
@@ -1108,8 +1108,8 @@ function renderSub(){
         const T=tk.reduce((s,t)=>s+(+t.Monto||0),0); const porArt=group(tk.map(t=>({Monto:+t.Monto, A:String(t.Articulo).toUpperCase()})),"A").slice(0,12); const porT=group(tk.map(t=>({Monto:+t.Monto,T:t.Tienda||"—"})),"T");
         return `<div class="card"><h2>Artículos comprados con vales <span class="small muted">(6 meses)</span></h2>${barsHTML(porArt,T)}</div><div class="card"><h2>Por tienda</h2>${barsHTML(porT,T)}</div>`; })()}
       <div class="actions"><button class="btn" id="vDep">+ Depósito</button><button class="btn primary" id="vGas">+ Gasto con vales</button></div>`;
-    $("#vDep").onclick=()=>openForm({Tipo:"Ingreso",Fuente:"Vales de despensa",CuentaDestino:"Vales de despensa"});
-    $("#vGas").onclick=()=>openForm({Tipo:"Gasto",Categoria:"Súper y despensa",Subcategoria:"Despensa (vales)",Cuenta:"Vales de despensa"});
+    $("#vDep").onclick=()=>openForm({Tipo:"Ingreso",Fuente:"Vales de despensa",CuentaDestino:"Vales de despensa"},{dst:"Vales de despensa",fuente:"Vales de despensa"});
+    $("#vGas").onclick=()=>openForm({Tipo:"Gasto",Categoria:"Súper y despensa",Subcategoria:"Despensa (vales)",Cuenta:"Vales de despensa"},{cta:"Vales de despensa"});
   }
   if(k==="pres"){
     const ym=S.anMes, bud=presupuesto(ym), gas=inMonth(ym).filter(m=>m.Tipo==="Gasto"), real=Object.fromEntries(group(gas,"Categoria"));
@@ -1314,20 +1314,23 @@ function revisarTicket(t){
 /* ================= Formulario ================= */
 const F = { t:"Gasto", edit:null };
 function opt(list, sel, ph){ return (ph!=null?`<option value="">${esc(ph)}</option>`:"")+list.map(v=>`<option${v===sel?" selected":""}>${esc(v)}</option>`).join(""); }
-function ctaOpts(tipos, sel){
-  const g={}; S.d.cuentas.filter(c=>!String(c.Activa).toLowerCase().startsWith("n") && (!tipos||tipos.includes(c.Tipo))).forEach(c=>(g[c.Tipo] ||= []).push(c.Cuenta));
+function ctaOpts(tipos, sel, only){
+  const g={}; S.d.cuentas.filter(c=>!String(c.Activa).toLowerCase().startsWith("n") && (only? c.Cuenta===only : (!tipos||tipos.includes(c.Tipo)))).forEach(c=>(g[c.Tipo] ||= []).push(c.Cuenta));
   return '<option value="">Elige…</option>'+Object.entries(g).map(([t,l])=>`<optgroup label="${esc(t)}">${l.map(c=>`<option${c===sel?" selected":""}>${esc(c)}</option>`).join("")}</optgroup>`).join("");
 }
-function openForm(m){
+function openForm(m, lock){
   m = m || {};
+  F.lock = lock || null;
+  $("#fTipo").classList.toggle("hide", !!F.lock);
   F.edit = m.ID ? m : null;
   F.t = m.Tipo || "Gasto";
   $("#fTitle").textContent = F.edit? "Editar movimiento" : "Nuevo movimiento";
+  if(F.lock) $("#fTitle").textContent = F.lock.veh ? "Gasto de "+F.lock.veh : F.t==="Pago tarjeta" ? "Pago a "+F.lock.dst : F.lock.fuente ? "Depósito de vales" : F.lock.cta ? "Gasto con vales" : "Nuevo movimiento";
   $("#fDel").classList.toggle("hide", !F.edit); $("#fAgain").classList.toggle("hide", !!F.edit);
   $("#fMonto").value = m.Monto || "";
   $("#fFecha").value = m.Fecha || S.hoy;
   $("#fCat").innerHTML = opt(Object.keys(S.cats), m.Categoria, "Elige…");
-  $("#fFuente").innerHTML = opt(S.fuentes, m.Fuente || S.fuentes[0]);
+  $("#fFuente").innerHTML = F.lock&&F.lock.fuente ? opt([F.lock.fuente], F.lock.fuente) : opt(S.fuentes, m.Fuente || S.fuentes[0]);
   $("#fIns").innerHTML = opt(S.ins.map(i=>i.Instrumento), m.Instrumento, "Elige…");
   $("#fInvM").value = m.MovInversion || "Aportación";
   $("#fDesc").value = m.Descripcion || ""; $("#fSub").value = m.Subcategoria || ""; $("#fNota").value = m.Nota || "";
@@ -1360,13 +1363,14 @@ function tipo(t, keep){
   if(show.vales){ const sv=S.movs.filter(m=>(m.Tipo==="Ingreso"&&m.Fuente===VALES)||(m.Tipo==="Gasto"&&m.Cuenta===VALES)).reduce((s,m)=>s+(m.Tipo==="Ingreso"?m.Monto:-m.Monto),0); $("#valesSaldo").textContent="Saldo disponible en vales: "+mx2(sv); }
   const L = {Gasto:["Pagado con",""], Ingreso:["","Entra a"], "Pago tarjeta":["Pagado desde","Tarjeta que pagas"], Transferencia:["Sale de","Llega a"], "Inversión":[$("#fInvM").value==="Retiro"?"Cuenta que recibe":"Sale de",""]}[t];
   if(L[0]) $("#fCtaL").textContent=L[0]; if(L[1]) $("#fDstL").textContent=L[1];
-  $("#fCta").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Débito","Efectivo"] : null, cuenta);
+  const LK=F.lock||{};
+  $("#fCta").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Débito","Efectivo"] : null, LK.cta||cuenta, LK.cta);
   let dst = $("#fDst").value || F.dst;
   if(t==="Ingreso" && !dst){ const fu=$("#fFuente").value; dst = /vales/i.test(fu)? "Vales de despensa" : /tenate/i.test(fu)? "Efectivo" : (S.d.cuentas.find(c=>c.Tipo==="Débito")||{}).Cuenta; }
-  $("#fDst").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Crédito","Departamental"] : null, dst);
+  $("#fDst").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Crédito","Departamental"] : null, LK.dst||dst, LK.dst);
   renderPicks();
   $("#fSub").setAttribute("list","dlSub"); $("#dlSub").innerHTML = (S.cats[$("#fCat").value]||[]).map(s=>`<option value="${esc(s)}">`).join("");
-  $("#fVeh").innerHTML = S.vehs.map(v=>`<button type="button" class="chip ${F.veh===v?"on":""}" data-v="${esc(v)}">${esc(v)}</button>`).join("");
+  $("#fVeh").innerHTML = (LK.veh?[LK.veh]:S.vehs).map(v=>`<button type="button" class="chip ${F.veh===v?"on":""}" data-v="${esc(v)}">${esc(v)}</button>`).join("");
   $$("#fVeh .chip").forEach(b=>b.onclick=()=>{ F.veh=b.dataset.v; tipo(F.t,true); });
   const q = t==="Gasto" ? Object.entries(S.freq).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k])=>S.mem[k]) : [];
   $("#fQuick").innerHTML = F.edit? "" : q.map(m=>`<button type="button" class="chip" data-qq="${esc(norm(m.Descripcion))}">${esc(m.Descripcion)}</button>`).join("");
