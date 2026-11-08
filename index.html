@@ -1078,6 +1078,19 @@ function comprimirFoto(file){
 }
 const TIENDAS=["BODEGA AURRERA","MI BODEGA","AURRERA","WALMART","WAL-MART","SAMS","SAM'S","SORIANA","CHEDRAUI","LA COMER","FRESKO","CITY MARKET","SUMESA","HEB","H-E-B","SUPERAMA","COSTCO","CASA LEY","LEY","CALIMAX","ALSUPER","MERZA","SMART","S-MART","NETO","TIENDAS 3B","3B","MERCO","OXXO","7-ELEVEN","7 ELEVEN","CIRCLE K","FARMACIAS GUADALAJARA","FARMACIA GUADALAJARA","FARMACIAS DEL AHORRO","FARMACIA SAN PABLO","SAN PABLO","BENAVIDES","SUPER KOMPRAS","SUPER ISSSTE","WALDOS","DEL SOL","COPPEL","LIVERPOOL"];
 const NO_ART=/\b(sub\s*-?total|total|iva|i\.v\.a|ieps|cambio|efectivo|tarjeta|vales?|pago|importe|su\s+ahorro|ahorro|redondeo|art[ií]culos|arts?\.?\b|saldo|monedero|puntos|rfc|folio|ticket|caja|cajero|tienda|sucursal|tel[eé]fono|gracias|cliente|autoriza|aprob|referencia|no\.\s*de|transacc|operaci|cuenta|venc|fecha|hora|d[eé]bito|cr[eé]dito|visa|master|electr[oó]nic|despensa|sodexo|edenred|si\s*vale|pluxee|bono)\b/i;
+const NO_ART2=/(=|\bfol|\bid\b|r[eé]gimen|s\.\s?a\.|c\.\s?v\.|colonia|c\.\s?p\.|n[uú]mero|calle|av\.|emisor|venta\b|afiliaci|\baut\b|pesos|m\.\s?n\.|bbva|banamex|santander|inbursa|banorte|hsbc|scotiabank|iva incluido|gracias|vuelva|www\.|\.com\b|sociedades|cadena comercial|tel\b|sucursal|cajer)/i;
+// limpia códigos de barras, cantidades y signos del nombre del artículo
+function limpiarNombre(s){
+  return String(s||"").replace(/^\s*\d{6,14}\s*/,"").replace(/\b\d+(\.\d+)?\s*[x@]\s*\$?\d+[.,]\d{2}\b/i,"").replace(/[$*]+/g,"").replace(/\s+\d{1,2}\s*$/,"").replace(/\s+/g," ").trim();
+}
+// un nombre válido tiene al menos una palabra de 3 letras y no es un código suelto (p. ej. FEARR00708140)
+function esNombre(s){
+  if(!s || !/[A-Za-zÁÉÍÓÚÑ]{3,}/.test(s)) return false;
+  const pal=s.split(" ");
+  if(pal.length===1 && /\d/.test(s) && /[A-Za-z]/.test(s) && s.length>=7) return false;
+  if(/\d{2}[\/\-]\d{2}[\/\-]\d{2,4}|\d{1,2}:\d{2}/.test(s)) return false;
+  return true;
+}
 function numTk(s){ return parseFloat(String(s).replace(/[$\s,]/g,"")); }
 function parseTicket(texto){
   const L=texto.replace(/\r/g,"").split("\n").map(l=>l.replace(/\s+/g," ").trim()).filter(Boolean);
@@ -1101,19 +1114,23 @@ function parseTicket(texto){
       if(mm){ const v=numTk(mm[1].replace(/,(\d{2})$/,".$1")); if(v>total) total=v; }
     }
   }
-  // artículos: "DESCRIPCION ... 29.90" o descripción en una línea y precio en la siguiente
-  const items=[]; let pend="";
+  // artículos: "DESCRIPCION ... 29.90", o descripción y precio en líneas separadas (el OCR a veces lee primero toda la columna izquierda)
+  const items=[]; const cola=[];
   for(let i=0;i<L.length;i++){
     const l=L[i];
-    if(NO_ART.test(l)){ pend=""; continue; }
+    if(/\btotal\b/i.test(l)){ cola.length=0; }
+    if(NO_ART.test(l) || NO_ART2.test(l)) continue;
     const mm=l.match(precio);
     if(mm){
-      let nombre=l.slice(0,mm.index).replace(/^\d{6,14}\s*/,"").replace(/\b\d+(\.\d+)?\s*[x@]\s*\$?\d+[.,]\d{2}\b/i,"").replace(/[$*]+/g,"").trim();
-      if(!/[A-Za-zÁÉÍÓÚÑ]{2,}/.test(nombre)) nombre=pend;
+      let nombre=limpiarNombre(l.slice(0,mm.index));
+      if(!esNombre(nombre)) nombre=cola.shift()||"";
       const v=numTk(mm[1].replace(/,(\d{2})$/,".$1"));
-      if(nombre && /[A-Za-zÁÉÍÓÚÑ]{2,}/.test(nombre) && v>0 && v<20000 && (!total || v<=total)) items.push({n:nombre.slice(0,60), m:v});
-      pend="";
-    } else if(/[A-Za-zÁÉÍÓÚÑ]{3,}/.test(l)) pend=l.replace(/^\d{6,14}\s*/,"").trim();
+      if(esNombre(nombre) && v>0 && v<20000 && (!total || v<=total)) items.push({n:nombre.slice(0,60), m:v});
+    } else {
+      // las primeras líneas son el encabezado (razón social, sucursal, dirección): no son artículos
+      const n=limpiarNombre(l);
+      if(i>=4 && esNombre(n) && !(tienda && norm(n).includes(norm(tienda)))) cola.push(n);
+    }
   }
   if(!total) total=Math.round(items.reduce((s,x)=>s+x.m,0)*100)/100;
   return {tienda, fecha, total, items};
