@@ -364,6 +364,13 @@ details.mas .f{margin-top:6px}
   <div class="stack" style="display:flex;flex-direction:column;gap:14px">
     <div class="f" data-for="cta"><label for="fCta" id="fCtaL">Pagado con</label><select id="fCta"></select></div>
     <div class="f" data-for="dst"><label for="fDst" id="fDstL">Entra a</label><select id="fDst"></select></div>
+    <div class="f hide" id="fSepW"><button type="button" class="btn sm" id="fSepBtn" style="align-self:flex-start">✂️ Separar una parte en otra fuente</button>
+      <div class="hide" id="fSepBox"><div class="hint">Úsalo cuando un solo depósito trae dinero de dos cosas, por ejemplo parte del Tenate y parte de un proyecto.</div>
+        <label style="margin-top:8px;display:block">Pasar una parte a</label><div class="chips" id="fSepF"></div>
+        <div class="two" style="margin-top:8px"><div class="f"><label for="fSepM">Monto que se separa</label><input id="fSepM" type="number" inputmode="decimal" step="0.01" min="0" placeholder="$0"></div>
+          <div class="f"><label for="fSepD">Concepto</label><input id="fSepD" placeholder="Ej. Sauces"></div></div>
+        <div class="chips hide" id="fSepPr" style="margin-top:6px"></div>
+        <div id="fSepInfo" style="font-size:12.5px;margin-top:8px"></div></div></div>
     <div class="f hide" id="fSplitW"><button type="button" class="btn sm" id="fSplitBtn" style="align-self:flex-start">➗ Repartir en varias cuentas</button>
       <div class="hide" id="fSplitBox"><div class="hint">Divide este ingreso entre varias cuentas. Se guarda un registro por cuenta.</div><div id="fSplitRows"></div>
         <button type="button" class="btn sm" id="fSplitAdd" style="margin-top:8px">＋ Otra cuenta</button><div id="fSplitInfo"></div></div></div>
@@ -1415,6 +1422,7 @@ function openForm(m, lock){
   F.lock = lock || null;
   { const tp = esTenate(m.Fuente) && m.Monto ? tenParts(m) : {app:0,prop:0}; $("#fTenA").value = tp.app||""; $("#fTenP").value = tp.prop||""; }
   F.proy = esProy(m.Fuente)? (m.Subcategoria||null) : null;
+  F.sep={on:false,f:null}; $("#fSepBox").classList.add("hide"); $("#fSepBtn").textContent="✂️ Separar una parte en otra fuente"; $("#fSepM").value=""; $("#fSepD").value="";
   F.split=null; $("#fSplitBox").classList.add("hide"); $("#fSplitBtn").textContent="➗ Repartir en varias cuentas";
   $("#fTipo").classList.toggle("hide", !!F.lock);
   F.edit = m.ID ? m : null;
@@ -1487,6 +1495,7 @@ function tipo(t, keep){
   $("#fProy").innerHTML=pn.map(n=>`<button type="button" class="chip ${F.proy===n?"on":""}" data-pr="${esc(n)}">🧩 ${esc(n)}</button>`).join("");
   $$("#fProy .chip").forEach(c=>c.onclick=()=>{ F.proy=c.dataset.pr; $("#fDesc").value=F.proy; $$("#fProy .chip").forEach(x=>x.classList.toggle("on",x===c)); });
   $("#fSplitW").classList.toggle("hide", !(t==="Ingreso"&&!F.edit));
+  $("#fSepW").classList.toggle("hide", !(t==="Ingreso"&&F.edit)); if(F.sep&&F.sep.on) sepPaint();
   if(t!=="Ingreso"&&F.split) splitToggle(false);
   if(F.split) $("[data-for=dst]").classList.add("hide");
 }
@@ -1817,6 +1826,25 @@ function migrarProyectos(){
     Object.assign(m,{Fuente:PROY(),Subcategoria:ns,Descripcion:ns}); const o=Object.assign({},m); p.push({op:"save",o}); });
   setPend(p); setTimeout(()=>toast(L.length+(L.length===1?" ingreso se movió":" ingresos se movieron")+" de El Tenate a Proyectos"),1200);
 }
+/* ===== Separar parte de un ingreso a otra fuente ===== */
+function sepOpciones(){ const cur=$("#fFuente").value; return S.fuentes.filter(f=>f!==cur&&(esExtra(f)||esTenate(f))); }
+function sepPaint(){
+  const ops=sepOpciones(); if(!F.sep.f||!ops.includes(F.sep.f)) F.sep.f=ops.find(esProy)||ops[0];
+  $("#fSepF").innerHTML=ops.map(f=>`<button type="button" class="chip ${F.sep.f===f?"on":""}" data-sf="${esc(f)}">${igIco(igGrupo(f))} ${esc(f)}</button>`).join("");
+  $$("#fSepF .chip").forEach(c=>c.onclick=()=>{ F.sep.f=c.dataset.sf; sepPaint(); });
+  const pn=esProy(F.sep.f)? proyNombres() : [];
+  $("#fSepPr").classList.toggle("hide",!pn.length);
+  $("#fSepPr").innerHTML=pn.map(n=>`<button type="button" class="chip" data-sp="${esc(n)}">🧩 ${esc(n)}</button>`).join("");
+  $$("#fSepPr .chip").forEach(c=>c.onclick=()=>{ $("#fSepD").value=c.dataset.sp; });
+  $("#fSepD").placeholder = esProy(F.sep.f)? "Ej. Sauces" : esTenate(F.sep.f)? "Ej. Pago de ruta" : "Concepto";
+  sepInfo();
+}
+function sepInfo(){
+  const tot=parseFloat($("#fMonto").value)||0, m=parseFloat($("#fSepM").value)||0;
+  $("#fSepInfo").innerHTML = !m? '<span class="muted">Escribe cuánto de este depósito corresponde a la otra fuente.</span>' : m>=tot? `<span class="neg">Debe ser menor al total (${mx2(tot)}).</span>` :
+    `Este registro queda en <b>${mx2(tot-m)}</b> (${esc($("#fFuente").value)}) y se crea otro de <b>${mx2(m)}</b> en <b>${esc(F.sep.f)}</b>, misma fecha y cuenta.`;
+}
+function sepToggle(on){ F.sep.on=on; $("#fSepBox").classList.toggle("hide",!on); $("#fSepBtn").textContent = on? "✕ No separar" : "✂️ Separar una parte en otra fuente"; if(on) sepPaint(); }
 function applyMem(m, setDesc){
   if(!m) return;
   if(setDesc) $("#fDesc").value=m.Descripcion;
@@ -1837,6 +1865,9 @@ $("#fFuente").onchange=()=>{ $("#fDst").value=""; F.dst=""; tipo(F.t,true); };
 ["#fTenA","#fTenP"].forEach(i=>$(i).addEventListener("input",tenCalc));
 $("#fMonto").addEventListener("input",()=>{ if(!$("#fTenW").classList.contains("hide")) tenCalc(); });
 $("#fSplitBtn").onclick=()=>splitToggle(!F.split);
+$("#fSepBtn").onclick=()=>sepToggle(!F.sep.on);
+$("#fSepM").addEventListener("input",sepInfo);
+$("#fMonto").addEventListener("input",()=>{ if(F.sep&&F.sep.on) sepInfo(); });
 $("#fSplitAdd").onclick=()=>{ F.split.push({c:"",m:""}); splitPaint(); };
 $("#fMonto").addEventListener("input",()=>{ if(F.split) splitInfo(); });
 $("#fDst").onchange=()=>{ F.dst=$("#fDst").value; renderPicks(); };
@@ -1863,8 +1894,17 @@ function submit(again){
     if(S.autoCats.has(o.Categoria)){ o.Vehiculo=F.veh; o.Km=v("#fKm"); o.Litros=v("#fLt"); }
     store("fc_lastCta", o.Cuenta);
   } else if(t==="Ingreso"){ o.Fuente=v("#fFuente"); o.CuentaDestino=v("#fDst");
-    let tp=null;
-    if(esTenate(o.Fuente)){ tp=tenCalc(); if(tp.ruta<0) return e.textContent="App + propinas no pueden ser más que el total."; o.Subcategoria=tenCod(tp); if(!o.Descripcion) o.Descripcion="El Tenate"; }
+    let tp=null, sepX=null;
+    if(F.sep&&F.sep.on){ const sm=Math.round((parseFloat($("#fSepM").value)||0)*100)/100;
+      if(!(sm>0)) return e.textContent="Escribe el monto que se separa.";
+      if(sm>=o.Monto) return e.textContent="Lo que separas debe ser menor al total.";
+      const d2=$("#fSepD").value.trim();
+      sepX={ID:uid(),Tipo:"Ingreso",Fecha:o.Fecha,Monto:sm,Fuente:F.sep.f,CuentaDestino:o.CuentaDestino,Descripcion:d2||F.sep.f,
+        Subcategoria: esProy(F.sep.f)? d2 : esTenate(F.sep.f)? "Pago de ruta" : "", Nota:"Separado de "+o.Fuente,
+        Categoria:"",Cuenta:"",Vehiculo:"",Km:"",Litros:"",Instrumento:"",MovInversion:"",MesesMSI:""};
+      o.Monto=Math.round((o.Monto-sm)*100)/100; $("#fMonto").value=o.Monto;
+    }
+    if(esTenate(o.Fuente)){ tp=tenCalc(); if(tp.ruta<0){ if(sepX){ $("#fMonto").value=o.Monto+sepX.Monto; tenCalc(); } return e.textContent="App + propinas no pueden ser más que el total."; } o.Subcategoria=tenCod(tp); if(!o.Descripcion) o.Descripcion="El Tenate"; }
     if(esProy(o.Fuente)){ const n=o.Descripcion&&o.Descripcion!==o.Fuente? o.Descripcion : (F.proy||""); o.Subcategoria=n; if(!o.Descripcion) o.Descripcion=n||o.Fuente; }
     if(F.split){ const ok=F.split.filter(r=>r.c&&parseFloat(r.m)>0); const rep=Math.round(ok.reduce((s,r)=>s+parseFloat(r.m),0)*100)/100;
       if(ok.length<2) return e.textContent="Elige al menos dos cuentas con monto.";
@@ -1876,7 +1916,8 @@ function submit(again){
       sortMovs(); setPend(p); toast("Guardado en "+ok.length+" cuentas: "+(o.Descripcion)+" "+mx2(o.Monto)); flush();
       if(again){ $("#fMonto").value=""; $("#fDesc").value=""; $("#fNota").value=""; e.textContent=""; splitToggle(true); tipo(t,true); } else closeForm();
       render(); return; }
-    if(!o.CuentaDestino) return e.textContent="¿A qué cuenta entró?"; if(!o.Descripcion) o.Descripcion=o.Fuente; }
+    if(!o.CuentaDestino) return e.textContent="¿A qué cuenta entró?"; if(!o.Descripcion) o.Descripcion=o.Fuente;
+    if(sepX){ S.movs.push(sepX); const pp=pend(); pp.push({op:"save",o:sepX}); setPend(pp); setTimeout(()=>toast("Separado: "+mx2(sepX.Monto)+" a "+sepX.Fuente),1600); } }
   else if(t==="Pago tarjeta"||t==="Transferencia"){ o.Cuenta=v("#fCta"); o.CuentaDestino=v("#fDst"); if(!o.Cuenta||!o.CuentaDestino) return e.textContent="Elige origen y destino."; if(o.Cuenta===o.CuentaDestino) return e.textContent="Origen y destino deben ser distintos."; if(!o.Descripcion) o.Descripcion=t+" "+o.CuentaDestino; }
   else if(t==="Inversión"){ o.MovInversion=v("#fInvM"); o.Instrumento=v("#fIns"); if(!o.Instrumento) return e.textContent="Elige el instrumento."; if(o.MovInversion!=="Rendimiento"){ o.Cuenta=v("#fCta"); if(!o.Cuenta) return e.textContent="Elige la cuenta."; } if(!o.Descripcion) o.Descripcion=o.MovInversion+" "+o.Instrumento; }
   if(F.edit){ ["Origen","ConceptoExcel","Registrado","Usuario"].forEach(k=>{ if(F.edit[k]!==undefined) o[k]=F.edit[k]; }); }
