@@ -236,6 +236,11 @@ details.mas .f{margin-top:6px}
 .split-r input{text-align:right}
 .split-x{width:30px;height:30px;border-radius:50%;background:var(--bg);color:var(--muted)}
 #fSplitInfo{font-size:12.5px;margin-top:8px;font-weight:600}
+.ten3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ten3 .f label{font-size:12px}
+.ten3 input{text-align:right}
+.ten3 .ro{background:var(--primary-soft);border-color:transparent;font-weight:700;color:var(--primary)}
+#fTenInfo{font-size:12.5px;margin-top:6px}
 .f input,.f select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);min-height:44px}
 .f input.monto{font-size:30px;font-weight:800;padding:8px 12px;text-align:center}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -338,7 +343,11 @@ details.mas .f{margin-top:6px}
     <div class="f" data-for="Ingreso"><label for="fFuente">Fuente</label><select id="fFuente"></select></div>
     <div class="f" data-for="Inversión"><label for="fInvM">Movimiento</label><select id="fInvM"><option>Aportación</option><option>Retiro</option><option>Rendimiento</option></select></div>
   </div>
-  <div class="f hide" id="fTenW"><label>¿De qué es este pago de El Tenate?</label><div class="chips" id="fTen"><button type="button" class="chip" data-ten="Pago de ruta">🚚 Pago de ruta</button><button type="button" class="chip" data-ten="Pago de la app">📱 Pago de la app</button></div></div>
+  <div class="f hide" id="fTenW"><label>¿Cómo se divide este pago de El Tenate?</label>
+    <div class="ten3"><div class="f"><label for="fTenR">🚚 Ruta</label><input id="fTenR" class="ro" readonly tabindex="-1"></div>
+      <div class="f"><label for="fTenA">📱 App</label><input id="fTenA" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0"></div>
+      <div class="f"><label for="fTenP">💵 Propinas</label><input id="fTenP" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0"></div></div>
+    <div id="fTenInfo"></div></div>
   <div class="f"><label for="fDesc" id="fDescL">Concepto</label><input id="fDesc" list="dlDesc" autocomplete="off" placeholder="¿En qué fue? Ej. Estacionamiento plaza"><div class="hint" id="fDescH">Así lo verás en tu lista de movimientos.</div></div>
   <datalist id="dlDesc"></datalist>
   <div>
@@ -784,7 +793,7 @@ function rInicio(){
   const quick = Object.entries(S.freq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k])=>S.mem[k]);
   const last = S.movs.slice(0,8);
   $("#p-inicio").innerHTML = hero + kpis + `
-    <div class="card"><h2>Registro rápido</h2><div class="chips">${quick.map(m=>`<button class="chip" data-q="${esc(norm(m.Descripcion))}">${esc(m.Descripcion)}</button>`).join("")||'<span class="muted small">Aparecerán tus gastos más frecuentes.</span>'}</div></div>
+    <div class="card"><h2>⚡ Registro rápido</h2><div class="small muted" style="margin-top:-6px">Toca uno y se llena todo.</div><div class="chips">${quick.map(m=>`<button class="chip" style="display:inline-flex;align-items:center;gap:6px" data-q="${esc(norm(m.Descripcion))}"><span>${ddIco(m.Categoria||m.Descripcion)}</span>${esc(m.Descripcion)}</button>`).join("")||'<span class="muted small">Aparecerán tus gastos más frecuentes.</span>'}</div></div>
     <div class="card" style="padding:12px 12px 4px"><div class="between"><h2>Últimos movimientos</h2><button class="btn sm" id="verTodos">Ver todos</button></div><div class="list">${last.map(itemHTML).join("")||'<div class="empty">Sin movimientos</div>'}</div></div>`;
   $$("[data-q]",$("#p-inicio")).forEach(b=>b.onclick=()=>{ const m=S.mem[b.dataset.q]; openForm({Tipo:"Gasto", Descripcion:m.Descripcion, Categoria:m.Categoria, Subcategoria:m.Subcategoria, Vehiculo:m.Vehiculo, Cuenta:m.Cuenta}); });
   $("#verTodos").onclick=()=>go("movs");
@@ -798,7 +807,7 @@ function rInicio(){
 }
 
 /* ================= Movimientos ================= */
-const FILTROS = [["todos","Todos"],["Gasto","Gastos"],["Ingreso","Ingresos"],["Pago tarjeta","Pagos de tarjeta"],["Transferencia","Entre cuentas"],["Inversión","Inversiones"]];
+const FILTROS = [["todos","Todos"],["Gasto","Gastos"],["Ingreso","Ingresos"],["Pago tarjeta","Pagos de tarjeta"],["Transferencia","Entre cuentas"],["Inversión","Inversiones"],["ahorro","Ahorros"]];
 S.mvModo="cat";
 function mvShift(k){
   if(S.mvModo==="mes"){ S.mes=addMonth(S.mes,k); }
@@ -818,9 +827,20 @@ function rMovs(){
   let rows = S.q ? S.movs.filter(m=>norm([m.Descripcion,m.Categoria,m.Subcategoria,m.Fuente,m.Cuenta,m.Vehiculo,m.Nota].join(" ")).includes(S.q))
     : S.mvModo==="cat"&&cat ? inRange(cat.Inicio,cat.Fin) : inMonth(S.mes);
   const base=rows;
-  $$("[data-cnt]").forEach(el=>{ const k=el.dataset.cnt; const n=k==="todos"? base.length : base.filter(m=>m.Tipo===k).length; el.textContent=" "+n; });
-  if(S.filtro!=="todos") rows = rows.filter(m=>m.Tipo===S.filtro);
-  if(!S.q && S.mvModo==="cat" && cat){
+  $$("[data-cnt]").forEach(el=>{ const k=el.dataset.cnt; const n=k==="todos"? base.length : k==="ahorro"? base.filter(esAhorroMov).length : base.filter(m=>m.Tipo===k).length; el.textContent=" "+n; });
+  if(S.filtro==="ahorro") rows = rows.filter(esAhorroMov);
+  else if(S.filtro!=="todos") rows = rows.filter(m=>m.Tipo===S.filtro);
+  if(S.filtro==="ahorro"){
+    const en=sum(rows.filter(m=>m.Tipo==="Ingreso")), inv=rows.filter(m=>m.Tipo==="Inversión"), ap=sum(inv.filter(m=>m.MovInversion==="Aportación"))+sum(inv.filter(m=>m.MovInversion==="Rendimiento")), re=sum(inv.filter(m=>m.MovInversion==="Retiro")), sal=sum(rows.filter(m=>m.Tipo==="Gasto"));
+    const A = !S.q && S.mvModo==="cat" && cat ? ahorroCat(cat) : null;
+    $("#mvSum").innerHTML = `<div class="card priv" style="gap:6px"><h2>🐷 Ahorro del periodo</h2>
+      ${A!=null? `<div class="between"><span>Ahorro apartado de la catorcena</span><b>${mx(A)}</b></div>`:""}
+      ${en? `<div class="between"><span>Prestaciones y extras que entraron</span><b class="pos">+${mx(en)}</b></div>`:""}
+      ${ap? `<div class="between"><span>Aportaciones y rendimientos a inversiones</span><b class="pos">+${mx(ap)}</b></div>`:""}
+      ${re? `<div class="between"><span>Retiros de inversiones</span><b class="neg">−${mx(re)}</b></div>`:""}
+      ${sal? `<div class="between"><span>Gastos pagados con fondo o dinero del Tenate</span><b class="neg">−${mx(sal)}</b></div>`:""}
+      <div class="small muted">Aquí ves todo lo que entra o sale de tu ahorro. El detalle completo está en Más → Ahorros.</div></div>`;
+  } else if(!S.q && S.mvModo==="cat" && cat){
     const x=catRes(cat);
     $("#mvSum").innerHTML = `<div class="card" style="gap:8px"><div class="kpis"><div><div class="l small muted">Presupuesto</div><div class="mid">${mx(x.P)}</div></div><div><div class="l small muted">Gastado</div><div class="mid neg">${mx(x.Gord)}</div></div><div><div class="l small muted">Queda</div><div class="mid ${x.queda<0?"neg":"pos"}">${mx(x.queda)}</div></div></div>
       <div class="track"><div class="fill ${x.G>x.P?"over":x.G>x.P*.85?"warn":""}" style="width:${x.P?Math.min(100,x.G/x.P*100):0}%"></div></div>
@@ -839,7 +859,8 @@ function rMovs(){
   if(rows.length>S.lim) html+=`<button class="btn sm" id="mvMore" style="margin:10px auto">Ver más (${rows.length-S.lim} restantes)</button>`;
   const AYUDA={"Pago tarjeta":"Aquí aparecen los pagos que haces a tus tarjetas de crédito o departamentales (Nu, Klar, Liverpool…). No cuentan como gasto porque la compra ya se registró cuando usaste la tarjeta.",
     "Transferencia":"Aquí aparece el dinero que mueves entre tus cuentas, por ejemplo un retiro del cajero (débito → efectivo). No es gasto ni ingreso.",
-    "Inversión":"Aquí aparecen las aportaciones y retiros a tus SOFIPOs, bancos o efectivo guardado. Mueven dinero al ahorro; no son gasto."};
+    "Inversión":"Aquí aparecen las aportaciones y retiros a tus SOFIPOs, bancos o efectivo guardado. Mueven dinero al ahorro; no son gasto.",
+    "ahorro":"Aquí aparece todo lo que mueve tu ahorro: prestaciones al fondo, ingresos extra como El Tenate, inversiones y gastos pagados con el fondo."};
   $("#mvList").innerHTML = html || `<div class="empty">${AYUDA[S.filtro]? esc(AYUDA[S.filtro])+"<br><br>Todavía no hay registros de este tipo en el periodo." : "Sin movimientos. Toca + para registrar."}</div>`;
   bindItems($("#mvList"));
   const more=$("#mvMore"); if(more) more.onclick=()=>{ S.lim+=300; rMovs(); };
@@ -1390,7 +1411,7 @@ function ctaOpts(tipos, sel, only){
 function openForm(m, lock){
   m = m || {};
   F.lock = lock || null;
-  F.ten = esTenate(m.Fuente) && TEN_TIPOS.includes(m.Subcategoria) ? m.Subcategoria : null;
+  { const tp = esTenate(m.Fuente) && m.Monto ? tenParts(m) : {app:0,prop:0}; $("#fTenA").value = tp.app||""; $("#fTenP").value = tp.prop||""; }
   F.split=null; $("#fSplitBox").classList.add("hide"); $("#fSplitBtn").textContent="➗ Repartir en varias cuentas";
   $("#fTipo").classList.toggle("hide", !!F.lock);
   F.edit = m.ID ? m : null;
@@ -1457,7 +1478,7 @@ function tipo(t, keep){
   $("#fDescL").textContent=DL[0]; $("#fDesc").placeholder=DL[1]; $("#fDescH").textContent=DL[2]; $("#fDescH").classList.toggle("hide",!DL[2]);
   updVeh();
   const esT=t==="Ingreso"&&esTenate($("#fFuente").value);
-  $("#fTenW").classList.toggle("hide",!esT); $$("#fTen .chip").forEach(c=>c.classList.toggle("on",F.ten===c.dataset.ten));
+  $("#fTenW").classList.toggle("hide",!esT); if(esT) tenCalc();
   $("#fSplitW").classList.toggle("hide", !(t==="Ingreso"&&!F.edit));
   if(t!=="Ingreso"&&F.split) splitToggle(false);
   if(F.split) $("[data-for=dst]").classList.add("hide");
@@ -1687,7 +1708,7 @@ function renderIngresos(el){
   const ext=R.filter(m=>esExtra(m.Fuente)), ten=R.filter(m=>esTenate(m.Fuente));
   const cols = g.tipo==="Todos"
     ? [["Nómina",r=>nmx(sum(r.filter(m=>m.Fuente===NOMINA)))],["Prest.",r=>nmx(sum(r.filter(m=>esPrest(m.Fuente))))],["Extras",r=>nmx(sum(r.filter(m=>esExtra(m.Fuente))))],["Vales",r=>nmx(sum(r.filter(m=>m.Fuente===VALES)))],["Total",r=>nmx(sum(r))]]
-    : g.tipo==="El Tenate" ? [["Ruta",r=>nmx(sum(r.filter(m=>tenTipo(m)==="Pago de ruta")))],["App",r=>nmx(sum(r.filter(m=>tenTipo(m)==="Pago de la app")))],["Sin esp.",r=>nmx(sum(r.filter(m=>tenTipo(m)==="Sin especificar")))],["Total",r=>nmx(sum(r))]]
+    : g.tipo==="El Tenate" ? [["Ruta",r=>nmx(tenSum(r).ruta)],["App",r=>nmx(tenSum(r).app)],["Propinas",r=>nmx(tenSum(r).prop)],["Total",r=>nmx(sum(r))]]
     : [["Ingresos",r=>r.length],["Total",r=>nmx(sum(r))]];
   const catDe=f=>{ const c=catorcenaActual(f); return c? c : null; };
   const vista = g.per==="todo" || (g.per==="rango" && daysBetween(a,b)>400) ? "anio" : (g.per==="anio"||g.per==="rango") ? "mes" : "cat";
@@ -1698,7 +1719,7 @@ function renderIngresos(el){
     : "";
   const filas=R.slice(0,300).map(m=>{ const gr=igGrupo(m.Fuente), c=catDe(m.Fecha);
     const det=[sDate(m.Fecha)+" "+m.Fecha.slice(2,4), c? "Cat. "+(+c.Num):"", gr==="Prestaciones"||!IG_ICO[gr]? m.Fuente : gr, m.CuentaDestino? "→ "+m.CuentaDestino:""].filter(Boolean).join(" · ");
-    return `<button class="ig-row" data-id="${esc(m.ID)}">${igIcoSpan(gr)}<span class="grow"><div class="t">${esc(m.Descripcion||m.Fuente)}${esTenate(m.Fuente)?`<span class="ig-tag">${esc(tenTipo(m))}</span>`:""}</div><div class="s">${esc(det)}</div></span><span class="amt pos priv">+${mx2(m.Monto)}</span></button>`; }).join("");
+    return `<button class="ig-row" data-id="${esc(m.ID)}">${igIcoSpan(gr)}<span class="grow"><div class="t">${esc(m.Descripcion||m.Fuente)}${esTenate(m.Fuente)?`<span class="ig-tag">${esc(tenLabel(m))}</span>`:""}</div><div class="s">${esc(det)}</div></span><span class="amt pos priv">+${mx2(m.Monto)}</span></button>`; }).join("");
   const cajaS=(saldosCuentas()[CAJA_T]||0);
   el.innerHTML=`
     <div class="seg" id="igPer">${per.map(([k,l])=>`<button data-p="${k}" class="${g.per===k?"on":""}">${l}</button>`).join("")}</div>
@@ -1713,7 +1734,8 @@ function renderIngresos(el){
       </div></div>`:""}
     ${g.tipo!=="Todos"&&g.tipo!=="El Tenate"&&R.length&&new Set(R.map(m=>m.Fuente)).size>1? `<div class="card priv"><h2>Por concepto</h2>${barsHTML(group(R,"Fuente"),T)}</div>`:""}
     ${ten.length&&(g.tipo==="Todos"||g.tipo==="El Tenate")? `<div class="card priv"><div class="between"><h2>🚚 El Tenate</h2><b class="pos">${mx(sum(ten))}</b></div>
-      ${barsHTML(group(ten,tenTipo),sum(ten))}
+      ${(()=>{ const t=tenSum(ten); return barsHTML([["🚚 Ruta",t.ruta],["📱 App",t.app],["💵 Propinas",t.prop]].filter(x=>x[1]>0),sum(ten)); })()}
+      <div class="small muted">Toca un ingreso en el Detalle para ajustar cuánto fue de ruta, app o propinas.</div>
       <div class="between small" style="margin-top:6px"><span class="muted">Dinero en ${esc(CAJA_T)} hoy</span><b>${mx2(cajaS)}</b></div>
       <div class="small muted">Lo del Tenate suma a tus ingresos y a tu ahorro, pero no entra al presupuesto de la catorcena.</div></div>`:""}
     ${R.length? `<div class="card priv"><h2>¿A qué cuenta entró?</h2>${barsHTML(group(R,m=>m.CuentaDestino||"Sin cuenta"),T)}</div>`:""}
@@ -1752,6 +1774,30 @@ function splitToggle(on){
   $("[data-for=dst]").classList.toggle("hide", on || F.t!=="Ingreso" && !["Pago tarjeta","Transferencia"].includes(F.t));
   if(on) splitPaint();
 }
+/* ===== El Tenate: ruta / app / propinas ===== */
+function tenParts(m){
+  const s=String(m.Subcategoria||""), M=+m.Monto||0;
+  const r=s.match(/Ruta\s*([\d.]+)\s*\|\s*App\s*([\d.]+)\s*\|\s*Propinas\s*([\d.]+)/i);
+  if(r) return {ruta:+r[1], app:+r[2], prop:+r[3]};
+  if(/app/i.test(s)) return {ruta:0, app:M, prop:0};
+  if(/propina/i.test(s)) return {ruta:0, app:0, prop:M};
+  return {ruta:M, app:0, prop:0};
+}
+function tenCod(p){ const r2=x=>Math.round(x*100)/100; return (p.app||p.prop)? `Ruta ${r2(p.ruta)} | App ${r2(p.app)} | Propinas ${r2(p.prop)}` : "Pago de ruta"; }
+function tenLabel(m){ const p=tenParts(m), L=[["Ruta",p.ruta],["App",p.app],["Propinas",p.prop]].filter(x=>x[1]>0); return L.length===1? L[0][0] : L.map(([k,v])=>k+" "+mx(v)).join(" · "); }
+function tenSum(rows){ const t={ruta:0,app:0,prop:0}; rows.forEach(m=>{ const p=tenParts(m); t.ruta+=p.ruta; t.app+=p.app; t.prop+=p.prop; }); return t; }
+function tenCalc(){
+  const tot=parseFloat($("#fMonto").value)||0, a=parseFloat($("#fTenA").value)||0, p=parseFloat($("#fTenP").value)||0, r=Math.round((tot-a-p)*100)/100;
+  $("#fTenR").value = tot? r.toFixed(2) : "";
+  $("#fTenInfo").innerHTML = !tot? '<span class="muted">Escribe el monto total arriba. La ruta se calcula sola.</span>' : r<0? `<span class="neg">App + propinas pasan el total por ${mx2(-r)}</span>` : `<span class="muted">Ruta ${mx2(r)} + App ${mx2(a)} + Propinas ${mx2(p)} = ${mx2(tot)}</span>`;
+  return {ruta:r, app:a, prop:p};
+}
+function esAhorroMov(m){
+  if(m.Tipo==="Inversión") return true;
+  if(m.Tipo==="Ingreso") return m.Fuente!==VALES && (esPrest(m.Fuente)||esExtra(m.Fuente));
+  if(m.Tipo==="Gasto") return m.Cuenta===FONDO || m.Cuenta===CAJA_T;
+  return false;
+}
 function applyMem(m, setDesc){
   if(!m) return;
   if(setDesc) $("#fDesc").value=m.Descripcion;
@@ -1769,7 +1815,8 @@ $("#fSub").addEventListener("change",()=>updVeh());
 $("#fCta").onchange=()=>{ F.cta=$("#fCta").value; tipo(F.t,true); };
 $("#fInvM").onchange=()=>tipo(F.t,true);
 $("#fFuente").onchange=()=>{ $("#fDst").value=""; F.dst=""; tipo(F.t,true); };
-$$("#fTen .chip").forEach(c=>c.onclick=()=>{ F.ten=c.dataset.ten; $$("#fTen .chip").forEach(x=>x.classList.toggle("on",x===c)); if(!$("#fDesc").value) $("#fDesc").value=F.ten; });
+["#fTenA","#fTenP"].forEach(i=>$(i).addEventListener("input",tenCalc));
+$("#fMonto").addEventListener("input",()=>{ if(!$("#fTenW").classList.contains("hide")) tenCalc(); });
 $("#fSplitBtn").onclick=()=>splitToggle(!F.split);
 $("#fSplitAdd").onclick=()=>{ F.split.push({c:"",m:""}); splitPaint(); };
 $("#fMonto").addEventListener("input",()=>{ if(F.split) splitInfo(); });
@@ -1797,13 +1844,15 @@ function submit(again){
     if(S.autoCats.has(o.Categoria)){ o.Vehiculo=F.veh; o.Km=v("#fKm"); o.Litros=v("#fLt"); }
     store("fc_lastCta", o.Cuenta);
   } else if(t==="Ingreso"){ o.Fuente=v("#fFuente"); o.CuentaDestino=v("#fDst");
-    if(esTenate(o.Fuente)){ if(!F.ten) return e.textContent="Indica si es pago de ruta o pago de la app."; o.Subcategoria=F.ten; if(!o.Descripcion) o.Descripcion="El Tenate · "+F.ten; }
+    let tp=null;
+    if(esTenate(o.Fuente)){ tp=tenCalc(); if(tp.ruta<0) return e.textContent="App + propinas no pueden ser más que el total."; o.Subcategoria=tenCod(tp); if(!o.Descripcion) o.Descripcion="El Tenate"; }
     if(F.split){ const ok=F.split.filter(r=>r.c&&parseFloat(r.m)>0); const rep=Math.round(ok.reduce((s,r)=>s+parseFloat(r.m),0)*100)/100;
       if(ok.length<2) return e.textContent="Elige al menos dos cuentas con monto.";
       if(new Set(ok.map(r=>r.c)).size!==ok.length) return e.textContent="Hay una cuenta repetida.";
       if(Math.abs(rep-o.Monto)>0.009) return e.textContent="Lo repartido ("+mx2(rep)+") debe sumar "+mx2(o.Monto)+".";
       if(!o.Descripcion) o.Descripcion=o.Fuente;
-      const p=pend(); ok.forEach((r,i)=>{ const x=Object.assign({},o,{ID:uid(),Monto:Math.round(parseFloat(r.m)*100)/100,CuentaDestino:r.c,Nota:(o.Nota?o.Nota+" · ":"")+"Repartido "+(i+1)+"/"+ok.length}); S.movs.push(x); p.push({op:"save",o:x}); });
+      const p=pend(); ok.forEach((r,i)=>{ const x=Object.assign({},o,{ID:uid(),Monto:Math.round(parseFloat(r.m)*100)/100,CuentaDestino:r.c,Nota:(o.Nota?o.Nota+" · ":"")+"Repartido "+(i+1)+"/"+ok.length});
+        if(tp){ const f=x.Monto/o.Monto, a=Math.round(tp.app*f*100)/100, pr=Math.round(tp.prop*f*100)/100; x.Subcategoria=tenCod({ruta:x.Monto-a-pr,app:a,prop:pr}); } S.movs.push(x); p.push({op:"save",o:x}); });
       sortMovs(); setPend(p); toast("Guardado en "+ok.length+" cuentas: "+(o.Descripcion)+" "+mx2(o.Monto)); flush();
       if(again){ $("#fMonto").value=""; $("#fDesc").value=""; $("#fNota").value=""; e.textContent=""; splitToggle(true); tipo(t,true); } else closeForm();
       render(); return; }
