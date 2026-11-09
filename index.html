@@ -348,6 +348,7 @@ details.mas .f{margin-top:6px}
       <div class="f"><label for="fTenA">📱 App</label><input id="fTenA" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0"></div>
       <div class="f"><label for="fTenP">💵 Propinas</label><input id="fTenP" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0"></div></div>
     <div id="fTenInfo"></div></div>
+  <div class="f hide" id="fProyW"><label>¿De qué proyecto?</label><div class="chips" id="fProy"></div><div class="hint">O escribe uno nuevo en Concepto.</div></div>
   <div class="f"><label for="fDesc" id="fDescL">Concepto</label><input id="fDesc" list="dlDesc" autocomplete="off" placeholder="¿En qué fue? Ej. Estacionamiento plaza"><div class="hint" id="fDescH">Así lo verás en tu lista de movimientos.</div></div>
   <datalist id="dlDesc"></datalist>
   <div>
@@ -506,6 +507,7 @@ function load(){
     spSet(90,"Calculando catorcenas y ahorros…"); S.d = d; build(); spDone(); const av=$("#avisoCarga"); if(av) av.remove();
     $("#lastSync").textContent = "Última lectura: "+new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
     if(d.url) $("#sheetLink").href = d.url;
+    migrarProyectos();
     render(); flush(); renderMas();
     if(S.claveNueva){ S.claveNueva=false; setTimeout(preguntarGuardar, 400); }
   }).catch(e=>{
@@ -1412,6 +1414,7 @@ function openForm(m, lock){
   m = m || {};
   F.lock = lock || null;
   { const tp = esTenate(m.Fuente) && m.Monto ? tenParts(m) : {app:0,prop:0}; $("#fTenA").value = tp.app||""; $("#fTenP").value = tp.prop||""; }
+  F.proy = esProy(m.Fuente)? (m.Subcategoria||null) : null;
   F.split=null; $("#fSplitBox").classList.add("hide"); $("#fSplitBtn").textContent="➗ Repartir en varias cuentas";
   $("#fTipo").classList.toggle("hide", !!F.lock);
   F.edit = m.ID ? m : null;
@@ -1479,6 +1482,10 @@ function tipo(t, keep){
   updVeh();
   const esT=t==="Ingreso"&&esTenate($("#fFuente").value);
   $("#fTenW").classList.toggle("hide",!esT); if(esT) tenCalc();
+  const esP=t==="Ingreso"&&esProy($("#fFuente").value), pn=esP? proyNombres() : [];
+  $("#fProyW").classList.toggle("hide",!esP||!pn.length);
+  $("#fProy").innerHTML=pn.map(n=>`<button type="button" class="chip ${F.proy===n?"on":""}" data-pr="${esc(n)}">🧩 ${esc(n)}</button>`).join("");
+  $$("#fProy .chip").forEach(c=>c.onclick=()=>{ F.proy=c.dataset.pr; $("#fDesc").value=F.proy; $$("#fProy .chip").forEach(x=>x.classList.toggle("on",x===c)); });
   $("#fSplitW").classList.toggle("hide", !(t==="Ingreso"&&!F.edit));
   if(t!=="Ingreso"&&F.split) splitToggle(false);
   if(F.split) $("[data-for=dst]").classList.add("hide");
@@ -1732,7 +1739,7 @@ function renderIngresos(el){
       <div class="card priv"><h2>¿Para qué es cada peso?</h2><div class="ig-uso">
         ${[["Nómina","Para gastar en la catorcena","Es tu presupuesto (menos lo que apartas de ahorro)."],["Prestaciones","Va al fondo de ahorro","Bonos, aguinaldo, PTU, vacaciones…"],["__ext","Va directo a ahorro","El Tenate, Informatics, proyectos y otros extras."],["Vales","Solo para súper","Se gastan con la tarjeta de vales."]].map(([k,t,d])=>{ const v=k==="__ext"? sum(ext) : sumG(k); return v? `<div class="r">${igIcoSpan(k==="__ext"?"El Tenate":k)}<span class="grow"><b>${t}</b><small>${d}</small></span><b>${mx(v)}</b></div>`:""; }).join("")}
       </div></div>`:""}
-    ${g.tipo!=="Todos"&&g.tipo!=="El Tenate"&&R.length&&new Set(R.map(m=>m.Fuente)).size>1? `<div class="card priv"><h2>Por concepto</h2>${barsHTML(group(R,"Fuente"),T)}</div>`:""}
+    ${(()=>{ if(g.tipo==="Todos"||g.tipo==="El Tenate"||!R.length) return ""; const multi=new Set(R.map(m=>m.Fuente)).size>1, kf=m=>multi? m.Fuente : (m.Subcategoria||(m.Descripcion!==m.Fuente?m.Descripcion:"")||"Sin concepto"), G=group(R,kf); return G.length>1? `<div class="card priv"><h2>${esProy(g.tipo)?"🧩 Por proyecto":"Por concepto"}</h2>${barsHTML(G,T)}</div>` : ""; })()}
     ${ten.length&&(g.tipo==="Todos"||g.tipo==="El Tenate")? `<div class="card priv"><div class="between"><h2>🚚 El Tenate</h2><b class="pos">${mx(sum(ten))}</b></div>
       ${(()=>{ const t=tenSum(ten); return barsHTML([["🚚 Ruta",t.ruta],["📱 App",t.app],["💵 Propinas",t.prop]].filter(x=>x[1]>0),sum(ten)); })()}
       <div class="small muted">Toca un ingreso en el Detalle para ajustar cuánto fue de ruta, app o propinas.</div>
@@ -1798,6 +1805,18 @@ function esAhorroMov(m){
   if(m.Tipo==="Gasto") return m.Cuenta===FONDO || m.Cuenta===CAJA_T;
   return false;
 }
+/* ===== Proyectos (Sauces, Préstamos…) ===== */
+function PROY(){ return S.fuentes.find(f=>/proyecto/i.test(f))||"Proyectos"; }
+function esProy(f){ return /proyecto/i.test(f||""); }
+function proyNombres(){ const c={}; S.movs.forEach(m=>{ if(m.Tipo==="Ingreso"&&esProy(m.Fuente)){ const n=m.Subcategoria||(m.Descripcion!==m.Fuente?m.Descripcion:""); if(n) n.split(/\s+y\s+|,\s*/).forEach(x=>{ x=x.trim(); if(x) c[x]=(c[x]||0)+1; }); } }); return Object.keys(c).sort((a,b)=>c[b]-c[a]); }
+function migrarProyectos(){
+  const L=S.movs.filter(m=>m.Tipo==="Ingreso"&&esTenate(m.Fuente)&&/sauce|pr[eé]stamo/i.test([m.Descripcion,m.Subcategoria,m.Nota].join(" ")));
+  if(!L.length) return;
+  const p=pend();
+  L.forEach(m=>{ const t=[m.Descripcion,m.Subcategoria,m.Nota].join(" "), ns=[/sauce/i.test(t)&&"Sauces",/pr[eé]stamo/i.test(t)&&"Préstamos"].filter(Boolean).join(" y ");
+    Object.assign(m,{Fuente:PROY(),Subcategoria:ns,Descripcion:ns}); const o=Object.assign({},m); p.push({op:"save",o}); });
+  setPend(p); setTimeout(()=>toast(L.length+(L.length===1?" ingreso se movió":" ingresos se movieron")+" de El Tenate a Proyectos"),1200);
+}
 function applyMem(m, setDesc){
   if(!m) return;
   if(setDesc) $("#fDesc").value=m.Descripcion;
@@ -1846,6 +1865,7 @@ function submit(again){
   } else if(t==="Ingreso"){ o.Fuente=v("#fFuente"); o.CuentaDestino=v("#fDst");
     let tp=null;
     if(esTenate(o.Fuente)){ tp=tenCalc(); if(tp.ruta<0) return e.textContent="App + propinas no pueden ser más que el total."; o.Subcategoria=tenCod(tp); if(!o.Descripcion) o.Descripcion="El Tenate"; }
+    if(esProy(o.Fuente)){ const n=o.Descripcion&&o.Descripcion!==o.Fuente? o.Descripcion : (F.proy||""); o.Subcategoria=n; if(!o.Descripcion) o.Descripcion=n||o.Fuente; }
     if(F.split){ const ok=F.split.filter(r=>r.c&&parseFloat(r.m)>0); const rep=Math.round(ok.reduce((s,r)=>s+parseFloat(r.m),0)*100)/100;
       if(ok.length<2) return e.textContent="Elige al menos dos cuentas con monto.";
       if(new Set(ok.map(r=>r.c)).size!==ok.length) return e.textContent="Hay una cuenta repetida.";
