@@ -210,6 +210,12 @@ details.mas .f{margin-top:6px}
 .acc-k small{display:block;color:var(--muted);font-size:11.5px}
 .acc-k b{font-size:15px}
 .acc-a{display:flex;gap:8px;flex-wrap:wrap}
+.pk-list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pk-c{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;background:var(--bg);font-size:13px;font-weight:600;text-align:left;border:1.5px solid transparent;min-width:0}
+.pk-c span.n{flex:1;min-width:0;line-height:1.2;overflow-wrap:anywhere}
+.pk-c small{color:var(--muted);font-weight:500}
+.pk-c:active{transform:scale(.97)}
+.qk .chip.all{border-style:dashed;color:var(--primary);font-weight:700}
 .f input,.f select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);min-height:44px}
 .f input.monto{font-size:30px;font-weight:800;padding:8px 12px;text-align:center}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -304,7 +310,7 @@ details.mas .f{margin-top:6px}
     <button type="button" class="chip" data-t="Inversión">Inversión</button>
   </div>
   <div class="f"><label for="fMonto">Monto</label><input class="monto" id="fMonto" type="number" inputmode="decimal" step="0.01" min="0" placeholder="$0"></div>
-  <div class="qk" id="fQuickW"><div class="qk-h">⚡ Tus gastos frecuentes · toca uno y se llena todo</div><div class="chips" id="fQuick"></div></div>
+  <div class="qk" id="fQuickW"><div class="qk-h" id="fQuickH">⚡ Tus gastos frecuentes · toca uno y se llena todo</div><div class="chips" id="fQuick"></div></div>
   <div class="two">
     <div class="f"><label for="fFecha">Fecha</label><input id="fFecha" type="date"></div>
     <div class="f" data-for="Gasto"><label for="fCat">Categoría</label><select id="fCat"></select></div>
@@ -494,8 +500,8 @@ function build(){
   S.fTipo = {}; d.fuentes.forEach(f=>S.fTipo[f.Fuente]=f.Tipo);
   S.ins = d.instrumentos.filter(i=>!String(i.Activo).toLowerCase().startsWith("n"));
   // memoria de descripciones: la más reciente define categoría, sub, vehículo y cuenta
-  S.mem = {}; S.freq = {};
-  for(const m of S.movs){ if(m.Tipo!=="Gasto"||!m.Descripcion) continue; const k=norm(m.Descripcion); if(!S.mem[k]) S.mem[k]=m; if(daysBetween(m.Fecha,S.hoy)<=180) S.freq[k]=(S.freq[k]||0)+1; }
+  S.mem = {}; S.freq = {}; S.cnt = {};
+  for(const m of S.movs){ if(m.Tipo!=="Gasto"||!m.Descripcion) continue; const k=norm(m.Descripcion); if(!S.mem[k]||m.Fecha>=S.mem[k].Fecha) S.mem[k]=m; S.cnt[k]=(S.cnt[k]||0)+1; if(daysBetween(m.Fecha,S.hoy)<=180) S.freq[k]=(S.freq[k]||0)+1; }
   $("#dlDesc").innerHTML = Object.values(S.mem).slice(0,400).map(m=>`<option value="${esc(m.Descripcion)}">`).join("");
   try{ store("fc_cache", Object.assign({}, d, {movs: S.d.movs.slice(-6000)})); }catch(e){}
   $("#about").textContent = S.movs.length.toLocaleString("es-MX")+" movimientos desde "+(S.movs.length? sDate(S.movs[S.movs.length-1].Fecha)+" "+S.movs[S.movs.length-1].Fecha.slice(0,4):"—")+(d.user? " · "+d.user : "");
@@ -1403,9 +1409,14 @@ function tipo(t, keep){
   $("#dlSub").innerHTML = (S.cats[$("#fCat").value]||[]).map(s=>`<option value="${esc(s)}">`).join("");
   $("#fVeh").innerHTML = (LK.veh?[LK.veh]:S.vehs).map(v=>`<button type="button" class="chip ${F.veh===v?"on":""}" data-v="${esc(v)}">${esc(v)}</button>`).join("");
   $$("#fVeh .chip").forEach(b=>b.onclick=()=>{ F.veh=b.dataset.v; tipo(F.t,true); });
-  const q = t==="Gasto" ? Object.entries(S.freq).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k])=>S.mem[k]) : [];
+  const qcat = $("#fCat").value, qks = qcat ? conceptos(qcat) : Object.entries(S.freq).sort((a,b)=>b[1]-a[1]).map(([k])=>k);
+  const q = t==="Gasto" ? qks.slice(0,8).map(k=>S.mem[k]) : [];
+  $("#fQuickH").textContent = qcat ? `⚡ Conceptos de ${qcat} · toca uno y se llena todo` : "⚡ Tus gastos frecuentes · toca uno y se llena todo";
+  $("#dlDesc").innerHTML = (qcat? conceptos(qcat) : Object.keys(S.mem)).slice(0,400).map(k=>`<option value="${esc(S.mem[k].Descripcion)}">`).join("");
   $("#fQuick").innerHTML = F.edit? "" : q.map(m=>`<button type="button" class="chip" data-qq="${esc(norm(m.Descripcion))}"><span>${ddIco(m.Categoria||m.Descripcion)}</span>${esc(m.Descripcion)}</button>`).join("");
   $$("#fQuick .chip").forEach(b=>b.onclick=()=>applyMem(S.mem[b.dataset.qq], true));
+  if(t==="Gasto" && !F.edit && Object.keys(S.mem).length){ const tot=qcat? qks.length : Object.keys(S.mem).length;
+    $("#fQuick").insertAdjacentHTML("afterbegin",`<button type="button" class="chip all" id="fQAll">📋 Ver todos (${tot})</button>`); $("#fQAll").onclick=abrirConceptos; }
   $("#fQuickW").classList.toggle("hide", !$("#fQuick").children.length);
   const DL={Gasto:["Concepto","¿En qué fue? Ej. Estacionamiento plaza","Así lo verás en tu lista de movimientos."],Ingreso:["Concepto","Ej. Reparto semana 45","Opcional: un detalle de este ingreso."],"Pago tarjeta":["Concepto","Opcional, ej. Pago total del corte",""],Transferencia:["Concepto","Opcional, ej. Retiro en cajero",""],"Inversión":["Concepto","Opcional, ej. Aportación mensual",""]}[t]||["Concepto","",""];
   $("#fDescL").textContent=DL[0]; $("#fDesc").placeholder=DL[1]; $("#fDescH").textContent=DL[2]; $("#fDescH").classList.toggle("hide",!DL[2]);
@@ -1576,6 +1587,20 @@ function renderCtaDet(el){
   $$("[data-pagar]",el).forEach(x=>x.onclick=()=>openForm({Tipo:"Pago tarjeta", CuentaDestino:x.dataset.pagar},{dst:x.dataset.pagar}));
   $("#cdAdd").onclick=()=>openForm({Tipo:"Gasto",Cuenta:n},{cta:n});
   bindItems(el);
+}
+function conceptos(cat){
+  return Object.keys(S.mem).filter(k=>!cat||S.mem[k].Categoria===cat).sort((a,b)=>(S.cnt[b]||0)-(S.cnt[a]||0)||(S.freq[b]||0)-(S.freq[a]||0));
+}
+function abrirConceptos(){
+  const cat=$("#fCat").value;
+  ddSheet(cat? "Conceptos de "+cat : "Todos tus conceptos", true, q=>{
+    const n=x=>norm(x), ks=conceptos(cat).filter(k=>!q||k.includes(n(q)));
+    const row=k=>{ const m=S.mem[k]; return `<button type="button" class="pk-c" data-v="${esc(k)}"><span>${ddIco(m.Categoria||m.Descripcion)}</span><span class="n">${esc(m.Descripcion)}</span><small>${S.cnt[k]||""}</small></button>`; };
+    if(!ks.length) return '<div class="empty">Sin coincidencias. Escribe el concepto en el campo y se guardará como nuevo.</div>';
+    if(cat) return `<div class="pk-list">${ks.map(row).join("")}</div>`;
+    const g={}; ks.forEach(k=>(g[S.mem[k].Categoria||"Sin categoría"] ||= []).push(k));
+    return Object.keys(g).sort().map(c=>`<div class="pk-g">${ddIco(c)} ${esc(c)} · ${g[c].length}</div><div class="pk-list">${g[c].map(row).join("")}</div>`).join("");
+  }, k=>{ applyMem(S.mem[k], true); }, null);
 }
 function applyMem(m, setDesc){
   if(!m) return;
