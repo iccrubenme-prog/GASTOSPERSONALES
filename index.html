@@ -190,6 +190,26 @@ table.compacta th,table.compacta td{padding:6px 3px}
 .dd .dd-l small{display:block;font-weight:500;font-size:12px;color:var(--muted);margin-top:1px}
 #pk .cpick{gap:8px}
 #pk .pk-new{display:flex;align-items:center;gap:8px;width:100%;padding:12px;border-radius:14px;border:1.5px dashed var(--primary);color:var(--primary);font-weight:700;margin-bottom:10px;background:var(--primary-soft)}
+.qk{display:flex;flex-direction:column;gap:6px}
+.qk-h{font-size:12px;font-weight:700;color:var(--muted)}
+.qk .chips .chip{display:inline-flex;align-items:center;gap:6px}
+.f .hint{font-size:12px;color:var(--muted);margin-top:4px}
+details.mas{border:1px dashed var(--line);border-radius:14px;padding:4px 12px}
+details.mas summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);padding:10px 0;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.mas summary::-webkit-details-marker{display:none}
+details.mas summary::after{content:"＋";font-size:16px}
+details.mas[open] summary::after{content:"－"}
+details.mas[open]{padding-bottom:12px}
+details.mas .f{margin-top:6px}
+.acc{padding:12px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.acc:last-child{border-bottom:0}
+.acc-h{display:flex;align-items:center;gap:10px}
+.acc-h .dd-card{width:44px;height:30px;border-radius:7px;flex:none;background:linear-gradient(135deg,var(--c1),var(--c2));display:grid;place-items:center;font-size:14px}
+.acc-k{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.acc-k div{background:var(--bg);border-radius:10px;padding:8px 10px}
+.acc-k small{display:block;color:var(--muted);font-size:11.5px}
+.acc-k b{font-size:15px}
+.acc-a{display:flex;gap:8px;flex-wrap:wrap}
 .f input,.f select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);min-height:44px}
 .f input.monto{font-size:30px;font-weight:800;padding:8px 12px;text-align:center}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -284,24 +304,23 @@ table.compacta th,table.compacta td{padding:6px 3px}
     <button type="button" class="chip" data-t="Inversión">Inversión</button>
   </div>
   <div class="f"><label for="fMonto">Monto</label><input class="monto" id="fMonto" type="number" inputmode="decimal" step="0.01" min="0" placeholder="$0"></div>
-  <div class="chips" id="fQuick"></div>
+  <div class="qk" id="fQuickW"><div class="qk-h">⚡ Tus gastos frecuentes · toca uno y se llena todo</div><div class="chips" id="fQuick"></div></div>
   <div class="two">
     <div class="f"><label for="fFecha">Fecha</label><input id="fFecha" type="date"></div>
     <div class="f" data-for="Gasto"><label for="fCat">Categoría</label><select id="fCat"></select></div>
     <div class="f" data-for="Ingreso"><label for="fFuente">Fuente</label><select id="fFuente"></select></div>
     <div class="f" data-for="Inversión"><label for="fInvM">Movimiento</label><select id="fInvM"><option>Aportación</option><option>Retiro</option><option>Rendimiento</option></select></div>
   </div>
-  <div class="f"><label for="fDesc">Descripción</label><input id="fDesc" list="dlDesc" autocomplete="off" placeholder="Comida, gasolina, estacionamiento…"></div>
+  <div class="f"><label for="fDesc" id="fDescL">Concepto</label><input id="fDesc" list="dlDesc" autocomplete="off" placeholder="¿En qué fue? Ej. Estacionamiento plaza"><div class="hint" id="fDescH">Así lo verás en tu lista de movimientos.</div></div>
   <datalist id="dlDesc"></datalist>
-  <div class="two" data-for="Gasto">
-    <div class="f"><label for="fSub">Subcategoría</label><input id="fSub" list="dlSub" autocomplete="off"></div>
+  <div>
     <div class="f" data-for="msi"><label for="fMsi">Meses sin intereses</label><select id="fMsi"><option value="">De contado</option><option>3</option><option>6</option><option>9</option><option>12</option><option>13</option><option>18</option><option>24</option></select></div>
   </div>
   <datalist id="dlSub"></datalist>
-  <div data-for="veh" class="f"><label>Vehículo</label><div class="chips" id="fVeh"></div></div>
-  <div class="two" data-for="veh">
-    <div class="f"><label for="fKm">Kilometraje</label><input id="fKm" type="number" inputmode="numeric" min="0" placeholder="Opcional"></div>
-    <div class="f"><label for="fLt">Litros</label><input id="fLt" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Si es gasolina"></div>
+  <div data-for="veh" class="f"><label>¿Qué auto?</label><div class="chips" id="fVeh"></div></div>
+  <div class="two hide" id="fKmRow">
+    <div class="f" id="fKmW"><label for="fKm">Kilometraje</label><input id="fKm" type="number" inputmode="numeric" min="0" placeholder="Opcional"></div>
+    <div class="f" id="fLtW"><label for="fLt">Litros</label><input id="fLt" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Opcional"></div>
   </div>
   <div class="f" data-for="Inversión"><label for="fIns">Instrumento</label><select id="fIns"></select></div>
   <div class="stack" style="display:flex;flex-direction:column;gap:14px">
@@ -315,7 +334,10 @@ table.compacta th,table.compacta td{padding:6px 3px}
     <div class="small priv" id="valesSaldo" style="font-weight:700"></div>
   </div>
   <div class="f hide" id="tkVer"><label>Artículos del ticket</label><div class="small" id="tkLista"></div></div>
-  <div class="f"><label for="fNota">Nota</label><input id="fNota" placeholder="Opcional"></div>
+  <details class="mas" id="fMas"><summary>Más detalles (opcional)</summary>
+    <div class="f" data-for="Gasto"><label for="fSub">Subcategoría</label><input id="fSub" list="dlSub" autocomplete="off"><div class="hint">Para agrupar dentro de la categoría, ej. Autos → Estacionamiento.</div></div>
+    <div class="f"><label for="fNota">Nota</label><input id="fNota" placeholder="Cualquier comentario"></div>
+  </details>
   <div class="err" id="fErr"></div>
   <div class="actions"><button type="button" class="btn danger hide" id="fDel">Eliminar</button><button type="button" class="btn" id="fAgain">Guardar y otro</button><button type="submit" class="btn primary">Guardar</button></div>
 </form>
@@ -509,7 +531,7 @@ window.addEventListener("online", flush);
 const TITLES = {inicio:"Finanzas RME", movs:"Movimientos", anal:"Análisis", mas:"Más"};
 function go(v){ S.view=v; S.sub=null; $$(".page").forEach(p=>p.classList.toggle("on", p.id==="p-"+v)); $$(".tab[data-v]").forEach(t=>t.classList.toggle("on", t.dataset.v===v)); $("#bar").classList.remove("sub"); $("#vTitle").textContent=TITLES[v]; $("#scr").scrollTop=0; render(); }
 function openSub(k){ S.sub=k; $$(".page").forEach(p=>p.classList.toggle("on", p.id==="p-sub")); $("#bar").classList.add("sub"); $("#scr").scrollTop=0; render(); }
-$("#back").onclick=()=>go("mas");
+$("#back").onclick=()=>{ if(S.sub==="ctadet") openSub("cuentas"); else go("mas"); };
 $$(".tab[data-v]").forEach(t=>t.onclick=()=>go(t.dataset.v));
 $$("[data-sub]").forEach(b=>b.onclick=()=>openSub(b.dataset.sub));
 $("#addBtn").onclick=()=>openForm();
@@ -1015,7 +1037,7 @@ function anAutos(){
 /* ================= Sub-páginas de "Más" ================= */
 function renderSub(){
   const k=S.sub, el=$("#p-sub");
-  $("#vTitle").textContent = {ahorro:"Ahorros", cuentas:"Tarjetas y cuentas", msi:"Compras a meses", inv:"Inversiones", vales:"Vales de despensa", pres:"Presupuesto"}[k];
+  $("#vTitle").textContent = {ahorro:"Ahorros", cuentas:"Tarjetas y cuentas", msi:"Compras a meses", inv:"Inversiones", vales:"Vales de despensa", pres:"Presupuesto"}[k] || (k==="ctadet"? S.ctaDet : "");
   if(k==="ahorro"){
     if(!S.ahAnio) S.ahAnio=+S.hoy.slice(0,4);
     const y=S.ahAnio, ay=ahorrosAnio(y), M=metaAnio(y), cs=ay.cs, last=cs[cs.length-1];
@@ -1050,21 +1072,24 @@ function renderSub(){
     $$("[data-plan]",el).forEach(b=>b.onclick=()=>planForm(S.d.catorcenas.find(k=>k.ID===b.dataset.plan), renderSub));
   }
   if(k==="cuentas"){
-    const b=saldosCuentas(), mes=inMonth(S.hoy.slice(0,7));
+    const ca=perRango("cat"), me=perRango("mes");
     const msiPend={}; S.d.msi.forEach(x=>{ const e=msiEstado(x); if(e.restan>0) msiPend[x.Cuenta]=(msiPend[x.Cuenta]||0)+e.pend; });
-    const grupos=[["Crédito",["Crédito"]],["Departamentales",["Departamental"]],["Débito, efectivo, vales y fondo",["Débito","Efectivo","Vales","Fondo"]]];
-    el.innerHTML = grupos.map(([t,tipos])=>{ const cs=S.d.cuentas.filter(c=>tipos.includes(c.Tipo)); if(!cs.length) return "";
-      return `<div class="card"><h2>${t}</h2>${cs.map(c=>{ const s=b[c.Cuenta]||0, cred=tipos[0]==="Crédito"||tipos[0]==="Departamental";
-        const cargos=sum(mes.filter(m=>m.Tipo==="Gasto"&&m.Cuenta===c.Cuenta)), lim=+c.LimiteCredito||0, deuda=-s, p=lim?deuda/lim:0;
-        return `<div style="display:flex;flex-direction:column;gap:6px;padding:8px 0;border-bottom:1px solid var(--line)">
-          <div class="between"><b>${esc(c.Cuenta)}</b><span class="mid ${cred&&deuda>0?"neg":""} ${cred?"":"priv"}">${mx2(cred?deuda:s)}</span></div>
-          <div class="between small muted"><span>${cred?"Deuda":"Saldo"} desde ${c.FechaSaldo? sDate(c.FechaSaldo)+" "+c.FechaSaldo.slice(0,4):"el inicio"}</span><span>Cargos del mes ${mx(cargos)}</span></div>
-          ${lim? `<div class="track"><div class="fill ${p>.8?"over":p>.5?"warn":""}" style="width:${Math.min(100,p*100)}%"></div></div>`:""}
-          ${msiPend[c.Cuenta]? `<div class="small warn">Meses sin intereses por pagar: ${mx(msiPend[c.Cuenta])}</div>`:""}
-          ${cred? `<button class="btn sm" data-pagar="${esc(c.Cuenta)}" style="align-self:flex-start">Registrar pago</button>`:""}</div>`; }).join("")}</div>`; }).join("") +
-      `<p class="small muted">Captura el saldo real y la fecha de cada cuenta en la hoja CUENTAS (SaldoInicial y FechaSaldo); a partir de ahí la app suma los movimientos.</p>`;
+    const b=saldosCuentas();
+    const grupos=[["Tarjetas de crédito",["Crédito"]],["Tarjetas de tienda",["Departamental"]],["Débito y efectivo",["Débito","Efectivo"]],["Vales y fondo",["Vales","Fondo"]]];
+    let i=0;
+    el.innerHTML = `<p class="small muted" style="margin:0 4px 10px">Cuánto has gastado con cada tarjeta. Toca <b>Ver desglose</b> para ver en qué se fue.</p>` + grupos.map(([tt,tipos])=>{ const cs=S.d.cuentas.filter(c=>tipos.includes(c.Tipo)); if(!cs.length) return "";
+      return `<div class="card"><h2>${tt}</h2>${cs.map(c=>{ const n=c.Cuenta, t=c.Tipo, cred=t==="Crédito"||t==="Departamental", [c1,c2]=cpCol(n,i++);
+        const gc=sum(gastosCuenta(n,ca[0],ca[1])), gm=sum(gastosCuenta(n,me[0],me[1]));
+        const deuda = c.FechaSaldo ? -(b[n]||0) : null;
+        return `<div class="acc"><div class="acc-h"><span class="dd-card" style="--c1:${c1};--c2:${c2}">${CP_ICO[t]||"💳"}</span><span class="grow"><b>${esc(n)}</b><div class="small muted">${esc(ctaSub(n,t))}</div></span></div>
+          <div class="acc-k"><div><small>Gastado esta catorcena</small><b>${mx(gc)}</b></div><div><small>Gastado este mes</small><b>${mx(gm)}</b></div></div>
+          ${cred&&deuda>0? `<div class="small ${deuda>0?"neg":""}">Deuda actual: ${mx2(deuda)}</div>`:""}
+          ${msiPend[n]? `<div class="small warn">Meses sin intereses por pagar: ${mx(msiPend[n])}</div>`:""}
+          <div class="acc-a"><button class="btn sm" data-det="${esc(n)}">Ver desglose ›</button>${cred? `<button class="btn sm" data-pagar="${esc(n)}">Registrar pago</button>`:""}</div></div>`; }).join("")}</div>`; }).join("");
     $$("[data-pagar]",el).forEach(x=>x.onclick=()=>openForm({Tipo:"Pago tarjeta", CuentaDestino:x.dataset.pagar},{dst:x.dataset.pagar}));
+    $$("[data-det]",el).forEach(x=>x.onclick=()=>{ S.ctaDet=x.dataset.det; S.ctaPer="cat"; openSub("ctadet"); });
   }
+  if(k==="ctadet") renderCtaDet(el);
   if(k==="msi"){
     const act=S.d.msi.map(x=>Object.assign({},x,msiEstado(x))).filter(x=>x.restan>0).sort((a,b)=>b.pend-a.pend);
     const porC=group(act.map(x=>({Monto:x.pend,Cuenta:x.Cuenta})),"Cuenta"), T=act.reduce((s,x)=>s+x.pend,0);
@@ -1339,6 +1364,7 @@ function openForm(m, lock){
   $("#fIns").innerHTML = opt(S.ins.map(i=>i.Instrumento), m.Instrumento, "Elige…");
   $("#fInvM").value = m.MovInversion || "Aportación";
   $("#fDesc").value = m.Descripcion || ""; $("#fSub").value = m.Subcategoria || ""; $("#fNota").value = m.Nota || "";
+  $("#fMas").open = !!(m.Subcategoria||m.Nota) && !!F.edit;
   $("#fKm").value = m.Km || ""; $("#fLt").value = m.Litros || ""; $("#fMsi").value = m.MesesMSI || "";
   F.veh = m.Vehiculo || "";
   F.cta = m.Cuenta !== undefined ? m.Cuenta : (F.t==="Gasto" ? (store("fc_lastCta")||"") : "");
@@ -1365,7 +1391,7 @@ function tipo(t, keep){
     msi: t==="Gasto" && (ctaTipo==="Crédito"||ctaTipo==="Departamental") && !F.edit,
     vales: t==="Gasto" && ctaTipo==="Vales"};
   $$("#sheet [data-for]").forEach(el=>el.classList.toggle("hide", !show[el.dataset.for]));
-  if(show.vales){ const sv=S.movs.filter(m=>(m.Tipo==="Ingreso"&&m.Fuente===VALES)||(m.Tipo==="Gasto"&&m.Cuenta===VALES)).reduce((s,m)=>s+(m.Tipo==="Ingreso"?m.Monto:-m.Monto),0); $("#valesSaldo").textContent="Saldo disponible en vales: "+mx2(sv); }
+  if(show.vales){ $("#valesSaldo").textContent="Saldo disponible en vales: "+mx2(valesSaldo()); }
   const L = {Gasto:["Pagado con",""], Ingreso:["","Entra a"], "Pago tarjeta":["Pagado desde","Tarjeta que pagas"], Transferencia:["Sale de","Llega a"], "Inversión":[$("#fInvM").value==="Retiro"?"Cuenta que recibe":"Sale de",""]}[t];
   if(L[0]) $("#fCtaL").textContent=L[0]; if(L[1]) $("#fDstL").textContent=L[1];
   const LK=F.lock||{};
@@ -1378,8 +1404,12 @@ function tipo(t, keep){
   $("#fVeh").innerHTML = (LK.veh?[LK.veh]:S.vehs).map(v=>`<button type="button" class="chip ${F.veh===v?"on":""}" data-v="${esc(v)}">${esc(v)}</button>`).join("");
   $$("#fVeh .chip").forEach(b=>b.onclick=()=>{ F.veh=b.dataset.v; tipo(F.t,true); });
   const q = t==="Gasto" ? Object.entries(S.freq).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k])=>S.mem[k]) : [];
-  $("#fQuick").innerHTML = F.edit? "" : q.map(m=>`<button type="button" class="chip" data-qq="${esc(norm(m.Descripcion))}">${esc(m.Descripcion)}</button>`).join("");
+  $("#fQuick").innerHTML = F.edit? "" : q.map(m=>`<button type="button" class="chip" data-qq="${esc(norm(m.Descripcion))}"><span>${ddIco(m.Categoria||m.Descripcion)}</span>${esc(m.Descripcion)}</button>`).join("");
   $$("#fQuick .chip").forEach(b=>b.onclick=()=>applyMem(S.mem[b.dataset.qq], true));
+  $("#fQuickW").classList.toggle("hide", !$("#fQuick").children.length);
+  const DL={Gasto:["Concepto","¿En qué fue? Ej. Estacionamiento plaza","Así lo verás en tu lista de movimientos."],Ingreso:["Concepto","Ej. Reparto semana 45","Opcional: un detalle de este ingreso."],"Pago tarjeta":["Concepto","Opcional, ej. Pago total del corte",""],Transferencia:["Concepto","Opcional, ej. Retiro en cajero",""],"Inversión":["Concepto","Opcional, ej. Aportación mensual",""]}[t]||["Concepto","",""];
+  $("#fDescL").textContent=DL[0]; $("#fDesc").placeholder=DL[1]; $("#fDescH").textContent=DL[2]; $("#fDescH").classList.toggle("hide",!DL[2]);
+  updVeh();
 }
 /* ===== Selector visual de cuentas ===== */
 const CP_COL=[[/banamex/i,"#d4243a","#7a0f1f"],[/^nu\b/i,"#9b3df0","#4b0d8c"],[/klar/i,"#3a3d4a","#111219"],[/liverpool|f[aá]bricas/i,"#ee3a9a","#8e0f57"],
@@ -1459,8 +1489,7 @@ function cardsHTML(sel){
     const ops=[...g.querySelectorAll("option")];
     return `<div class="cp-g">${esc(g.label)}</div><div class="cp-row">`+ops.map(o=>{
       const n=o.value||o.textContent, c=S.cta[n]||{}, t=c.Tipo||g.label, [c1,c2]=cpCol(n,i++), s=sal[n]||0;
-      const cred=t==="Crédito"||t==="Departamental";
-      const sub= cred ? (s<0?"Debes "+mx(-s):"Sin saldo") : `<span class="priv">Disponible ${mx(s)}</span>`;
+      const sub=esc(ctaSub(n,t));
       return `<button type="button" class="cp ${n===v?"on":""} ${ops.length===1?"wide":""}" data-cp="${esc(n)}" style="--c1:${c1};--c2:${c2}">
         <div class="cp-top"><span class="cp-ico">${CP_ICO[t]||"💳"}</span><span class="cp-chk">${n===v?"✓":""}</span></div>
         <div><div class="cp-n">${esc(n)}</div><div class="cp-s">${sub}</div></div></button>`;
@@ -1472,8 +1501,7 @@ function cardTrigger(sel){
   if(!n) return `<span class="dd-ic" style="--ic-bg:var(--bg)">💳</span><span class="dd-l ph">Elige una cuenta</span>`+CHEV;
   let sal={}; try{ sal=saldosCuentas(); }catch(e){}
   const all=[...sel.options].filter(x=>x.value), idx=all.indexOf(o), c=S.cta[n]||{}, t=c.Tipo||"", [c1,c2]=cpCol(n,idx), s=sal[n]||0;
-  const cred=t==="Crédito"||t==="Departamental";
-  const sub= cred ? (s<0?"Debes "+mx(-s):"Sin saldo") : `<span class="priv">Disponible ${mx(s)}</span>`;
+  const sub=esc(ctaSub(n,t));
   return `<span class="dd-card" style="--c1:${c1};--c2:${c2}">${CP_ICO[t]||"💳"}</span><span class="dd-l">${esc(n)}<small>${sub}</small></span>`+CHEV;
 }
 function renderPick(id){
@@ -1490,7 +1518,7 @@ function subOpen(){
     const quitar= inp.value ? `<button type="button" class="pk-t" data-v=""><span class="dd-ic" style="--ic-bg:var(--bg)">✕</span><span>Sin subcategoría</span></button>` : "";
     return nuevo+`<div class="pk-grid">${l.map(s=>`<button type="button" class="pk-t ${s===inp.value?"on":""}" data-v="${esc(s)}">${ddIcon(s,$("#fCat").value)}<span>${esc(s)}</span></button>`).join("")}${quitar}</div>`
       + (!l.length&&!nuevo ? '<div class="empty">Escribe arriba para crear una subcategoría</div>' : "");
-  }, v=>{ inp.value=v; }, inp._dd);
+  }, v=>{ inp.value=v; updVeh(); }, inp._dd);
 }
 function ddSheet(title, search, body, onPick, trig){
   let pk=$("#pk");
@@ -1505,6 +1533,50 @@ function ddSheet(title, search, body, onPick, trig){
   if(trig) trig.el.classList.add("open"); pk._trig=trig;
   $("#pkScrim").classList.add("on"); requestAnimationFrame(()=>pk.classList.add("on"));
 }
+/* ===== Textos claros para cuentas ===== */
+const TIPO_TXT={"Efectivo":"Dinero en efectivo","Débito":"Tarjeta de débito","Crédito":"Tarjeta de crédito","Departamental":"Tarjeta de tienda","Vales":"Tarjeta de vales","Fondo":"Fondo de ahorro"};
+function valesSaldo(){ return S.movs.filter(m=>(m.Tipo==="Ingreso"&&m.Fuente===VALES)||(m.Tipo==="Gasto"&&m.Cuenta===VALES)).reduce((s,m)=>s+(m.Tipo==="Ingreso"?m.Monto:-m.Monto),0); }
+function ctaSub(n,t){ return t==="Vales" ? "Saldo en vales "+mx2(valesSaldo()) : (TIPO_TXT[t]||t||""); }
+function updVeh(){
+  const isAuto=F.t==="Gasto"&&S.autoCats.has($("#fCat").value), txt=$("#fDesc").value+" "+$("#fSub").value;
+  const gas=/gasolin|combustib|di[eé]sel|magna|premium/i.test(txt), serv=/servicio|afinaci|aceite|llanta|mantenim|verificaci|refacci|bater[ií]a|frenos/i.test(txt);
+  $("#fKmW").classList.toggle("hide",!(isAuto&&(gas||serv))); $("#fLtW").classList.toggle("hide",!(isAuto&&gas));
+  $("#fKmRow").classList.toggle("hide",!(isAuto&&(gas||serv)));
+}
+/* ===== Desglose por cuenta ===== */
+function perRango(p){
+  const h=S.hoy, y=h.slice(0,4), ym=h.slice(0,7);
+  const L=S.d.catorcenas.slice().sort((a,b)=>a.Inicio<b.Inicio?-1:1), ci=L.findIndex(c=>c.Inicio<=h&&h<=c.Fin), c=L[ci], cp=L[ci-1];
+  const fin=m=>{ const [a,b]=m.split("-").map(Number); return m+"-"+String(new Date(a,b,0).getDate()).padStart(2,"0"); };
+  const pm=addMonth(ym,-1);
+  return { cat: c? [c.Inicio,c.Fin,catLabel(c)]:[h,h,"Hoy"], catAnt: cp? [cp.Inicio,cp.Fin,catLabel(cp)]:null,
+           mes:[ym+"-01",fin(ym),"Este mes"], mesAnt:[pm+"-01",fin(pm),"Mes anterior"], anio:[y+"-01-01",y+"-12-31","Año "+y] }[p];
+}
+function gastosCuenta(n,a,b){ return S.movs.filter(m=>m.Tipo==="Gasto"&&m.Cuenta===n&&m.Fecha>=a&&m.Fecha<=b); }
+function renderCtaDet(el){
+  const n=S.ctaDet, c=S.cta[n]||{}, t=c.Tipo||"", [c1,c2]=cpCol(n,0);
+  S.ctaPer=S.ctaPer||"cat"; const R=perRango(S.ctaPer)||perRango("cat"), [a,b,lab]=R;
+  const g=gastosCuenta(n,a,b).sort((x,y)=>x.Fecha<y.Fecha?1:-1), T=sum(g);
+  const ent=S.movs.filter(m=>m.Fecha>=a&&m.Fecha<=b&&((m.Tipo==="Pago tarjeta"||m.Tipo==="Transferencia"||m.Tipo==="Ingreso")&&m.CuentaDestino===n));
+  const sal=S.movs.filter(m=>m.Fecha>=a&&m.Fecha<=b&&(m.Tipo==="Pago tarjeta"||m.Tipo==="Transferencia")&&m.Cuenta===n);
+  const porCat=group(g,"Categoria"), porDesc=group(g,m=>m.Descripcion||m.Subcategoria||"Sin concepto").slice(0,8);
+  const pers=[["cat","Catorcena"],["catAnt","Catorcena anterior"],["mes","Este mes"],["mesAnt","Mes anterior"],["anio","Este año"]].filter(([k])=>perRango(k));
+  el.innerHTML=`<div class="card" style="background:linear-gradient(135deg,${c1},${c2});color:#fff">
+      <div class="small" style="opacity:.85">${esc(TIPO_TXT[t]||t)} · ${esc(lab)}</div>
+      <div class="small" style="opacity:.85;margin-top:8px">Gastaste con ${esc(n)}</div>
+      <div class="big">${mx2(T)}</div>
+      <div class="small" style="opacity:.85">${g.length} ${g.length===1?"compra":"compras"}${g.length? " · promedio "+mx(T/g.length):""}</div></div>
+    <div class="chips" style="overflow-x:auto;flex-wrap:nowrap">${pers.map(([k,l])=>`<button class="chip ${S.ctaPer===k?"on":""}" data-per="${k}">${l}</button>`).join("")}</div>
+    ${g.length? `<div class="card"><h2>¿En qué se fue?</h2>${barsHTML(porCat,T,null,setDrill("cd-cat",g,n+" · "+lab))}</div>
+      <div class="card"><h2>Conceptos que más pesan</h2>${barsHTML(porDesc,T)}</div>` : `<div class="card"><div class="empty">No hay gastos con ${esc(n)} en este periodo.</div></div>`}
+    ${ent.length||sal.length? `<div class="card"><h2>${t==="Crédito"||t==="Departamental"?"Pagos a la tarjeta":"Entradas y salidas"}</h2>${[...ent,...sal].sort((x,y)=>x.Fecha<y.Fecha?1:-1).map(m=>itemHTML(m,true)).join("")}</div>`:""}
+    ${g.length? `<div class="card"><h2>Todas las compras</h2><div class="list">${g.map(m=>itemHTML(m,true)).join("")}</div></div>`:""}
+    <div class="actions">${t==="Crédito"||t==="Departamental"? `<button class="btn" data-pagar="${esc(n)}">Registrar pago</button>`:""}<button class="btn primary" id="cdAdd">＋ Gasto con ${esc(n)}</button></div>`;
+  $$("[data-per]",el).forEach(x=>x.onclick=()=>{ S.ctaPer=x.dataset.per; renderSub(); });
+  $$("[data-pagar]",el).forEach(x=>x.onclick=()=>openForm({Tipo:"Pago tarjeta", CuentaDestino:x.dataset.pagar},{dst:x.dataset.pagar}));
+  $("#cdAdd").onclick=()=>openForm({Tipo:"Gasto",Cuenta:n},{cta:n});
+  bindItems(el);
+}
 function applyMem(m, setDesc){
   if(!m) return;
   if(setDesc) $("#fDesc").value=m.Descripcion;
@@ -1517,6 +1589,8 @@ function applyMem(m, setDesc){
 }
 $$("#fTipo .chip").forEach(b=>b.onclick=()=>tipo(b.dataset.t));
 $("#fCat").onchange=()=>{ $("#fSub").value=""; tipo(F.t,true); };
+$("#fDesc").addEventListener("input",()=>updVeh());
+$("#fSub").addEventListener("change",()=>updVeh());
 $("#fCta").onchange=()=>{ F.cta=$("#fCta").value; tipo(F.t,true); };
 $("#fInvM").onchange=()=>tipo(F.t,true);
 $("#fFuente").onchange=()=>{ $("#fDst").value=""; F.dst=""; tipo(F.t,true); };
