@@ -349,7 +349,7 @@ details.mas .f{margin-top:6px}
       <div class="f"><label for="fTenP">💵 Propinas</label><input id="fTenP" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0"></div></div>
     <div id="fTenInfo"></div></div>
   <div class="f hide" id="fProyW"><label>¿De qué proyecto?</label><div class="chips" id="fProy"></div><div class="hint">O escribe uno nuevo en Concepto.</div></div>
-  <div class="f"><label for="fDesc" id="fDescL">Concepto</label><input id="fDesc" list="dlDesc" autocomplete="off" placeholder="¿En qué fue? Ej. Estacionamiento plaza"><div class="hint" id="fDescH">Así lo verás en tu lista de movimientos.</div></div>
+  <div class="f"><label for="fDesc" id="fDescL">Concepto</label><input id="fDesc" list="dlDesc" autocomplete="off" placeholder="¿En qué fue? Ej. Estacionamiento plaza"><div class="hint" id="fDescH">Así lo verás en tu lista de movimientos.</div><div id="fDescSug"></div></div>
   <datalist id="dlDesc"></datalist>
   <div>
     <div class="f" data-for="msi"><label for="fMsi">Meses sin intereses</label><select id="fMsi"><option value="">De contado</option><option>3</option><option>6</option><option>9</option><option>12</option><option>13</option><option>18</option><option>24</option></select></div>
@@ -1419,7 +1419,7 @@ function ctaOpts(tipos, sel, only){
 }
 function openForm(m, lock){
   m = m || {};
-  F.lock = lock || null;
+  F.lock = lock || null; F.descAuto = null;
   { const tp = esTenate(m.Fuente) && m.Monto ? tenParts(m) : {app:0,prop:0}; $("#fTenA").value = tp.app||""; $("#fTenP").value = tp.prop||""; }
   F.proy = esProy(m.Fuente)? (m.Subcategoria||null) : null;
   F.sep={on:false,f:null}; $("#fSepBox").classList.add("hide"); $("#fSepBtn").textContent="✂️ Separar una parte en otra fuente"; $("#fSepM").value=""; $("#fSepD").value="";
@@ -1485,7 +1485,7 @@ function tipo(t, keep){
   if(t==="Gasto" && !F.edit && Object.keys(S.mem).length){ const tot=qcat? qks.length : Object.keys(S.mem).length;
     $("#fQuick").insertAdjacentHTML("afterbegin",`<button type="button" class="chip all" id="fQAll">📋 Ver todos (${tot})</button>`); $("#fQAll").onclick=abrirConceptos; }
   $("#fQuickW").classList.toggle("hide", !$("#fQuick").children.length);
-  const DL={Gasto:["Concepto","¿En qué fue? Ej. Estacionamiento plaza","Así lo verás en tu lista de movimientos."],Ingreso:["Concepto","Ej. Reparto semana 45","Opcional: un detalle de este ingreso."],"Pago tarjeta":["Concepto","Opcional, ej. Pago total del corte",""],Transferencia:["Concepto","Opcional, ej. Retiro en cajero",""],"Inversión":["Concepto","Opcional, ej. Aportación mensual",""]}[t]||["Concepto","",""];
+  const DL={Gasto:["Concepto","¿En qué fue? Ej. Estacionamiento plaza","Así lo verás en tu lista de movimientos."],Ingreso:["Concepto","Se llena solo","Se llena solo con el formato de tus registros; puedes cambiarlo."],"Pago tarjeta":["Concepto","Se llena solo","Se llena solo; puedes cambiarlo."],Transferencia:["Concepto","Se llena solo","Se llena solo; puedes cambiarlo, ej. Retiro en cajero."],"Inversión":["Concepto","Se llena solo","Se llena solo; puedes cambiarlo."]}[t]||["Concepto","",""];
   $("#fDescL").textContent=DL[0]; $("#fDesc").placeholder=DL[1]; $("#fDescH").textContent=DL[2]; $("#fDescH").classList.toggle("hide",!DL[2]);
   updVeh();
   const esT=t==="Ingreso"&&esTenate($("#fFuente").value);
@@ -1493,7 +1493,8 @@ function tipo(t, keep){
   const esP=t==="Ingreso"&&esProy($("#fFuente").value), pn=esP? proyNombres() : [];
   $("#fProyW").classList.toggle("hide",!esP||!pn.length);
   $("#fProy").innerHTML=pn.map(n=>`<button type="button" class="chip ${F.proy===n?"on":""}" data-pr="${esc(n)}">🧩 ${esc(n)}</button>`).join("");
-  $$("#fProy .chip").forEach(c=>c.onclick=()=>{ F.proy=c.dataset.pr; $("#fDesc").value=F.proy; $$("#fProy .chip").forEach(x=>x.classList.toggle("on",x===c)); });
+  $$("#fProy .chip").forEach(c=>c.onclick=()=>{ F.proy=c.dataset.pr; $$("#fProy .chip").forEach(x=>x.classList.toggle("on",x===c)); descAuto(); });
+  descAuto();
   $("#fSplitW").classList.toggle("hide", !(t==="Ingreso"&&!F.edit));
   $("#fSepW").classList.toggle("hide", !(t==="Ingreso"&&F.edit)); if(F.sep&&F.sep.on) sepPaint();
   if(t!=="Ingreso"&&F.split) splitToggle(false);
@@ -1845,6 +1846,50 @@ function sepInfo(){
     `Este registro queda en <b>${mx2(tot-m)}</b> (${esc($("#fFuente").value)}) y se crea otro de <b>${mx2(m)}</b> en <b>${esc(F.sep.f)}</b>, misma fecha y cuenta.`;
 }
 function sepToggle(on){ F.sep.on=on; $("#fSepBox").classList.toggle("hide",!on); $("#fSepBtn").textContent = on? "✕ No separar" : "✂️ Separar una parte en otra fuente"; if(on) sepPaint(); }
+/* ===== Concepto automático y sugerencias (ingresos, pagos, transferencias, inversiones) ===== */
+const ddmm = f => f.slice(8,10)+"/"+f.slice(5,7);
+function sumDia(f,n){ const d=new Date(f+"T12:00:00"); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function conceptoAuto(){
+  const t=F.t, f=$("#fFuente").value, fe=$("#fFecha").value||S.hoy;
+  if(t==="Ingreso"){
+    if(f===NOMINA){ const c=catorcenaActual(fe); return c? `Nómina catorcena ${+c.Num} (${ddmm(c.Inicio)}–${ddmm(c.Fin)}/${c.Fin.slice(0,4)})` : f; }
+    if(f===VALES){ const prev=S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fuente===VALES&&m.Fecha<fe&&(!F.edit||m.ID!==F.edit.ID)).sort((a,b)=>a.Fecha<b.Fecha?1:-1)[0];
+      const a=prev? sumDia(prev.Fecha,1) : fe; return `Depósito vales (${ddmm(a)}–${ddmm(fe)}/${fe.slice(0,4)})`; }
+    if(esTenate(f)){ const a=parseFloat($("#fTenA").value)||0, p=parseFloat($("#fTenP").value)||0; return (a||p)? f+" · "+["Ruta",a&&"App",p&&"Propinas"].filter(Boolean).join(" + ") : f; }
+    if(esProy(f)) return F.proy || f;
+    return f;
+  }
+  if(t==="Pago tarjeta"){ const d=$("#fDst").value; return d? "Pago "+d : ""; }
+  if(t==="Transferencia"){ const a=$("#fCta").value, d=$("#fDst").value; return a&&d? a+" → "+d : ""; }
+  if(t==="Inversión"){ const i=$("#fIns").value; return i? $("#fInvM").value+" "+i : ""; }
+  return "";
+}
+function descAuto(){
+  if(F.t==="Gasto"){ $("#fDescSug").innerHTML=""; return; }
+  const el=$("#fDesc"), cur=el.value.trim();
+  const key=F.t+"|"+$("#fFuente").value;
+  if(!cur || (cur===F.descAuto && (!F.descPicked || key!==F.descKey))){ const a=conceptoAuto(); el.value=a; F.descAuto=a; F.descPicked=false; F.descKey=key; }
+  descSug();
+}
+function conceptosUsados(){
+  const t=F.t, f=$("#fFuente").value, c={};
+  S.movs.forEach(m=>{ if(m.Tipo!==t||!m.Descripcion) return; if(t==="Ingreso"&&m.Fuente!==f) return;
+    if(/^Nómina catorcena \d|^Depósito vales \(|^Saldo inicial/.test(m.Descripcion)) return; c[m.Descripcion]=(c[m.Descripcion]||0)+1; });
+  return Object.keys(c).sort((a,b)=>c[b]-c[a]);
+}
+function descPick(v){ F.descAuto=v; F.descPicked=true; F.descKey=F.t+"|"+$("#fFuente").value; descSug(); }
+function descSug(){
+  const L=conceptosUsados(), box=$("#fDescSug"), cur=$("#fDesc").value.trim();
+  $("#dlDesc").innerHTML=L.slice(0,300).map(x=>`<option value="${esc(x)}">`).join("");
+  if(!L.length){ box.innerHTML=""; return; }
+  box.innerHTML=`<div class="qk-h" style="margin:6px 0 4px">Conceptos que ya usas · toca uno</div><div class="chips">`+L.slice(0,6).map(x=>`<button type="button" class="chip ${x===cur?"on":""}" data-ds="${esc(x)}">${esc(x)}</button>`).join("")
+    +(L.length>6? `<button type="button" class="chip all" id="fDsAll">📋 Ver todos (${L.length})</button>`:"")+`</div>`;
+  $$("[data-ds]",box).forEach(b=>b.onclick=()=>{ $("#fDesc").value=b.dataset.ds; descPick(b.dataset.ds); });
+  const all=$("#fDsAll"); if(all) all.onclick=()=>ddSheet("Conceptos de "+(F.t==="Ingreso"? $("#fFuente").value : F.t), true, q=>{
+    const n=x=>norm(x), l=L.filter(x=>!q||n(x).includes(n(q)));
+    return l.length? `<div class="pk-list">${l.map(x=>`<button type="button" class="pk-c" data-v="${esc(x)}"><span class="n">${esc(x)}</span></button>`).join("")}</div>` : '<div class="empty">Sin coincidencias</div>';
+  }, v=>{ $("#fDesc").value=v; descPick(v); }, null);
+}
 function applyMem(m, setDesc){
   if(!m) return;
   if(setDesc) $("#fDesc").value=m.Descripcion;
@@ -1870,7 +1915,10 @@ $("#fSepM").addEventListener("input",sepInfo);
 $("#fMonto").addEventListener("input",()=>{ if(F.sep&&F.sep.on) sepInfo(); });
 $("#fSplitAdd").onclick=()=>{ F.split.push({c:"",m:""}); splitPaint(); };
 $("#fMonto").addEventListener("input",()=>{ if(F.split) splitInfo(); });
-$("#fDst").onchange=()=>{ F.dst=$("#fDst").value; renderPicks(); };
+$("#fDst").onchange=()=>{ F.dst=$("#fDst").value; renderPicks(); descAuto(); };
+$("#fFecha").addEventListener("change",()=>descAuto());
+["#fTenA","#fTenP"].forEach(i=>$(i).addEventListener("input",()=>descAuto()));
+$("#fIns").addEventListener("change",()=>descAuto());
 $("#fDesc").onchange=()=>{ if(F.t==="Gasto" && !F.edit){ const m=S.mem[norm($("#fDesc").value)]; if(m) applyMem(m,false); } };
 $("#fClose").onclick=closeForm; $("#scrim").onclick=closeForm;
 let delArm=false;
