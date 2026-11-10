@@ -591,6 +591,13 @@ const EYE='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="c
 function aplicarPriv(){ const on=!!store("fc_priv"); document.body.classList.toggle("privado",on); const b=$("#privBtn"); b.innerHTML=on?EYEOFF:EYE; b.setAttribute("aria-label", on?"Mostrar ingresos, ahorro y presupuesto":"Ocultar ingresos, ahorro y presupuesto"); b.title=b.getAttribute("aria-label"); }
 $("#privBtn").onclick=()=>{ store("fc_priv", !store("fc_priv")); aplicarPriv(); toast(store("fc_priv")? "Ingresos, ahorro, saldos y presupuesto ocultos" : "Todo visible"); };
 aplicarPriv();
+function pantallaEntrar(msg){
+  if(!claveGuardada()){ if(typeof pedirClave==="function") return pedirClave(msg); }
+  spStop(); $("#splash").classList.remove("hide"); $("#splash").classList.add("listo"); $("#splashMsg").textContent=msg||"";
+  $("#claveForm").classList.add("hide");
+  let r=$("#reentrar"); if(!r){ r=document.createElement("button"); r.id="reentrar"; r.className="btn"; r.style.cssText="background:#fff;color:#2f3a8f;width:260px"; r.textContent="Entrar"; $("#splash").appendChild(r); }
+  r.classList.remove("hide"); r.onclick=()=>{ r.classList.add("hide"); $("#splash").classList.remove("listo"); load(); };
+}
 $("#salir").onclick=()=>{
   const b=$("#salir");
   if(b.dataset.arm!=="1"){ b.dataset.arm="1"; b.textContent="¿Salir?"; setTimeout(()=>{ b.dataset.arm=""; b.textContent="Salir"; },3000); return; }
@@ -598,15 +605,8 @@ $("#salir").onclick=()=>{
   const guardada=claveGuardada();
   try{ sessionStorage.removeItem("fc_clave_ses"); if(!guardada) localStorage.removeItem("fc_cache"); }catch(e){}
   S.d=null; closeForm();
-  try{ window.close(); }catch(e){}
-  if(guardada){
-    spStop(); $("#splash").classList.remove("hide"); $("#splash").classList.add("listo"); $("#splashMsg").textContent="Saliste de la app. Tu clave sigue guardada en este teléfono.";
-    $("#claveForm").classList.add("hide");
-    let r=$("#reentrar"); if(!r){ r=document.createElement("button"); r.id="reentrar"; r.className="btn"; r.style.cssText="background:#fff;color:#2f3a8f;width:260px"; r.textContent="Entrar"; $("#splash").appendChild(r); }
-    r.classList.remove("hide"); r.onclick=()=>{ r.classList.add("hide"); load(); };
-  }
-  else if(typeof pedirClave==="function") pedirClave("Sesión cerrada. Escribe tu clave para volver a entrar.");
-  else { $("#splash").classList.remove("hide"); $("#splashMsg").textContent="Sesión cerrada. Puedes cerrar esta ventana."; }
+  S.nav=[]; go("inicio");
+  pantallaEntrar(guardada? "Saliste de la app. Tu clave sigue guardada en este teléfono." : "Sesión cerrada. Escribe tu clave para volver a entrar.");
 };
 $("#olvidar").onclick=()=>{ const b=$("#olvidar"); if(b.dataset.arm!=="1"){ b.dataset.arm="1"; $(".t",b).textContent="Toca otra vez para olvidarla"; setTimeout(()=>{ b.dataset.arm=""; $(".t",b).textContent="Olvidar clave guardada"; },3000); return; }
   const c=getClave(); olvidarClave(); setClaveSesion(c); store("fc_noPreguntar",false); b.dataset.arm=""; $(".t",b).textContent="Olvidar clave guardada"; renderMas(); toast("Clave olvidada en este teléfono"); };
@@ -2005,7 +2005,7 @@ $("#sheet").addEventListener("submit", ev=>{ ev.preventDefault(); submit(false);
 $("#fAgain").onclick=()=>submit(true);
 
 syncBadge();
-load();
+pantallaEntrar(claveGuardada()? "Toca Entrar para ver tus finanzas." : null);
 </script>
 </body>
 </html>
