@@ -257,6 +257,15 @@ details.mas .f{margin-top:6px}
 .tree .r .grow{min-width:0}.tree .r .grow b{font-size:13.5px}.tree .r>b{font-size:13.5px;flex:none}
 .tree .dd-ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;flex:none;background:var(--ic-bg)}
 .tree .r b{white-space:nowrap}
+.ptab{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.ptab th{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.75;text-align:right;padding:4px 0 4px 6px}
+.ptab th:first-child,.ptab td:first-child{text-align:left;padding-left:0}
+.ptab td{text-align:right;padding:6px 0 6px 6px;border-top:1px solid rgba(127,127,127,.25);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ptab td:first-child{white-space:normal}
+.hero .ptab th{opacity:.9;color:#dfe3ff}
+.ptab tr.tot td{font-weight:800;border-top:2px solid rgba(127,127,127,.45)}
+.ptab .neg2{color:#ff9a90}
+.card:not(.hero) .ptab .neg2{color:var(--neg)}
 .f input,.f select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);min-height:44px}
 .f input.monto{font-size:30px;font-weight:800;padding:8px 12px;text-align:center}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -657,7 +666,7 @@ function esExtra(f){ return S.fTipo[f]==="Extra" || (!S.fTipo[f] && f!==NOMINA &
 function ahorroCat(c){ const v = c.AhorroCatorcena!==undefined ? c.AhorroCatorcena : c.MetaAhorro; return v===""||v==null ? null : +v; }
 function catRes(c){
   const r=inRange(c.Inicio,c.Fin);
-  const gas=r.filter(m=>m.Tipo==="Gasto"&&m.Cuenta!==VALES);
+  const gas=r.filter(m=>m.Tipo==="Gasto"&&!pagoVales(m));
   const nom=r.filter(m=>m.Tipo==="Ingreso"&&m.Fuente===NOMINA);
   const ext=r.filter(m=>m.Tipo==="Ingreso"&&esExtra(m.Fuente));
   const pre=r.filter(m=>m.Tipo==="Ingreso"&&esPrest(m.Fuente));
@@ -668,7 +677,7 @@ function catRes(c){
   const P = c.PptoGastos!==""&&c.PptoGastos!=null ? +c.PptoGastos : (A!=null? N-A+AF : 0);
   const GT=sum(gas.filter(m=>m.Cuenta===CAJA_T));
   const Gord=G-GF-GT;
-  return {r, gas, G, GF, GT, Gord, N, P, AF, E, ext, pre, PR:sum(pre), A, queda:P-Gord, ahorro:A||0, libre:N-G, valesG:sum(r.filter(m=>m.Tipo==="Gasto"&&m.Cuenta===VALES))};
+  return {r, gas, G, GF, GT, Gord, N, P, AF, E, ext, pre, PR:sum(pre), A, queda:P-Gord, ahorro:A||0, libre:N-G, valesG:sum(r.filter(pagoVales))};
 }
 function metaAnio(y){ const m=(S.d.metas||[]).find(x=>String(x.Anio)===String(y)); const base=m? +m.AhorroPorCatorcena||0 : 0, n=m? +m.CatorcenasAnio||26 : 26; return {base, n, meta: m&&+m.MetaAhorroAnual? +m.MetaAhorroAnual : base*n, total: m? +m.MetaTotalAnual||0 : 0}; }
 // Igual que tu hoja: NVO AHORRO P/CAT = (meta anual − ahorro acumulado) ÷ catorcenas restantes
@@ -695,7 +704,7 @@ function ahorrosAnio(y){
   return {cs, AC, prest, PR, gfHist, gfApp, GF, apoyos, AP, fondo, acum:AC+fondo, ext, EX, GT, total:AC+fondo+EX-GT};
 }
 // gasto diario (sin vales) en un rango; los días se cuentan hasta hoy si el rango no ha terminado
-function porDia(a,b){ const fin=b<S.hoy?b:S.hoy; if(fin<a) return null; const d=daysBetween(a,fin)+1; const g=sum(inRange(a,fin).filter(m=>m.Tipo==="Gasto"&&m.Cuenta!==VALES)); return {g,d,v:g/d}; }
+function porDia(a,b){ const fin=b<S.hoy?b:S.hoy; if(fin<a) return null; const d=daysBetween(a,fin)+1; const g=sum(inRange(a,fin).filter(m=>m.Tipo==="Gasto"&&!pagoVales(m))); return {g,d,v:g/d}; }
 function finMes(ym){ const [y,m]=ym.split("-").map(Number); return ym+"-"+pad(new Date(y,m,0).getDate()); }
 function ritmoHTML(c,x){
   const real=porDia(c.Inicio,c.Fin); if(!real) return "";
@@ -811,6 +820,7 @@ function rInicio(){
       <div><div class="small muted">${x.queda<0?"Te pasaste del presupuesto":"Queda del presupuesto"}</div><div class="big priv" style="${x.queda<0?"color:#ff9a90":""}">${mx(x.queda)}</div></div>
       <div class="track"><div class="fill" style="width:${Math.min(100,p*100)}%"></div></div>
       <div class="between small"><span>Gastado ${mx(x.Gord)} de <span class="priv">${mx(x.P)}</span>${x.GF? " (+"+mx(x.GF)+" del fondo)":""}</span><span class="priv">${dias>0&&x.queda>0? "Puedes "+mx(x.queda/dias)+"/día" : x.queda<=0? "Presupuesto agotado" : ""}</span></div>
+      ${presDesglose(c,x)}
       ${x.AF? `<div class="small" style="opacity:.85">Incluye ${mx(x.AF)} de colchón del fondo</div>`:""}
       ${x.queda<0? (()=>{ const f=ahorrosAnio(c.Anio).fondo; const falta=Math.ceil(-x.queda); return f>=falta? `<button class="btn sm" id="cubrir" style="background:#fff;color:#2f3a8f;align-self:flex-start">Cubrir <span class="priv">${mx(falta)}</span> con el fondo <span class="priv">(disponible ${mx(f)})</span></button>` : `<div class="small" style="opacity:.85">El fondo no alcanza para cubrir la diferencia (disponible <span class="priv">${mx(f)}</span>).</div>`; })() : ""}
       ${ritmoHTML(c,x)}</div>`;
@@ -877,9 +887,9 @@ function rMovs(){
       <div class="small muted">Aquí ves todo lo que entra o sale de tu ahorro. El detalle completo está en Más → Ahorros.</div></div>`;
   } else if(!S.q && S.mvModo==="cat" && cat){
     const x=catRes(cat);
-    $("#mvSum").innerHTML = `<div class="card" style="gap:8px"><div class="kpis"><div><div class="l small muted">Presupuesto</div><div class="mid priv">${mx(x.P)}</div></div><div><div class="l small muted">Gastado</div><div class="mid neg">${mx(x.Gord)}</div></div><div><div class="l small muted">Queda</div><div class="mid priv ${x.queda<0?"neg":"pos"}">${mx(x.queda)}</div></div></div>
-      <div class="track"><div class="fill ${x.G>x.P?"over":x.G>x.P*.85?"warn":""}" style="width:${x.P?Math.min(100,x.G/x.P*100):0}%"></div></div>
-      <div class="small muted priv">Nómina ${mx(x.N)} · Ahorro apartado ${x.A==null?"—":mx(x.A)}${x.GF? " · Pagado del fondo "+mx(x.GF):""}${x.E? " · Extras "+mx(x.E):""}</div>${x.valesG? `<div class="small muted">🧺 Con vales gastaste ${mx(x.valesG)} aparte: se descuenta de tus vales, no de tu presupuesto.</div>`:""}</div>`;
+    $("#mvSum").innerHTML = `<div class="card" style="gap:6px">${presDesglose(cat,x)}
+      <div class="track"><div class="fill ${x.Gord>x.P?"over":x.Gord>x.P*.85?"warn":""}" style="width:${x.P?Math.min(100,x.Gord/x.P*100):0}%"></div></div>
+      <div class="small muted priv">Nómina ${mx(x.N)} · Ahorro apartado ${x.A==null?"—":mx(x.A)}${x.E? " · Extras "+mx(x.E):""}</div></div>`;
   } else {
     const G=sum(rows.filter(esGastoEf)), V=sum(rows.filter(esGastoVales)), I=sum(rows.filter(m=>m.Tipo==="Ingreso"));
     $("#mvSum").innerHTML = rows.length.toLocaleString("es-MX")+" movimientos · Gastos "+mx(G)+(V? " · 🧺 Vales "+mx(V)+" aparte" : "")+' · <span class="priv">Ingresos '+mx(I)+'</span>';
@@ -1041,7 +1051,7 @@ function anCat(){
   const prev = i>0? catRes(L[i-1]).G : 0;
   const top = group(x.gas, m=>m.Descripcion||"—").slice(0,8);
   $("#anBody").innerHTML = `
-   <div class="kpis"><div class="kpi"><div class="l">Presupuesto</div><div class="v priv">${mx(x.P)}</div></div><div class="kpi"><div class="l">Gastado</div><div class="v neg">${mx(x.Gord)}</div></div><div class="kpi"><div class="l">Queda</div><div class="v priv ${x.queda<0?"neg":"pos"}">${mx(x.queda)}</div></div></div>
+   <div class="card">${presDesglose(c,x)}</div>
    ${x.GF? `<div class="small muted" style="margin-top:-4px">Además se pagaron ${mx(x.GF)} con el fondo${c.NotaFondo? ": "+esc(c.NotaFondo):""}. No cuentan contra el presupuesto.</div>`:""}
    <div class="card priv"><div class="between"><h2>Ingreso y ahorro</h2><span class="small muted">${prev? "Gasto vs catorcena anterior "+(x.G>=prev?"+":"")+Math.round((x.G-prev)/prev*100)+"%":""}</span></div>
      <div class="between"><span>Nómina</span><b class="pos">${mx(x.N)}</b></div>
@@ -1247,7 +1257,7 @@ function renderSub(){
     });
   }
   if(k==="vales"){
-    const vm=S.movs.filter(m=>(m.Tipo==="Ingreso"&&m.Fuente==="Vales de despensa")||(m.Tipo==="Gasto"&&m.Cuenta==="Vales de despensa"));
+    const vm=S.movs.filter(m=>(m.Tipo==="Ingreso"&&m.Fuente==="Vales de despensa")||pagoVales(m));
     const saldo=vm.reduce((s,m)=>s+(m.Tipo==="Ingreso"?m.Monto:-m.Monto),0);
     const meses=[]; for(let i=0;i<12;i++) meses.push(addMonth(S.hoy.slice(0,7),-i));
     const ymH=S.hoy.slice(0,7), mesAct=vm.filter(m=>m.Fecha.startsWith(ymH));
@@ -1688,7 +1698,7 @@ function ddSheet(title, search, body, onPick, trig){
 }
 /* ===== Textos claros para cuentas ===== */
 const TIPO_TXT={"Ahorro":"Ahorro por pasar a inversión","Inversión":"Va directo a tu inversión","Tenate":"Dinero de El Tenate","Efectivo":"Dinero en efectivo","Débito":"Tarjeta de débito","Crédito":"Tarjeta de crédito","Departamental":"Tarjeta de tienda","Vales":"Tarjeta de vales","Fondo":"Fondo de ahorro"};
-function valesSaldo(){ return S.movs.filter(m=>(m.Tipo==="Ingreso"&&m.Fuente===VALES)||(m.Tipo==="Gasto"&&m.Cuenta===VALES)).reduce((s,m)=>s+(m.Tipo==="Ingreso"?m.Monto:-m.Monto),0); }
+function valesSaldo(){ return S.movs.filter(m=>(m.Tipo==="Ingreso"&&m.Fuente===VALES)||pagoVales(m)).reduce((s,m)=>s+(m.Tipo==="Ingreso"?m.Monto:-m.Monto),0); }
 function ctaSub(n,t){ if(t==="Ahorro") return "Por invertir "+mx2(saldosCuentas()[n]||0); if(t==="Inversión"){ const x=(typeof saldosInversion==="function"? saldosInversion() : {})[String(n).replace(INV_PRE,"")]; return "Inversión · saldo "+mx(x? x.saldo : 0); } return t==="Tenate" ? "Saldo "+mx2(saldosCuentas()[n]||0) : t==="Vales" ? "Saldo en vales "+mx2(valesSaldo()) : (TIPO_TXT[t]||t||""); }
 function updVeh(){
   const isAuto=F.t==="Gasto"&&S.autoCats.has($("#fCat").value), txt=$("#fDesc").value+" "+$("#fSub").value;
@@ -1889,8 +1899,19 @@ function tenCalc(){
   $("#fTenInfo").innerHTML = !tot? '<span class="muted">Escribe el monto total arriba. La ruta se calcula sola.</span>' : r<0? `<span class="neg">App + propinas pasan el total por ${mx2(-r)}</span>` : `<span class="muted">Ruta ${mx2(r)} + App ${mx2(a)} + Propinas ${mx2(p)} = ${mx2(tot)}</span>`;
   return {ruta:r, app:a, prop:p};
 }
-function esGastoEf(m){ return m.Tipo==="Gasto"&&m.Cuenta!==VALES; }
-function esGastoVales(m){ return m.Tipo==="Gasto"&&m.Cuenta===VALES; }
+function pagoVales(m){ if(!m||m.Tipo!=="Gasto") return false; const c=m.Cuenta||""; return c===VALES || (S.cta&&S.cta[c]&&S.cta[c].Tipo==="Vales") || /vales/i.test(c); }
+function valesSaldoAl(f){ return S.movs.filter(m=>m.Fecha<=f&&((m.Tipo==="Ingreso"&&m.Fuente===VALES)||pagoVales(m))).reduce((s,m)=>s+(m.Tipo==="Ingreso"?m.Monto:-m.Monto),0); }
+function presDesglose(c,x){
+  const fin=c.Fin<S.hoy? c.Fin : S.hoy, V=x.valesG, VD=Math.max(0,valesSaldoAl(fin)+V), tP=x.P+VD, tG=x.Gord+V;
+  const q=(v)=>`<span class="${v<0?"neg2":""}">${mx(v)}</span>`;
+  return `<table class="ptab"><thead><tr><th></th><th>Presupuesto</th><th>Gastado</th><th>Queda</th></tr></thead><tbody>
+    <tr><td>💵 Gastos sin vales</td><td class="priv">${mx(x.P)}</td><td>${mx(x.Gord)}</td><td class="priv">${q(x.P-x.Gord)}</td></tr>
+    <tr><td>🧺 Vales</td><td class="priv">${mx(VD)}</td><td>${mx(V)}</td><td class="priv">${q(VD-V)}</td></tr>
+    <tr class="tot"><td>Total</td><td class="priv">${mx(tP)}</td><td>${mx(tG)}</td><td class="priv">${q(tP-tG)}</td></tr></tbody></table>
+    <div class="small" style="opacity:.75;margin-top:4px">El presupuesto de vales es lo que tenías disponible en la tarjeta de vales en esta catorcena.${x.GF||x.GT? " No incluye lo pagado del fondo"+(x.GF? " ("+mx(x.GF)+")":"")+(x.GT? " ni con dinero del Tenate ("+mx(x.GT)+")":"")+".":""}</div>`;
+}
+function esGastoEf(m){ return m.Tipo==="Gasto"&&!pagoVales(m); }
+function esGastoVales(m){ return pagoVales(m); }
 function notaVales(rows){ const v=sum(rows.filter(esGastoVales)); return v? `<div class="small muted" style="margin-top:4px">🧺 Además gastaste ${mx(v)} con vales de despensa (no cuenta en tus gastos; se descuenta de tus vales).</div>` : ""; }
 function esAhorroMov(m){
   if(m.Tipo==="Inversión") return true;
