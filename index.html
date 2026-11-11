@@ -804,7 +804,8 @@ function saldosInversion(){
     const last=snaps[snaps.length-1];
     const desde=last?last.Fecha:"0000";
     let s=last?+last.Saldo:0, flujo=0;
-    S.movs.forEach(m=>{ if(m.Tipo!=="Inversión"||m.Instrumento!==i.Instrumento||m.Fecha<=desde) return; const v=m.MovInversion==="Retiro"?-m.Monto:m.Monto; s+=v; flujo+=v; });
+    const incluyeDia = last && !/app/i.test(String(last.Nota||""));
+    S.movs.forEach(m=>{ if(m.Tipo!=="Inversión"||m.Instrumento!==i.Instrumento||m.Fecha<desde||(m.Fecha===desde&&!incluyeDia)) return; const v=m.MovInversion==="Retiro"?-m.Monto:m.Monto; s+=v; flujo+=v; });
     out[i.Instrumento]={i, saldo:s, foto:last, flujo, snaps};
   }
   return out;
@@ -892,8 +893,9 @@ function rMovs(){
       <div class="small muted priv">Nómina ${mx(x.N)} · Ahorro apartado ${x.A==null?"—":mx(x.A)}${x.E? " · Extras "+mx(x.E):""}</div></div>`;
   } else {
     const G=sum(rows.filter(esGastoEf)), V=sum(rows.filter(esGastoVales)), I=sum(rows.filter(m=>m.Tipo==="Ingreso"));
-    $("#mvSum").innerHTML = rows.length.toLocaleString("es-MX")+" movimientos · Gastos "+mx(G)+(V? " · 🧺 Vales "+mx(V)+" aparte" : "")+' · <span class="priv">Ingresos '+mx(I)+'</span>';
+    $("#mvSum").innerHTML = "";
   }
+  $("#mvSum").insertAdjacentHTML("beforeend", totalFiltro(rows));
   let html="", day="";
   const shown = rows.slice(0,S.lim);
   const daySum = {}, dayVal = {}; shown.forEach(m=>{ if(esGastoEf(m)) daySum[m.Fecha]=(daySum[m.Fecha]||0)+m.Monto; else if(esGastoVales(m)) dayVal[m.Fecha]=(dayVal[m.Fecha]||0)+m.Monto; });
@@ -1244,7 +1246,7 @@ function renderSub(){
     el.innerHTML = `<div class="card hero priv"><div class="small muted">Total invertido</div><div class="big">${mx(T)}</div><div class="small muted">${porTipo.map(([k,v])=>esc(k)+" "+Math.round(v/T*100)+"%").join(" · ")}</div></div>
       <div class="card priv"><h2>Por instrumento</h2>${rows.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px">
         <div class="between"><span><b>${esc(r.i.Instrumento)}</b> <span class="small muted">${esc(r.i.Tipo)}${+r.i.TasaAnual? " · "+r.i.TasaAnual+"%":""}</span></span><span class="mid">${mx2(r.saldo)}</span></div>
-        <div class="small muted">${r.foto? "Saldo real al "+sDate(r.foto.Fecha)+" "+r.foto.Fecha.slice(0,4)+": "+mx2(r.foto.Saldo):"Sin saldo capturado"}${r.flujo? " · movimientos después: "+(r.flujo>0?"+":"")+mx2(r.flujo):""}</div>
+        <div class="small muted">${r.foto? "Saldo real al "+sDate(r.foto.Fecha)+" "+r.foto.Fecha.slice(0,4)+": "+mx2(r.foto.Saldo):"Sin saldo capturado"}${r.flujo? " · movimientos registrados después: "+(r.flujo>0?"+":"")+mx2(r.flujo):""}</div>
         <div class="row"><input class="grow search" style="padding:8px 10px" type="number" inputmode="decimal" placeholder="Saldo real de hoy" data-sal="${esc(r.i.Instrumento)}" aria-label="Saldo real ${esc(r.i.Instrumento)}"><button class="btn sm" data-salbtn="${esc(r.i.Instrumento)}">Actualizar</button></div></div>`).join("")}</div>
       <button class="btn" id="invMov">+ Aportación o retiro</button>`;
     $("#invMov").onclick=()=>openForm({Tipo:"Inversión"});
@@ -1909,6 +1911,18 @@ function presDesglose(c,x){
     <tr><td>🧺 Vales</td><td class="priv">${mx(VD)}</td><td>${mx(V)}</td><td class="priv">${q(VD-V)}</td></tr>
     <tr class="tot"><td>Total</td><td class="priv">${mx(tP)}</td><td>${mx(tG)}</td><td class="priv">${q(tP-tG)}</td></tr></tbody></table>
     <div class="small" style="opacity:.75;margin-top:4px">El presupuesto de vales es lo que tenías disponible en la tarjeta de vales en esta catorcena.${x.GF||x.GT? " No incluye lo pagado del fondo"+(x.GF? " ("+mx(x.GF)+")":"")+(x.GT? " ni con dinero del Tenate ("+mx(x.GT)+")":"")+".":""}</div>`;
+}
+function totalFiltro(rows){
+  if(!rows.length) return "";
+  const T=t=>sum(rows.filter(m=>m.Tipo===t));
+  const G=sum(rows.filter(esGastoEf)), V=sum(rows.filter(esGastoVales)), I=T("Ingreso"), P=T("Pago tarjeta"), X=T("Transferencia");
+  const inv=rows.filter(m=>m.Tipo==="Inversión"), iA=sum(inv.filter(m=>m.MovInversion==="Aportación")), iR=sum(inv.filter(m=>m.MovInversion==="Rendimiento")), iT=sum(inv.filter(m=>m.MovInversion==="Retiro"));
+  const parts=[ G&&["🛒 Gastos","−"+mx2(G),"neg"], V&&["🧺 Vales","−"+mx2(V),"muted"], I&&["💰 Ingresos","+"+mx2(I),"pos priv"], P&&["💳 Pagos de tarjeta",mx2(P),""], X&&["🔁 Entre cuentas",mx2(X),""],
+    iA&&["📈 Aportaciones",mx2(iA),""], iR&&["✨ Rendimientos","+"+mx2(iR),"pos"], iT&&["⬇️ Retiros","−"+mx2(iT),"neg"] ].filter(Boolean);
+  const unico = parts.length===1;
+  return `<div class="card" style="gap:4px;margin-top:8px"><div class="between"><h2 style="margin:0">Σ Total ${S.q? "de la búsqueda" : "del filtro"}</h2><span class="small muted">${rows.length.toLocaleString("es-MX")} ${rows.length===1?"movimiento":"movimientos"}</span></div>
+    ${parts.map(([l,v,c])=>`<div class="between ${unico?"":"small"}"><span>${l}</span><b class="${c}">${v}</b></div>`).join("")}
+    ${inv.length&&!unico? `<div class="between small" style="border-top:1px solid var(--line);padding-top:4px"><span>Neto en inversiones</span><b>${mx2(iA+iR-iT)}</b></div>`:""}</div>`;
 }
 function esGastoEf(m){ return m.Tipo==="Gasto"&&!pagoVales(m); }
 function esGastoVales(m){ return pagoVales(m); }
