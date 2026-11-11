@@ -1117,11 +1117,20 @@ function renderSub(){
   $("#vTitle").textContent = {ahorro:"Ahorros", cuentas:"Tarjetas y cuentas", msi:"Compras a meses", inv:"Inversiones", vales:"Vales de despensa", pres:"Presupuesto", ingresos:"Ingresos"}[k] || (k==="ctadet"? S.ctaDet : "");
   if(k==="ahorro"){
     if(!S.ahAnio) S.ahAnio=+S.hoy.slice(0,4);
-    const y=S.ahAnio, ay=ahorrosAnio(y), M=metaAnio(y), cs=ay.cs, last=cs[cs.length-1];
-    const mc = last? metaCat(last) : null, tot=totalDinero();
+    const TODO=S.ahAnio==="todo", yHoy=+S.hoy.slice(0,4);
+    const yIni=Math.min(...S.d.catorcenas.map(k=>+k.Anio).filter(Boolean), yHoy);
+    const anios=[]; for(let a=yIni;a<=yHoy;a++) anios.push(a);
+    const porAnio=TODO? anios.map(a=>({a, x:ahorrosAnio(a)})) : [];
+    const sumK=k=>porAnio.reduce((t,o)=>t+(+o.x[k]||0),0), catK=k=>porAnio.flatMap(o=>o.x[k]);
+    const y=TODO? yIni+"–"+yHoy : S.ahAnio;
+    const ay=TODO? {cs:catK("cs"),AC:sumK("AC"),prest:catK("prest"),PR:sumK("PR"),gfHist:catK("gfHist"),gfApp:catK("gfApp"),GF:sumK("GF"),apoyos:catK("apoyos"),AP:sumK("AP"),fondo:sumK("fondo"),ext:catK("ext"),EX:sumK("EX"),GT:sumK("GT"),total:sumK("total")} : ahorrosAnio(y);
+    const M=TODO? {total:0,base:0} : metaAnio(y), cs=ay.cs, last=cs[cs.length-1];
+    const mc = !TODO&&last? metaCat(last) : null, tot=totalDinero();
     let acum=0; const serie=cs.map(k=>{ acum+=ahorroCat(k)||0; return {n:+k.Num, a:acum, m:M.base*(+k.Num)}; });
     const gf=[...ay.gfHist, ...ay.apoyos, ...ay.gfApp.map(m=>({Fecha:m.Fecha, Monto:m.Monto, Descripcion:m.Descripcion}))].sort((a,b)=>a.Fecha<b.Fecha?-1:1);
-    el.innerHTML = `<div class="nav"><button id="ahPrev" aria-label="Año anterior">‹</button><b>${y}</b><button id="ahNext" aria-label="Año siguiente">›</button></div>
+    const fondoL=[...ay.prest.map(m=>({Fecha:m.Fecha,Monto:+m.Monto,Descripcion:m.Descripcion||m.Fuente,sub:m.Fuente,ent:true})), ...gf.map(g=>({Fecha:g.Fecha,Monto:+g.Monto,Descripcion:g.Descripcion,sub:g.cat? "catorcena "+g.cat:"",ent:false}))].sort((a,b)=>a.Fecha<b.Fecha?-1:a.Fecha>b.Fecha?1:(a.ent===b.ent?0:a.ent?-1:1));
+    el.innerHTML = `<div class="seg" id="ahModo"><button data-am="anio" class="${TODO?"":"on"}">Por año</button><button data-am="todo" class="${TODO?"on":""}">Todo el acumulado</button></div>
+      ${TODO? "" : `<div class="nav"><button id="ahPrev" aria-label="Año anterior">‹</button><b>${y}</b><button id="ahNext" aria-label="Año siguiente">›</button></div>`}
       <div class="card hero priv"><div class="small muted">Ahorro acumulado ${y}</div><div class="big">${mx(ay.total)}</div>
         <div class="between small"><span>Ahorro de catorcenas</span><b>${mx(ay.AC)}</b></div>
         <div class="between small"><span>Fondo: prestaciones ${mx(ay.PR)} − gastos ${mx(ay.GF)}${ay.AP? " − colchón "+mx(ay.AP):""}</span><b>${mx(ay.fondo)}</b></div>
@@ -1138,13 +1147,17 @@ function renderSub(){
       <div class="card priv"><div class="between"><h2>Total de dinero</h2><b class="mid">${mx(tot.T)}</b></div>
         ${barsHTML(tot.porTipo, tot.T)}<button class="btn sm" data-goto="inv" style="align-self:flex-start">Ver inversiones</button></div>
       <div class="card priv"><div class="between"><h2>Fondo ${y}</h2><b>${mx(ay.fondo)}</b></div>
-        <div class="small muted">Prestaciones que entran al fondo y gastos que se pagan con él (tu columna I − K de GRAFICO).</div>
-        <div class="list">${ay.prest.map(m=>`<div class="between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(m.Descripcion||m.Fuente)}<div class="small muted">${sDate(m.Fecha)} · ${esc(m.Fuente)}</div></span><b class="pos">+${mx(m.Monto)}</b></div>`).join("")}
-        ${gf.map(g=>`<div class="between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(g.Descripcion)}<div class="small muted">${sDate(g.Fecha)}${g.cat? " · catorcena "+g.cat:""}</div></span><b class="neg">−${mx(g.Monto)}</b></div>`).join("") || ""}</div></div>
-      <div class="card priv"><h2>Ahorro por catorcena</h2><div class="tbl"><table style="font-size:12px"><thead><tr><th>#</th><th class="n">Ahorro</th><th class="n">Acum.</th><th class="n">Meta acum.</th><th class="n">Dif.</th></tr></thead><tbody>
-        ${serie.map((s,i)=>`<tr><td>${s.n}</td><td class="n">${mx(ahorroCat(cs[i])||0)}</td><td class="n">${mx(s.a)}</td><td class="n muted">${mx(s.m)}</td><td class="n ${s.a-s.m<0?"neg":"pos"}">${mx(s.a-s.m)}</td></tr>`).join("")}</tbody></table></div></div>
+        <div class="small muted">Prestaciones que entran al fondo y gastos que se pagan con él, en orden de fecha (tu columna I − K de GRAFICO).</div>
+        <div class="list">${(()=>{ let run=0; return fondoL.map(r=>{ run+=r.ent? r.Monto : -r.Monto; return `<div class="between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(r.Descripcion)}<div class="small muted">${sDate(r.Fecha)} ${r.Fecha.slice(0,4)}${r.sub? " · "+esc(r.sub):""}</div></span><span style="text-align:right"><b class="${r.ent?"pos":"neg"}">${r.ent?"+":"−"}${mx(r.Monto)}</b><div class="small muted">saldo ${mx(run)}</div></span></div>`; }).join(""); })()}</div></div>
+      ${TODO? `<div class="card priv"><h2>Ahorro por año</h2><div class="tbl"><table style="font-size:11.5px"><thead><tr><th>Año</th><th class="n">Catorcenas</th><th class="n">Fondo</th><th class="n">Extras</th><th class="n">Total</th><th class="n">Acum.</th></tr></thead><tbody>
+        ${(()=>{ let ac=0; return porAnio.map(o=>{ ac+=o.x.total; return `<tr data-ay="${o.a}" style="cursor:pointer"><td><b>${o.a}</b></td><td class="n">${mx(o.x.AC)}</td><td class="n">${mx(o.x.fondo)}</td><td class="n">${mx(o.x.EX-o.x.GT)}</td><td class="n pos">${mx(o.x.total)}</td><td class="n muted">${mx(ac)}</td></tr>`; }).join(""); })()}
+        <tr><td><b>Total</b></td><td class="n"><b>${mx(ay.AC)}</b></td><td class="n"><b>${mx(ay.fondo)}</b></td><td class="n"><b>${mx(ay.EX-ay.GT)}</b></td><td class="n"><b>${mx(ay.total)}</b></td><td></td></tr></tbody></table></div><div class="small muted">Toca un año para ver su detalle.</div></div>`
+      : `<div class="card priv"><h2>Ahorro por catorcena</h2><div class="tbl"><table style="font-size:12px"><thead><tr><th>#</th><th class="n">Ahorro</th><th class="n">Acum.</th><th class="n">Meta acum.</th><th class="n">Dif.</th></tr></thead><tbody>
+        ${serie.map((s,i)=>`<tr><td>${s.n}</td><td class="n">${mx(ahorroCat(cs[i])||0)}</td><td class="n">${mx(s.a)}</td><td class="n muted">${mx(s.m)}</td><td class="n ${s.a-s.m<0?"neg":"pos"}">${mx(s.a-s.m)}</td></tr>`).join("")}</tbody></table></div></div>`}
       ${(()=>{ const cc=catorcenaActual(S.hoy); const nx=S.d.catorcenas.filter(k=>k.Inicio>S.hoy).sort((a,b)=>a.Inicio<b.Inicio?-1:1)[0]; return `<div class="actions">${cc?`<button class="btn" data-plan="${esc(cc.ID)}">Plan catorcena ${+cc.Num}</button>`:""}${nx?`<button class="btn primary" data-plan="${esc(nx.ID)}">Plan catorcena ${+nx.Num}</button>`:""}</div>`; })()}`;
-    $("#ahPrev").onclick=()=>{ S.ahAnio--; renderSub(); }; $("#ahNext").onclick=()=>{ S.ahAnio++; renderSub(); };
+    if(!TODO){ $("#ahPrev").onclick=()=>{ S.ahAnio--; renderSub(); }; $("#ahNext").onclick=()=>{ S.ahAnio++; renderSub(); }; }
+    $$("#ahModo button",el).forEach(b=>b.onclick=()=>{ S.ahAnio = b.dataset.am==="todo"? "todo" : (S.ahPrevAnio||yHoy); if(b.dataset.am==="todo"&&!TODO) S.ahPrevAnio=y; renderSub(); });
+    $$("[data-ay]",el).forEach(r=>r.onclick=()=>{ S.ahAnio=+r.dataset.ay; renderSub(); });
     $$("[data-goto]",el).forEach(b=>b.onclick=()=>openSub(b.dataset.goto));
     $$("[data-plan]",el).forEach(b=>b.onclick=()=>planForm(S.d.catorcenas.find(k=>k.ID===b.dataset.plan), renderSub));
   }
@@ -1782,7 +1795,6 @@ function renderIngresos(el){
     ${ten.length&&(g.tipo==="Todos"||g.tipo==="El Tenate")? `<div class="card priv"><div class="between"><h2>🚚 El Tenate</h2><b class="pos">${mx(sum(ten))}</b></div>
       ${(()=>{ const t=tenSum(ten); return barsHTML([["🚚 Ruta",t.ruta],["📱 App",t.app],["💵 Propinas",t.prop]].filter(x=>x[1]>0),sum(ten)); })()}
       <div class="small muted">Toca un ingreso en el Detalle para ajustar cuánto fue de ruta, app o propinas.</div>
-      <div class="between small" style="margin-top:6px"><span class="muted">Dinero en ${esc(CAJA_T)} hoy</span><b>${mx2(cajaS)}</b></div>
       <div class="small muted">Lo del Tenate suma a tus ingresos y a tu ahorro, pero no entra al presupuesto de la catorcena.</div></div>`:""}
     ${R.length? (()=>{ const en={cat:"en la catorcena",mes:"en el mes",anio:"en el año",todo:"en todo el historial",rango:"en estas fechas"}[g.per]||"";
       const F3=flujoSalida(R,a,b), dirInv=group(R.filter(m=>!m.CuentaDestino&&m.Instrumento),m=>"📈 "+m.Instrumento), vales=sum(R.filter(m=>m.CuentaDestino===VALES));
