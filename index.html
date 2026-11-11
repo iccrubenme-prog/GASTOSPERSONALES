@@ -345,8 +345,8 @@ details.mas .f{margin-top:6px}
   </div>
   <div class="f hide" id="fTenW"><label>¿Cómo se divide este pago de El Tenate?</label>
     <div class="ten3"><div class="f"><label for="fTenR">🚚 Ruta</label><input id="fTenR" class="ro" readonly tabindex="-1"></div>
-      <div class="f"><label for="fTenA">📱 App</label><input id="fTenA" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0"></div>
-      <div class="f"><label for="fTenP">💵 Propinas</label><input id="fTenP" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0"></div></div>
+      <div class="f"><label for="fTenA">📱 App</label><input id="fTenA" type="number" inputmode="decimal" step="0.01" min="0" placeholder="$0"></div>
+      <div class="f"><label for="fTenP">💵 Propinas</label><input id="fTenP" type="number" inputmode="decimal" step="0.01" min="0" placeholder="$0"></div></div>
     <div id="fTenInfo"></div></div>
   <div class="f hide" id="fProyW"><label>¿De qué proyecto?</label><div class="chips" id="fProy"></div><div class="hint">O escribe uno nuevo en Concepto.</div></div>
   <div class="f"><label for="fDesc" id="fDescL">Concepto</label><input id="fDesc" list="dlDesc" autocomplete="off" placeholder="¿En qué fue? Ej. Estacionamiento plaza"><div class="hint" id="fDescH">Así lo verás en tu lista de movimientos.</div><div id="fDescSug"></div></div>
@@ -1911,6 +1911,24 @@ function descSug(){
     return l.length? `<div class="pk-list">${l.map(x=>`<button type="button" class="pk-c" data-v="${esc(x)}"><span class="n">${esc(x)}</span></button>`).join("")}</div>` : '<div class="empty">Sin coincidencias</div>';
   }, v=>{ $("#fDesc").value=v; descPick(v); }, null);
 }
+/* ===== Campos de dinero con formato $1,234.56 ===== */
+function moneyInput(el){
+  if(!el||el._money) return; el._money=true;
+  el.type="text"; el.setAttribute("inputmode","decimal"); el.setAttribute("autocomplete","off"); el.removeAttribute("step"); el.removeAttribute("min");
+  if(!el.placeholder||/^\$?0$/.test(el.placeholder)) el.placeholder="$0";
+  const d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value");
+  const fmt=raw=>{ let s=String(raw==null?"":raw).replace(/[^\d.]/g,""); const i=s.indexOf(".");
+    if(i>=0) s=s.slice(0,i+1)+s.slice(i+1).replace(/\./g,"").slice(0,2);
+    if(s==="") return ""; let [a,b]=s.split("."); a=(a.replace(/^0+(?=\d)/,"")||"0").replace(/\B(?=(\d{3})+(?!\d))/g,",");
+    return "$"+a+(b!==undefined?"."+b:""); };
+  Object.defineProperty(el,"value",{configurable:true,
+    get(){ return d.get.call(this).replace(/[^\d.]/g,""); },
+    set(v){ d.set.call(this, v===""||v==null? "" : fmt(typeof v==="number"? String(Math.round(v*100)/100) : v)); }});
+  el.addEventListener("beforeinput",e=>{ if(e.data===","||e.data==="٫"){ const r=d.get.call(el); if(!r.includes(".")){ e.preventDefault(); d.set.call(el, fmt(r.replace(/[^\d.]/g,"")+".")); el.setSelectionRange(9e3,9e3); el.dispatchEvent(new Event("input",{bubbles:true})); } else e.preventDefault(); } });
+  el.addEventListener("input",()=>{ const raw=d.get.call(el), f=fmt(raw); if(f!==raw){ const fromEnd=raw.length-(el.selectionEnd??raw.length); d.set.call(el,f); const pos=Math.max(1,f.length-fromEnd); try{ el.setSelectionRange(pos,pos); }catch(e){} } }, true);
+  el.addEventListener("focus",()=>{ setTimeout(()=>{ try{ const n=d.get.call(el).length; el.setSelectionRange(n,n); }catch(e){} },0); });
+}
+["#fMonto","#fTenA","#fTenP","#fTenR","#fSepM"].forEach(s=>moneyInput($(s)));
 function applyMem(m, setDesc){
   if(!m) return;
   if(setDesc) $("#fDesc").value=m.Descripcion;
