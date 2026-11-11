@@ -402,7 +402,7 @@ details.mas .f{margin-top:6px}
         <div class="chips hide" id="fSepPr" style="margin-top:6px"></div>
         <div id="fSepInfo" style="font-size:12.5px;margin-top:8px"></div></div></div>
     <div class="f hide" id="fSplitW"><button type="button" class="btn sm" id="fSplitBtn" style="align-self:flex-start">➗ Repartir en varias cuentas o inversiones</button>
-      <div class="hide" id="fSplitBox"><div class="hint">Divide este ingreso entre cuentas (Efectivo, Banamex…) o inversiones (Finsus, Nu…). Se guarda un registro por destino; lo que mandes a inversión también suma a su saldo.</div><div id="fSplitRows"></div>
+      <div class="hide" id="fSplitBox"><div class="hint">Divide este ingreso entre cuentas (Efectivo, Banamex…) o inversiones (Finsus, Nu…). Se guarda un registro por destino; lo que mandes a inversión suma a su saldo.</div><div class="hint hide" id="fSplitNom" style="color:var(--text)"></div><div id="fSplitRows"></div>
         <button type="button" class="btn sm" id="fSplitAdd" style="margin-top:8px">＋ Otra cuenta</button><div id="fSplitInfo"></div></div></div>
   </div>
   <div class="f" data-for="vales">
@@ -565,7 +565,7 @@ function build(){
   applyPending();
   sortMovs();
   if(!d.cuentas.some(c=>c.Cuenta===CAJA_T)) d.cuentas.push({Cuenta:CAJA_T,Tipo:"Tenate",SaldoInicial:0,FechaSaldo:"",LimiteCredito:0,Activa:"Sí"});
-  if(!d.cuentas.some(c=>c.Cuenta===AHORRO)){ const fs=d.cuentas.map(c=>c.FechaSaldo).filter(Boolean).sort()[0]||""; d.cuentas.push({Cuenta:AHORRO,Tipo:"Ahorro",SaldoInicial:0,FechaSaldo:fs,LimiteCredito:0,Activa:"Sí"}); }
+
   S.cta = {}; d.cuentas.forEach(c=>S.cta[c.Cuenta]=c);
   S.cats = {}; S.autoCats = new Set();
   d.categorias.forEach(c=>{ (S.cats[c.Categoria] ||= []).push(c.Subcategoria); if(String(c.EsAuto).toLowerCase().startsWith("s")) S.autoCats.add(c.Categoria); });
@@ -805,7 +805,8 @@ function saldosInversion(){
     const desde=last?last.Fecha:"0000";
     let s=last?+last.Saldo:0, flujo=0;
     const incluyeDia = last && !/app/i.test(String(last.Nota||""));
-    S.movs.forEach(m=>{ if(m.Tipo!=="Inversión"||m.Instrumento!==i.Instrumento||m.Fecha<desde||(m.Fecha===desde&&!incluyeDia)) return; const v=m.MovInversion==="Retiro"?-m.Monto:m.Monto; s+=v; flujo+=v; });
+    S.movs.forEach(m=>{ const dir=m.Tipo==="Ingreso"&&esInvDirecto(m); if((m.Tipo!=="Inversión"&&!dir)||m.Instrumento!==i.Instrumento||m.Fecha<desde||(m.Fecha===desde&&!incluyeDia)) return;
+      if(m.Tipo==="Inversión"&&/Automático por ingreso/.test(m.Nota||"")) return; const v=m.MovInversion==="Retiro"?-m.Monto:m.Monto; s+=v; flujo+=v; });
     out[i.Instrumento]={i, saldo:s, foto:last, flujo, snaps};
   }
   return out;
@@ -1165,7 +1166,16 @@ function renderSub(){
         <div class="between small"><span>Fondo: prestaciones ${mx(ay.PR)} − gastos ${mx(ay.GF)}${ay.AP? " − colchón "+mx(ay.AP):""}</span><b>${mx(ay.fondo)}</b></div>
         <div class="between small"><span>Ingresos extra (${esc(group(ay.ext,"Fuente").map(([k])=>k).join(", ")||"ninguno")})${ay.GT? " − gastos con dinero del Tenate "+mx(ay.GT):""}</span><b>${mx(ay.EX-ay.GT)}</b></div>
         ${M.total? `<div class="track"><div class="fill" style="width:${Math.min(100,ay.total/M.total*100)}%"></div></div><div class="between small muted"><span>Meta total ${mx(M.total)}</span><span>${ay.total>=M.total? "¡Meta cumplida!" : "Faltan "+mx(M.total-ay.total)}</span></div>`:""}</div>
-      ${(()=>{ const pi=saldosCuentas()[AHORRO]||0; return `<div class="card priv"><div class="between"><h2>🐷 Ahorro por pasar a inversión</h2><b class="mid">${mx2(pi)}</b></div><div class="small muted">Lo que tu nómina mandó a la cuenta Ahorro y todavía no pasas a una inversión.</div><button class="btn sm" data-ainv="1" style="align-self:flex-start">📈 Pasar a inversión</button></div>`; })()}
+      ${(()=>{ const si=saldosInversion(), L=Object.values(si), ef=L.filter(r=>r.i.Tipo==="Efectivo"), iv=L.filter(r=>r.i.Tipo!=="Efectivo");
+        const E=ef.reduce((a,r)=>a+r.saldo,0), I=iv.reduce((a,r)=>a+r.saldo,0), pi=S.cta[AHORRO]? (saldosCuentas()[AHORRO]||0) : 0, fd=ahorrosAnio(yHoy).fondo;
+        const row=(e,t,s,v)=>`<div class="between"><span>${e} <b>${t}</b>${s?`<div class="small muted">${s}</div>`:""}</span><b>${mx2(v)}</b></div>`;
+        return `<div class="card priv"><h2>🐷 ¿Dónde está tu ahorro hoy?</h2>
+          ${row("📈","Invertido",iv.filter(r=>r.saldo>0).map(r=>r.i.Instrumento).join(", "),I)}
+          ${row("💵","En efectivo, sin invertir",ef.map(r=>r.i.Instrumento).join(", "),E)}
+          ${pi? row("⏳","En la cuenta Ahorro","Pendiente de pasar a inversión",pi):""}
+          ${row("🏦","Fondo de ahorro "+yHoy,"Prestaciones menos lo que has usado",fd)}
+          <div class="between" style="border-top:1px solid var(--line);padding-top:6px"><b>Total</b><b class="mid">${mx2(I+E+pi+fd)}</b></div>
+          ${E>0||pi>0? `<button class="btn sm" id="ahMover" style="align-self:flex-start">📈 Pasar efectivo a inversión</button>`:""}</div>`; })()}
       ${mc? `<div class="card priv"><h2>Meta de ahorro por catorcena</h2>
         <div class="between"><span class="muted">Meta ${y} (${mx(M.base)} × ${M.n})</span><b>${mx(M.meta)}</b></div>
         <div class="between"><span class="muted">Llevas en ${cs.length} catorcenas</span><b>${mx(mc.acum)}</b></div>
@@ -1188,6 +1198,7 @@ function renderSub(){
     if(!TODO){ $("#ahPrev").onclick=()=>{ S.ahAnio--; renderSub(); }; $("#ahNext").onclick=()=>{ S.ahAnio++; renderSub(); }; }
     $$("#ahModo button",el).forEach(b=>b.onclick=()=>{ S.ahAnio = b.dataset.am==="todo"? "todo" : (S.ahPrevAnio||yHoy); if(b.dataset.am==="todo"&&!TODO) S.ahPrevAnio=y; renderSub(); });
     $$("[data-ay]",el).forEach(r=>r.onclick=()=>{ S.ahAnio=+r.dataset.ay; renderSub(); });
+    const ahm=$("#ahMover",el); if(ahm) ahm.onclick=moverAInversion;
     $$("[data-ainv]",el).forEach(x=>x.onclick=()=>openForm({Tipo:"Inversión",MovInversion:"Aportación",Cuenta:AHORRO}));
     $$("[data-goto]",el).forEach(b=>b.onclick=()=>openSub(b.dataset.goto));
     $$("[data-plan]",el).forEach(b=>b.onclick=()=>planForm(S.d.catorcenas.find(k=>k.ID===b.dataset.plan), renderSub));
@@ -1498,7 +1509,7 @@ function openForm(m, lock){
   F.proy = esProy(m.Fuente)? (m.Subcategoria||null) : null;
   F.sep={on:false,f:null}; $("#fSepBox").classList.add("hide"); $("#fSepBtn").textContent="✂️ Separar una parte en otra fuente"; $("#fSepM").value=""; $("#fSepD").value="";
   { F.repManual=false; const rx=m.ID? repDe(m.ID) : {}; $("#fRepOn").checked = !(m.ID && m.Fuente===NOMINA && !rx.a && !rx.b && F.lockNoRep); if(rx.b){ $("#fRepA").value=rx.b.Monto; F.repManual=true; } else if(m.ID&&(rx.a)) { $("#fRepA").value=""; F.repManual=true; } }
-  if(m.Tipo==="Inversión" && !m.Cuenta && !m.ID) m.Cuenta=AHORRO;
+  F.splitAuto=false; F.splitDeclined=false; F.nomHint="";
   F.split=null; $("#fSplitBox").classList.add("hide"); $("#fSplitBtn").textContent="➗ Repartir en varias cuentas o inversiones";
   $("#fTipo").classList.toggle("hide", !!F.lock);
   F.edit = m.ID ? m : null;
@@ -1544,7 +1555,7 @@ function tipo(t, keep){
   const L = {Gasto:["Pagado con",""], Ingreso:["","Entra a"], "Pago tarjeta":["Pagado desde","Tarjeta que pagas"], Transferencia:["Sale de","Llega a"], "Inversión":[$("#fInvM").value==="Retiro"?"Cuenta que recibe":"Sale de",""]}[t];
   if(L[0]) $("#fCtaL").textContent=L[0]; if(L[1]) $("#fDstL").textContent=L[1];
   const LK=F.lock||{};
-  $("#fCta").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Débito","Efectivo"] : null, LK.cta||cuenta, LK.cta);
+  $("#fCta").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Efectivo","Débito","Crédito","Departamental","Fondo","Tenate","Ahorro"] : null, LK.cta||cuenta, LK.cta);
   let dst = $("#fDst").value || F.dst;
   if(t==="Ingreso" && !dst){ const fu=$("#fFuente").value; dst = /vales/i.test(fu)? "Vales de despensa" : /tenate/i.test(fu)? CAJA_T : (S.d.cuentas.find(c=>c.Tipo==="Débito")||{}).Cuenta; }
   $("#fDst").innerHTML = (t==="Ingreso"&&!LK.dst? ingCtaOpts(dst) : ctaOpts(t==="Pago tarjeta"? ["Crédito","Departamental"] : null, LK.dst||dst, LK.dst)) + (t==="Ingreso"&&!LK.dst? insOpts(F.edit&&F.edit.Instrumento&&!F.edit.CuentaDestino? INV_PRE+F.edit.Instrumento : dst) : "");
@@ -1574,6 +1585,7 @@ function tipo(t, keep){
   $("#fSplitW").classList.toggle("hide", t!=="Ingreso");
   $("#fSepW").classList.toggle("hide", !(t==="Ingreso"&&F.edit)); if(F.sep&&F.sep.on) sepPaint();
   $("#fRepW").classList.toggle("hide", !repVisible()); repPaint();
+  if(t==="Ingreso" && $("#fFuente").value===NOMINA) nomSplitAuto(); else if(F.split&&F.splitAuto){ F.splitAuto=false; splitToggle(false); }
   if(t!=="Ingreso"&&F.split) splitToggle(false);
   if(F.split) $("[data-for=dst]").classList.add("hide");
 }
@@ -1868,11 +1880,12 @@ function splitPaint(){
     <input type="number" inputmode="decimal" step="0.01" min="0" placeholder="$0" value="${r.m}" data-sm="${i}">${F.split.length>2? `<button type="button" class="split-x" data-sx="${i}" aria-label="Quitar">✕</button>`:"<span></span>"}</div>`).join("");
   $$("[data-si]",box).forEach(bn=>bn.onclick=()=>{ const i=+bn.dataset.si, sel=document.createElement("select"); sel.innerHTML=ctaOpts(ingTipos(),F.split[i].c)+insOpts(F.split[i].c);
     ddSheet("¿A qué cuenta?", false, ()=>cardsHTML(sel), v=>{ F.split[i].c=v; splitPaint(); }, null); });
-  $$("[data-sm]",box).forEach(inp=>inp.oninput=()=>{ F.split[+inp.dataset.sm].m=inp.value; splitInfo(); });
+  $$("[data-sm]",box).forEach(inp=>{ const k=+inp.dataset.sm; moneyInput(inp); inp.value=F.split[k].m; inp.oninput=()=>{ F.split[k].m=inp.value; F.splitAuto=false; splitInfo(); }; });
   $$("[data-sx]",box).forEach(x=>x.onclick=()=>{ F.split.splice(+x.dataset.sx,1); splitPaint(); });
   splitInfo();
 }
 function splitInfo(){
+  const nh=$("#fSplitNom"); if(nh){ const esN=F.t==="Ingreso"&&$("#fFuente").value===NOMINA; nh.classList.toggle("hide",!esN); if(esN) nh.innerHTML=`🛒 Primera fila: <b>presupuesto</b> (normalmente Efectivo) · 📈 segunda fila: <b>ahorro</b> a tu inversión.${F.nomHint? "<br>"+esc(F.nomHint):""}`; }
   const tot=parseFloat($("#fMonto").value)||0, rep=F.split.reduce((s,r)=>s+(parseFloat(r.m)||0),0), f=Math.round((tot-rep)*100)/100;
   $("#fSplitInfo").innerHTML = !tot? '<span class="muted">Primero escribe el monto total arriba.</span>' : f===0? '<span class="pos">✓ Repartido completo</span>' : f>0? `<span class="warn">Falta repartir ${mx2(f)}</span>` : `<span class="neg">Te pasaste por ${mx2(-f)}</span>`;
 }
@@ -1915,15 +1928,26 @@ function presDesglose(c,x){
 }
 function totalFiltro(rows){
   if(!rows.length) return "";
-  const T=t=>sum(rows.filter(m=>m.Tipo===t));
-  const G=sum(rows.filter(esGastoEf)), V=sum(rows.filter(esGastoVales)), I=T("Ingreso"), P=T("Pago tarjeta"), X=T("Transferencia");
+  const T=f=>sum(rows.filter(f));
+  const ing=T(m=>m.Tipo==="Ingreso"&&m.Fuente!==VALES), dVal=T(m=>m.Tipo==="Ingreso"&&m.Fuente===VALES);
+  rows=rows.filter(m=>!(m.Tipo==="Inversión"&&/Automático por ingreso/.test(m.Nota||"")));
   const inv=rows.filter(m=>m.Tipo==="Inversión"), iA=sum(inv.filter(m=>m.MovInversion==="Aportación")), iR=sum(inv.filter(m=>m.MovInversion==="Rendimiento")), iT=sum(inv.filter(m=>m.MovInversion==="Retiro"));
-  const parts=[ G&&["🛒 Gastos","−"+mx2(G),"neg"], V&&["🧺 Vales","−"+mx2(V),"muted"], I&&["💰 Ingresos","+"+mx2(I),"pos priv"], P&&["💳 Pagos de tarjeta",mx2(P),""], X&&["🔁 Entre cuentas",mx2(X),""],
-    iA&&["📈 Aportaciones",mx2(iA),""], iR&&["✨ Rendimientos","+"+mx2(iR),"pos"], iT&&["⬇️ Retiros","−"+mx2(iT),"neg"] ].filter(Boolean);
-  const unico = parts.length===1;
+  const G=T(esGastoEf), V=T(esGastoVales), P=T(m=>m.Tipo==="Pago tarjeta"), X=T(m=>m.Tipo==="Transferencia");
+  const E=ing+dVal+iR, Sal=G+V, B=E-Sal;
+  const n=f=>rows.filter(f).length;
+  const L=(ic,l,v,c,cnt)=>`<div class="between small"><span>${ic} ${l}${cnt? ` <span class="muted">(${cnt})</span>`:""}</span><b class="${c}">${v}</b></div>`;
+  const ent=[ing&&L("💰","Ingresos","+"+mx2(ing),"pos priv",n(m=>m.Tipo==="Ingreso"&&m.Fuente!==VALES)), dVal&&L("🧺","Depósitos de vales","+"+mx2(dVal),"pos priv",n(m=>m.Tipo==="Ingreso"&&m.Fuente===VALES)), iR&&L("✨","Rendimientos","+"+mx2(iR),"pos",n(m=>m.Tipo==="Inversión"&&m.MovInversion==="Rendimiento"))].filter(Boolean);
+  const sal=[G&&L("🛒","Gastos","−"+mx2(G),"neg",n(esGastoEf)), V&&L("🧺","Gastos con vales","−"+mx2(V),"neg",n(esGastoVales))].filter(Boolean);
+  const int=[X&&L("🔁","Entre tus cuentas",mx2(X),"muted",n(m=>m.Tipo==="Transferencia")), P&&L("💳","Pagos de tarjeta",mx2(P),"muted",n(m=>m.Tipo==="Pago tarjeta")), iA&&L("📈","Aportaciones a inversión",mx2(iA),"muted",n(m=>m.Tipo==="Inversión"&&m.MovInversion==="Aportación")), iT&&L("⬇️","Retiros de inversión",mx2(iT),"muted",n(m=>m.Tipo==="Inversión"&&m.MovInversion==="Retiro"))].filter(Boolean);
+  const sep='<div style="border-top:1px solid var(--line);margin:4px 0"></div>';
+  const tot=(l,v,c)=>`<div class="between"><b>${l}</b><b class="${c}">${v}</b></div>`;
   return `<div class="card" style="gap:4px;margin-top:8px"><div class="between"><h2 style="margin:0">Σ Total ${S.q? "de la búsqueda" : "del filtro"}</h2><span class="small muted">${rows.length.toLocaleString("es-MX")} ${rows.length===1?"movimiento":"movimientos"}</span></div>
-    ${parts.map(([l,v,c])=>`<div class="between ${unico?"":"small"}"><span>${l}</span><b class="${c}">${v}</b></div>`).join("")}
-    ${inv.length&&!unico? `<div class="between small" style="border-top:1px solid var(--line);padding-top:4px"><span>Neto en inversiones</span><b>${mx2(iA+iR-iT)}</b></div>`:""}</div>`;
+    ${ent.length? `<div class="small muted" style="font-weight:700;letter-spacing:.06em;margin-top:4px">ENTRADAS</div>${ent.join("")}${ent.length>1? tot("Total entradas","+"+mx2(E),"pos priv"):""}`:""}
+    ${sal.length? `${ent.length?sep:""}<div class="small muted" style="font-weight:700;letter-spacing:.06em">SALIDAS</div>${sal.join("")}${sal.length>1? tot("Total salidas","−"+mx2(Sal),"neg"):""}`:""}
+    ${ent.length&&sal.length? `<div style="border-top:2px solid var(--line);margin:6px 0 2px"></div>${tot("Balance (entradas − salidas)",(B>=0?"+":"−")+mx2(Math.abs(B)),(B>=0?"pos":"neg")+" priv")}`:""}
+    ${int.length? `${ent.length||sal.length?sep:""}<div class="small muted" style="font-weight:700;letter-spacing:.06em">MOVIMIENTOS INTERNOS · no suman ni restan</div>${int.join("")}
+      <div class="small muted">Es dinero que solo cambia de lugar entre tus cuentas, tarjetas e inversiones (por ejemplo, el reparto de tu nómina). Los gastos con tarjeta ya se contaron cuando compraste.</div>`:""}
+  </div>`;
 }
 function insAcciones(ins){
   const r=saldosInversion()[ins]||{saldo:0}, L=S.movs.filter(m=>m.Tipo==="Inversión"&&m.Instrumento===ins).sort((a,b)=>a.Fecha<b.Fecha?1:-1);
@@ -1939,7 +1963,7 @@ function notaVales(rows){ const v=sum(rows.filter(esGastoVales)); return v? `<di
 function esAhorroMov(m){
   if(m.Tipo==="Inversión") return true;
   if(m.Tipo==="Transferencia") return m.CuentaDestino===AHORRO || m.Cuenta===AHORRO;
-  if(m.Tipo==="Ingreso") return m.Fuente!==VALES && (esPrest(m.Fuente)||esExtra(m.Fuente));
+  if(m.Tipo==="Ingreso") return esInvDirecto(m) || (m.Fuente!==VALES && (esPrest(m.Fuente)||esExtra(m.Fuente)));
   if(m.Tipo==="Gasto") return m.Cuenta===FONDO || m.Cuenta===CAJA_T;
   return false;
 }
@@ -2033,12 +2057,17 @@ function moneyInput(el){
     set(v){ d.set.call(this, v===""||v==null? "" : fmt(typeof v==="number"? String(Math.round(v*100)/100) : v)); }});
   el.addEventListener("beforeinput",e=>{ if(e.data===","||e.data==="٫"){ const r=d.get.call(el); if(!r.includes(".")){ e.preventDefault(); d.set.call(el, fmt(r.replace(/[^\d.]/g,"")+".")); el.setSelectionRange(9e3,9e3); el.dispatchEvent(new Event("input",{bubbles:true})); } else e.preventDefault(); } });
   el.addEventListener("input",()=>{ const raw=d.get.call(el), f=fmt(raw); if(f!==raw){ const fromEnd=raw.length-(el.selectionEnd??raw.length); d.set.call(el,f); const pos=Math.max(1,f.length-fromEnd); try{ el.setSelectionRange(pos,pos); }catch(e){} } }, true);
-  el.addEventListener("focus",()=>{ setTimeout(()=>{ try{ const n=d.get.call(el).length; el.setSelectionRange(n,n); }catch(e){} },0); });
+  el.addEventListener("focus",()=>{ setTimeout(()=>{ try{ if(el.selectionStart!==el.selectionEnd) return; const n=d.get.call(el).length; el.setSelectionRange(n,n); }catch(e){} },0); });
 }
 ["#fMonto","#fTenA","#fTenP","#fTenR","#fSepM","#fRepA","#fRepP"].forEach(s=>moneyInput($(s)));
+function esParteNom(m){ return m.Fuente===NOMINA && (/Repartido \d+\/\d+/.test(m.Nota||"") || (!!m.Instrumento && !m.CuentaDestino)); }
+function esInvDirecto(m){ return !!m.Instrumento && !m.CuentaDestino; }
 function igNom(R){
   const nom=R.filter(m=>m.Fuente===NOMINA), byC=new Map();
-  nom.forEach(m=>{ const c=catorcenaActual(m.Fecha), k=c? c.Inicio : "x"; const o=byC.get(k)||{c,N:0,Nr:0,Br:0}; o.N+=+m.Monto||0; const r=repDe(m.ID); if(r.a||r.b||m.CuentaDestino===EFECTIVO()&&r.b){ o.Nr+=+m.Monto||0; o.Br+=r.b? +r.b.Monto : 0; } byC.set(k,o); });
+  nom.forEach(m=>{ const c=catorcenaActual(m.Fecha), k=c? c.Inicio : "x"; const o=byC.get(k)||{c,N:0,Nr:0,Br:0}; const M=+m.Monto||0; o.N+=M;
+    if(esParteNom(m)){ o.Nr+=M; if(esInvDirecto(m)) o.Br+=M; }
+    else { const r=repDe(m.ID); if(r.b){ o.Nr+=M; o.Br+=+r.b.Monto||0; } }
+    byC.set(k,o); });
   let A=0, sinPlan=0, nc=0; byC.forEach(({c,N,Nr,Br})=>{ nc++; A+=Br; const rest=N-Nr; if(rest<=0) return; const a=c? ahorroCat(c) : null; if(a==null) sinPlan+=rest; else A+=Math.min(Math.max(a-Br,0),rest); });
   const N=sum(nom); return {N, A, P:N-A, sinPlan, nc};
 }
@@ -2063,7 +2092,7 @@ function quitarAutoInv(id,p){ const L=S.movs.filter(m=>m.Tipo==="Inversión"&&St
 function aplicarDestInv(o){ // o.CuentaDestino puede venir como "INV:Finsus"
   if(!String(o.CuentaDestino||"").startsWith(INV_PRE)) return null;
   const ins=o.CuentaDestino.slice(INV_PRE.length); o.CuentaDestino=""; o.Instrumento=ins; o.Nota=(o.Nota? o.Nota+" · ":"")+"Directo a inversión";
-  return {ID:uid(),Tipo:"Inversión",Fecha:o.Fecha,Monto:o.Monto,MovInversion:"Aportación",Instrumento:ins,Cuenta:"",Descripcion:"Aportación "+ins+" (desde "+(o.Fuente||"ingreso")+")",
+  return null; return {ID:uid(),Tipo:"Inversión",Fecha:o.Fecha,Monto:o.Monto,MovInversion:"Aportación",Instrumento:ins,Cuenta:"",Descripcion:"Aportación "+ins+" (desde "+(o.Fuente||"ingreso")+")",
     Nota:"Automático por ingreso "+o.ID,Categoria:"",Subcategoria:"",Fuente:"",CuentaDestino:"",Vehiculo:"",Km:"",Litros:"",MesesMSI:""};
 }
 function flujoSalida(R,a,b){
@@ -2082,7 +2111,7 @@ function repIds(id){ return {a:"R"+id+"A", b:"R"+id+"B"}; }
 function repDe(id){ const r=repIds(id); return {a:S.movs.find(m=>m.ID===r.a), b:S.movs.find(m=>m.ID===r.b)}; }
 function esReparto(m){ return /^Reparto nómina /.test(m.Nota||""); }
 function ahorroSugerido(fe){ const c=catorcenaActual(fe||S.hoy); if(!c) return {v:0,txt:""}; const a=ahorroCat(c);
-  const self=F.edit? repIds(F.edit.ID).b : "", usado=sum(S.movs.filter(m=>esReparto(m)&&m.CuentaDestino===AHORRO&&m.ID!==self&&m.Fecha>=c.Inicio&&m.Fecha<=c.Fin));
+  const self=F.edit? repIds(F.edit.ID).b : "", usado=sum(S.movs.filter(m=>m.Fecha>=c.Inicio&&m.Fecha<=c.Fin&&((esReparto(m)&&m.CuentaDestino===AHORRO&&m.ID!==self)||(m.Tipo==="Ingreso"&&m.Fuente===NOMINA&&esInvDirecto(m)&&!(F.edit&&m.ID===F.edit.ID)))));
   if(a!=null){ const r=Math.max(0,a-usado); return {v:r, txt: usado? `Tu plan de la catorcena ${+c.Num} dice ${mx(a)} de ahorro; ya apartaste ${mx(usado)} con otra nómina.` : `Tu plan de la catorcena ${+c.Num} dice ${mx(a)} de ahorro.`}; }
   let n=0; try{ const mc=metaCat(c); n=mc&&mc.nuevo>0? Math.round(mc.nuevo) : 0; }catch(e){}
   return {v:n, txt: n? `La catorcena ${+c.Num} no tiene ahorro capturado; te sugiero ${mx(n)} (nuevo ahorro por catorcena).` : `La catorcena ${+c.Num} no tiene ahorro capturado.`}; }
@@ -2097,7 +2126,7 @@ function repPaint(){
   $("#fRepPath").innerHTML = dst===EFECTIVO()? "💼 Nómina → 💵 Efectivo → 🐷 Ahorro" : `💼 Nómina → 🏦 ${esc(dst||"tu cuenta")} → 💵 Efectivo → 🐷 Ahorro`;
   if(A>N&&N) $("#fRepH").innerHTML = `<span class="neg">El ahorro no puede ser mayor a la nómina.</span>`;
 }
-function repVisible(){ const t=F.t, f=$("#fFuente").value, dst=$("#fDst").value;
+function repVisible(){ return false; const t=F.t, f=$("#fFuente").value, dst=$("#fDst").value;
   return t==="Ingreso" && f===NOMINA && !F.split && !(F.sep&&F.sep.on) && !String(dst).startsWith(INV_PRE); }
 function repBase(){ return {Categoria:"",Subcategoria:"",Vehiculo:"",Km:"",Litros:"",Fuente:"",Instrumento:"",MovInversion:"",MesesMSI:""}; }
 function repGuardar(o,p){ // o = ingreso de nómina ya armado
@@ -2112,23 +2141,68 @@ function repGuardar(o,p){ // o = ingreso de nómina ya armado
   else quitar(ex.b);
 }
 function repArbol(R,a,b,per){
-  const nomR=R.filter(m=>m.Fuente===NOMINA&&m.CuentaDestino); if(!nomR.length) return "";
+  const nomR=R.filter(m=>m.Fuente===NOMINA); if(!nomR.length) return "";
   const en={cat:"en la catorcena",mes:"en el mes",anio:"en el año",todo:"en todo el historial",rango:"en estas fechas"}[per]||"";
-  const EF=EFECTIVO(), con=nomR.filter(m=>repDe(m.ID).a||repDe(m.ID).b||m.CuentaDestino===EF), sin=nomR.filter(m=>!con.includes(m));
-  const N=sum(nomR), fsA=(S.cta[AHORRO]||{}).FechaSaldo||"", Bm=con.map(m=>repDe(m.ID).b).filter(Boolean), B=sum(Bm), est=igNom(sin), Bt=B+est.A, Pt=N-Bt;
-  const Bhist=sum(Bm.filter(x=>fsA&&x.Fecha<=fsA))+sum(sin.filter(m=>fsA&&m.Fecha<=fsA).map(m=>({Monto:0})))+(fsA? igNom(sin.filter(m=>m.Fecha<=fsA)).A : 0), Bnew=Bt-Bhist;
-  const inv=S.movs.filter(m=>m.Tipo==="Inversión"&&m.Cuenta===AHORRO&&m.MovInversion!=="Retiro"&&m.Fecha>=a&&m.Fecha<=b), I=sum(inv), Gi=group(inv,"Instrumento");
-  const orig=group(nomR,"CuentaDestino").map(x=>x[0]).join(", ");
+  const x=igNom(nomR), partes=nomR.filter(esParteNom), legacy=nomR.filter(m=>!esParteNom(m)&&repDe(m.ID).b), sin=nomR.filter(m=>!esParteNom(m)&&!repDe(m.ID).b), est=igNom(sin);
+  const presCta=group(partes.filter(m=>m.CuentaDestino),"CuentaDestino"), invIns=group(partes.filter(esInvDirecto),"Instrumento");
+  const lgB=sum(legacy.map(m=>repDe(m.ID).b)), lgP=sum(legacy)-lgB;
   const ic=(e,k)=>`<span class="dd-ic" style="--ic-bg:${ddBg(k)}">${e}</span>`;
+  const row=(lv,e,k,t,s,v)=>`<div class="r ${lv}">${ic(e,k)}<span class="grow"><b>${t}</b>${s?`<small>${s}</small>`:""}</span><b>${mx(v)}</b></div>`;
+  const pc=v=>x.N? Math.round(v/x.N*100)+"%" : "";
   return `<div class="tree">
-    <div class="r">${ic("💼","Nómina")}<span class="grow"><b>Nómina que entró ${esc(en)}</b><small>Cae en ${esc(orig)}</small></span><b>${mx(N)}</b></div>
-    <div class="r l1">${ic("💵","Efectivo")}<span class="grow"><b>Pasa a Efectivo</b><small>Todo lo de la nómina</small></span><b>${mx(N)}</b></div>
-    <div class="r l2">${ic("🛒","Presupuesto")}<span class="grow"><b>Presupuesto para gastar</b><small>Se queda en Efectivo · ${N? Math.round(Pt/N*100):0}%</small></span><b>${mx(Pt)}</b></div>
-    <div class="r l2">${ic("🐷","Ahorro")}<span class="grow"><b>Ahorro de catorcena</b><small>Pasa a la cuenta Ahorro · ${N? Math.round(Bt/N*100):0}%</small></span><b>${mx(Bt)}</b></div>
-    ${Bhist>0? `<div class="r l3">${ic("📈","Histórico")}<span class="grow"><b>Ya en tus inversiones</b><small>Ahorro anterior al ${sDate(fsA)} ${fsA.slice(0,4)} (antes de usar la app)</small></span><b>${mx(Bhist)}</b></div>`:""}
-    ${Gi.map(([k,v])=>`<div class="r l3">${ic("📈",k)}<span class="grow"><b>${esc(k)}</b><small>Aportación desde Ahorro</small></span><b>${mx(v)}</b></div>`).join("")}
-    ${Bnew>0||I>0? `<div class="r l3">${ic("⏳","Por invertir")}<span class="grow"><b>${Bnew-I>0? "Sigue en Ahorro" : "Todo invertido"}</b><small>${Bnew-I>0? "Pendiente de pasar a una inversión" : ""}</small></span><b>${mx(Math.max(0,Bnew-I))}</b></div>`:""}
-  </div>${sin.length? `<div class="small muted" style="margin-top:6px">${sin.length} ${sin.length===1?"nómina":"nóminas"} (${mx(sum(sin))}) sin dividir: el ahorro se estimó con tu plan de catorcena. Ábrela y guárdala, o usa en tu hoja Finanzas RME → Dividir nóminas del histórico.</div>`:""}`;
+    ${row("","💼","Nómina","Nómina que entró "+esc(en),"",x.N)}
+    ${row("l1","🛒","Presupuesto","Presupuesto para gastar",pc(x.P),x.P)}
+    ${presCta.map(([k,v])=>row("l2","💵",k,esc(k),"Repartido al registrar",v)).join("")}
+    ${lgP>0? row("l2","💵","Efectivo","Efectivo","Reparto anterior",lgP):""}
+    ${est.P>0&&sin.length? row("l2","📝","Estimado","Sin repartir","Estimado con tu plan",est.P):""}
+    ${row("l1","🐷","Ahorro","Ahorro de catorcena",pc(x.A),x.A)}
+    ${invIns.map(([k,v])=>row("l2","📈",k,esc(k),"Directo a inversión",v)).join("")}
+    ${lgB>0? row("l2","🐷","Ahorro2","Cuenta Ahorro","Reparto anterior",lgB):""}
+    ${est.A>0&&sin.length? row("l2","📝","Estimado","Sin repartir","Estimado con tu plan",est.A):""}
+  </div>${sin.length? `<div class="small muted" style="margin-top:6px">${sin.length} ${sin.length===1?"nómina":"nóminas"} (${mx(sum(sin))}) sin repartir: se estimó con tu plan de catorcena. Ábrela y usa ➗ Repartir para dejarla exacta.</div>`:""}`;
+}
+/* ===== Nómina: reparto directo a Efectivo (presupuesto) e inversión (ahorro) ===== */
+function ultimaInvNomina(){ const m=S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fuente===NOMINA&&esInvDirecto(m)).sort((a,b)=>a.Fecha<b.Fecha?1:-1)[0];
+  if(m) return m.Instrumento; const ap=S.movs.filter(m=>m.Tipo==="Inversión"&&m.MovInversion==="Aportación").sort((a,b)=>a.Fecha<b.Fecha?1:-1)[0]; return ap? ap.Instrumento : ""; }
+function nomSplitCalc(){
+  if(!F.split||!F.splitAuto) return;
+  const N=parseFloat($("#fMonto").value)||0, s=ahorroSugerido($("#fFecha").value||S.hoy), A=N? Math.min(s.v||0,N) : (s.v||0);
+  F.split[0].m = N? String(Math.round((N-A)*100)/100) : ""; F.split[1].m = A? String(A) : "";
+  F.nomHint=s.txt; splitPaint();
+}
+function nomSplitAuto(){
+  if(F.split||F.splitDeclined||F.edit) return;
+  if(!(F.t==="Ingreso" && $("#fFuente").value===NOMINA)) return;
+  splitToggle(true); F.splitAuto=true;
+  const ins=ultimaInvNomina(); F.split=[{c:EFECTIVO(),m:""},{c: ins? INV_PRE+ins : "", m:""}];
+  nomSplitCalc();
+}
+function moverAInversion(){
+  const si=saldosInversion(), ori=Object.values(si).filter(r=>r.i.Tipo==="Efectivo"&&r.saldo>0).map(r=>({k:"INS:"+r.i.Instrumento,l:r.i.Instrumento,v:r.saldo}));
+  if(S.cta[AHORRO]){ const v=saldosCuentas()[AHORRO]||0; if(v>0) ori.push({k:"CTA:"+AHORRO,l:"Cuenta Ahorro",v}); }
+  const des=Object.values(si).filter(r=>r.i.Tipo!=="Efectivo").map(r=>r.i.Instrumento);
+  const st={o:ori[0]&&ori[0].k, d:des[0]};
+  ddSheet("Pasar efectivo a inversión", false, ()=>`<div class="small muted" style="margin:-4px 2px 8px">Es un movimiento interno: tu ahorro total no cambia, solo cambia de lugar.</div>
+    <div class="pk-g">Sale de</div><div class="chips" id="mvO">${ori.map(o=>`<button type="button" class="chip" data-o="${esc(o.k)}">💵 ${esc(o.l)} · ${mx(o.v)}</button>`).join("")}</div>
+    <div class="pk-g">Va a</div><div class="chips" id="mvD" style="flex-wrap:wrap">${des.map(d=>`<button type="button" class="chip" data-d="${esc(d)}">📈 ${esc(d)}</button>`).join("")}</div>
+    <div class="f" style="margin-top:10px"><label for="mvM">Monto</label><input id="mvM" class="monto" style="font-size:22px"></div>
+    <div class="small neg" id="mvE"></div>
+    <button type="button" class="btn primary" data-v="go" style="width:100%;margin-top:10px">Mover</button>`, v=>{}, null);
+  const pk=$("#pk"), paint=()=>{ $$("[data-o]",pk).forEach(b=>b.classList.toggle("on",b.dataset.o===st.o)); $$("[data-d]",pk).forEach(b=>b.classList.toggle("on",b.dataset.d===st.d)); };
+  $$("[data-o]",pk).forEach(b=>b.onclick=()=>{ st.o=b.dataset.o; paint(); }); $$("[data-d]",pk).forEach(b=>b.onclick=()=>{ st.d=b.dataset.d; paint(); }); paint();
+  moneyInput($("#mvM",pk)); const o0=ori.find(o=>o.k===st.o); if(o0) $("#mvM",pk).value=Math.round(o0.v*100)/100;
+  $("[data-v=go]",pk).onclick=()=>{
+    const m=Math.round((parseFloat($("#mvM",pk).value)||0)*100)/100, o=ori.find(x=>x.k===st.o);
+    if(!o||!st.d) return $("#mvE",pk).textContent="Elige de dónde sale y a qué inversión va.";
+    if(!(m>0)) return $("#mvE",pk).textContent="Escribe el monto.";
+    if(m>o.v+0.009) return $("#mvE",pk).textContent="No puede ser más de lo que tienes ("+mx2(o.v)+").";
+    const base={Categoria:"",Subcategoria:"",Fuente:"",CuentaDestino:"",Vehiculo:"",Km:"",Litros:"",MesesMSI:""}, f=S.hoy, p=pend(), L=[];
+    if(o.k.startsWith("INS:")){ const ins=o.k.slice(4);
+      L.push(Object.assign({},base,{ID:uid(),Tipo:"Inversión",Fecha:f,Monto:m,MovInversion:"Retiro",Instrumento:ins,Cuenta:"",Descripcion:"Retiro "+ins+" → "+st.d,Nota:"Pase de efectivo a inversión"}));
+      L.push(Object.assign({},base,{ID:uid(),Tipo:"Inversión",Fecha:f,Monto:m,MovInversion:"Aportación",Instrumento:st.d,Cuenta:"",Descripcion:"Aportación "+st.d+" (desde "+ins+")",Nota:"Pase de efectivo a inversión"}));
+    } else L.push(Object.assign({},base,{ID:uid(),Tipo:"Inversión",Fecha:f,Monto:m,MovInversion:"Aportación",Instrumento:st.d,Cuenta:AHORRO,Descripcion:"Aportación "+st.d+" (desde Ahorro)",Nota:"Pase de efectivo a inversión"}));
+    L.forEach(x=>{ S.movs.push(x); p.push({op:"save",o:x}); }); sortMovs(); setPend(p); flush(); ddClose(); toast("Movido "+mx2(m)+" a "+st.d); render();
+  };
 }
 function applyMem(m, setDesc){
   if(!m) return;
@@ -2149,10 +2223,11 @@ $("#fInvM").onchange=()=>tipo(F.t,true);
 $("#fFuente").onchange=()=>{ $("#fDst").value=""; F.dst=""; tipo(F.t,true); };
 ["#fTenA","#fTenP"].forEach(i=>$(i).addEventListener("input",tenCalc));
 $("#fMonto").addEventListener("input",()=>{ if(!$("#fTenW").classList.contains("hide")) tenCalc(); });
-$("#fSplitBtn").onclick=()=>{ splitToggle(!F.split); $("#fRepW").classList.toggle("hide", !repVisible()); repPaint(); };
+$("#fSplitBtn").onclick=()=>{ if(F.split){ F.splitDeclined=true; F.splitAuto=false; } splitToggle(!F.split); $("#fRepW").classList.toggle("hide", !repVisible()); repPaint(); };
 $("#fRepOn").onchange=()=>repPaint();
 $("#fRepA").addEventListener("input",()=>{ F.repManual=true; repPaint(); });
-$("#fMonto").addEventListener("input",()=>repPaint());
+$("#fMonto").addEventListener("input",()=>{ repPaint(); nomSplitCalc(); });
+$("#fFecha").addEventListener("change",()=>nomSplitCalc());
 $("#fFecha").addEventListener("change",()=>repPaint());
 $("#fSepBtn").onclick=()=>sepToggle(!F.sep.on);
 $("#fSepM").addEventListener("input",sepInfo);
@@ -2199,7 +2274,9 @@ function submit(again){
     }
     if(esTenate(o.Fuente)){ tp=tenCalc(); if(tp.ruta<0){ if(sepX){ $("#fMonto").value=o.Monto+sepX.Monto; tenCalc(); } return e.textContent="App + propinas no pueden ser más que el total."; } o.Subcategoria=tenCod(tp); if(!o.Descripcion) o.Descripcion="El Tenate"; }
     if(esProy(o.Fuente)){ const n=o.Descripcion&&o.Descripcion!==o.Fuente? o.Descripcion : (F.proy||""); o.Subcategoria=n; if(!o.Descripcion) o.Descripcion=n||o.Fuente; }
+    if(F.split){ const one=F.split.filter(r=>r.c&&parseFloat(r.m)>0); if(one.length===1 && Math.abs(parseFloat(one[0].m)-o.Monto)<0.01 && !F.split.some(r=>!r.c&&parseFloat(r.m)>0)){ o.CuentaDestino=one[0].c; F.split=null; } }
     if(F.split){ const ok=F.split.filter(r=>r.c&&parseFloat(r.m)>0); const rep=Math.round(ok.reduce((s,r)=>s+parseFloat(r.m),0)*100)/100;
+      if(F.split.some(r=>!r.c&&parseFloat(r.m)>0)) return e.textContent = o.Fuente===NOMINA? "Elige a qué inversión va tu ahorro (segunda fila)." : "Elige a qué cuenta va cada parte.";
       if(ok.length<2) return e.textContent="Elige al menos dos cuentas con monto.";
       if(new Set(ok.map(r=>r.c)).size!==ok.length) return e.textContent="Hay una cuenta repetida.";
       if(Math.abs(rep-o.Monto)>0.009) return e.textContent="Lo repartido ("+mx2(rep)+") debe sumar "+mx2(o.Monto)+".";
@@ -2219,7 +2296,7 @@ function submit(again){
     if(F.edit && F.edit.Instrumento && !String(o.CuentaDestino).startsWith(INV_PRE)){ o.Instrumento=""; const pq=pend(); quitarAutoInv(F.edit.ID,pq); setPend(pq); }
     if(String(o.CuentaDestino).startsWith(INV_PRE)){ if(F.edit){ const ins=o.CuentaDestino.slice(INV_PRE.length); if(F.edit.Instrumento===ins&&!F.edit.CuentaDestino){ o.CuentaDestino=""; o.Instrumento=ins; } else return e.textContent="Para mandar un ingreso ya guardado a inversión, registra una Inversión (Aportación)."; } else { const ap=aplicarDestInv(o); if(ap){ S.movs.push(ap); const pp=pend(); pp.push({op:"save",o:ap}); setPend(pp); } } }
     if(sepX){ S.movs.push(sepX); const pp=pend(); pp.push({op:"save",o:sepX}); setPend(pp); setTimeout(()=>toast("Separado: "+mx2(sepX.Monto)+" a "+sepX.Fuente),1600); } }
-  else if(t==="Pago tarjeta"||t==="Transferencia"){ o.Cuenta=v("#fCta"); o.CuentaDestino=v("#fDst"); if(!o.Cuenta||!o.CuentaDestino) return e.textContent="Elige origen y destino."; if(o.Cuenta===o.CuentaDestino) return e.textContent="Origen y destino deben ser distintos."; if(!o.Descripcion) o.Descripcion=t+" "+o.CuentaDestino; }
+  else if(t==="Pago tarjeta"||t==="Transferencia"){ o.Cuenta=v("#fCta"); o.CuentaDestino=v("#fDst"); if(!o.Cuenta||!o.CuentaDestino) return e.textContent="Elige origen y destino."; if(o.Cuenta===o.CuentaDestino&&t!=="Pago tarjeta") return e.textContent="Origen y destino deben ser distintos."; if(!o.Descripcion) o.Descripcion=t+" "+o.CuentaDestino; }
   else if(t==="Inversión"){ o.MovInversion=v("#fInvM"); o.Instrumento=v("#fIns"); if(!o.Instrumento) return e.textContent="Elige el instrumento."; if(o.MovInversion!=="Rendimiento"){ o.Cuenta=v("#fCta"); if(!o.Cuenta) return e.textContent="Elige la cuenta."; } if(!o.Descripcion) o.Descripcion=o.MovInversion+" "+o.Instrumento; }
   if(F.edit){ ["Origen","ConceptoExcel","Registrado","Usuario"].forEach(k=>{ if(F.edit[k]!==undefined) o[k]=F.edit[k]; }); }
   if(t==="Gasto" && F.ticket && S.cta[o.Cuenta]?.Tipo==="Vales"){ o.Ticket=F.ticket; guardarTicketLocal(o); }
