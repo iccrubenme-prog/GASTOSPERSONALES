@@ -302,6 +302,14 @@ details.mas .f{margin-top:6px}
 @keyframes spShine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
 @media (prefers-reduced-motion:reduce){.sp-orbit,.sp-bar,.sp-fill::after,.sp-dot{animation:none}.sp-line{stroke-dashoffset:0}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.arq{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.arq-r{display:flex;align-items:center;gap:8px}
+.arq-d{min-width:58px;text-align:center;font-weight:700;border-radius:10px;padding:6px 4px;font-size:13px}
+.arq-d.bill{background:#e3f3ea;color:#1d7a4c}.arq-d.coin{background:#fdf1dc;color:#9a6400}
+.arq-s{display:flex;align-items:center;gap:4px;flex:1}
+.arq-s input{width:56px;text-align:center;padding:6px 4px}
+.arq-s .btn{min-width:34px;padding:6px 0}
+.arq-t{min-width:84px;text-align:right;font-size:14px}
 </style>
 </head>
 <body>
@@ -325,6 +333,7 @@ details.mas .f{margin-top:6px}
       <div class="card menu" style="padding:2px 12px">
         <button class="item" data-sub="ingresos"><span class="ico i">+</span><span class="grow"><div class="t">Ingresos</div><div class="s">Nómina, prestaciones, vales, El Tenate y extras: todo el detalle</div></span><span class="arrow">›</span></button>
         <button class="item" data-sub="ahorro"><span class="ico i">A</span><span class="grow"><div class="t">Ahorros</div><div class="s">Acumulado, meta por catorcena, fondo y total de dinero</div></span><span class="arrow">›</span></button>
+        <button class="item" data-sub="arqueo"><span class="ico i">💵</span><span class="grow"><div class="t">Arqueo de efectivo</div><div class="s">Cuenta tus billetes y monedas y cuádralos con tu catorcena</div></span><span class="arrow">›</span></button>
         <button class="item" data-sub="cuentas"><span class="ico">$</span><span class="grow"><div class="t">Tarjetas y cuentas</div><div class="s">Deuda por tarjeta, saldos y pagos</div></span><span class="arrow">›</span></button>
         <button class="item" data-sub="msi"><span class="ico">MSI</span><span class="grow"><div class="t">Compras a meses</div><div class="s">Liverpool / Fábricas, Palacio, Sears y tarjetas</div></span><span class="arrow">›</span></button>
         <button class="item" data-sub="inv"><span class="ico v">%</span><span class="grow"><div class="t">Inversiones</div><div class="s">SOFIPOs, bancos y efectivo</div></span><span class="arrow">›</span></button>
@@ -1148,7 +1157,7 @@ function anAutos(){
 /* ================= Sub-páginas de "Más" ================= */
 function renderSub(){
   const k=S.sub, el=$("#p-sub");
-  $("#vTitle").textContent = {ahorro:"Ahorros", cuentas:"Tarjetas y cuentas", msi:"Compras a meses", inv:"Inversiones", vales:"Vales de despensa", pres:"Presupuesto", ingresos:"Ingresos"}[k] || (k==="ctadet"? S.ctaDet : "");
+  $("#vTitle").textContent = {ahorro:"Ahorros", cuentas:"Tarjetas y cuentas", msi:"Compras a meses", inv:"Inversiones", vales:"Vales de despensa", pres:"Presupuesto", ingresos:"Ingresos", arqueo:"Arqueo de efectivo"}[k] || (k==="ctadet"? S.ctaDet : "");
   if(k==="ahorro"){
     if(!S.ahAnio) S.ahAnio=+S.hoy.slice(0,4);
     const TODO=S.ahAnio==="todo", yHoy=+S.hoy.slice(0,4);
@@ -1218,13 +1227,17 @@ function renderSub(){
     const act=S.d.cuentas.filter(c=>!String(c.Activa).toLowerCase().startsWith("n"));
     const cred=act.filter(c=>c.Tipo==="Crédito"||c.Tipo==="Departamental"), deudaT=sum(cred.map(c=>({Monto:Math.max(0,-(b[c.Cuenta]||0))}))), limT=sum(cred.map(c=>({Monto:+c.LimiteCredito||0})));
     const liq=sum(act.filter(c=>["Débito","Efectivo"].includes(c.Tipo)).map(c=>({Monto:b[c.Cuenta]||0})));
+    // El presupuesto se gasta con efectivo Y con tarjeta: lo gastado con tarjeta sigue en Efectivo hasta que pagas la tarjeta.
+    const cHoy=catorcenaActual(S.hoy), qHoy=cHoy? catRes(cHoy).queda : null;
+    const ctaPres=act.find(c=>c.Tipo==="Efectivo");
+    const libreHoy = qHoy==null? null : Math.min(liq, qHoy), apartT = libreHoy==null? 0 : Math.max(0, liq-Math.max(0,libreHoy));
     const fs=act.map(c=>c.FechaSaldo).filter(Boolean).sort()[0];
     let i=0;
     el.innerHTML = `<div class="seg" id="ctPer">${[["cat","Catorcena"],["mes","Mes"],["mesAnt","Mes anterior"],["anio","Año"]].map(([k2,l])=>`<button data-p="${k2}" class="${F2.per===k2?"on":""}">${l}</button>`).join("")}</div>
       <div class="ig-f" style="margin:8px 0">${["Todas",...grupos.filter(g=>act.some(c=>g[1].includes(c.Tipo))).map(g=>g[0])].map(g=>{ const G=grupos.find(x=>x[0]===g); return `<button class="chip ${F2.tipo===g?"on":""}" data-ct="${esc(g)}">${G? G[2] : "✨ Todas"}</button>`; }).join("")}</div>
       <div class="card"><h2>Resumen hoy</h2>
         <div class="acc-k"><div><small>Debes en tarjetas</small><b class="${deudaT>0?"neg":""}">${mx2(deudaT)}</b></div><div><small>Crédito disponible</small><b>${limT? mx2(Math.max(0,limT-deudaT)) : "—"}</b></div>
-          <div class="priv"><small>Débito y efectivo</small><b>${mx2(liq)}</b></div><div class="priv"><small>Vales</small><b>${mx2(valesSaldo())}</b></div></div>
+          <div class="priv"><small>Débito y efectivo</small><b>${mx2(liq)}</b>${libreHoy!=null&&apartT>0? `<div class="small muted">Libre ${mx2(libreHoy)} · para tarjetas ${mx2(apartT)}</div>`:""}</div><div class="priv"><small>Vales</small><b>${mx2(valesSaldo())}</b></div></div>
         <div class="small muted">Saldos desde lo que capturaste en la hoja CUENTAS${fs? " ("+sDate(fs)+" "+fs.slice(0,4)+")":""} más lo registrado después. Gastos: ${esc(pl)}.</div></div>`
       + grupos.filter(g=>F2.tipo==="Todas"||F2.tipo===g[0]).map(([tt,tipos])=>{ const cs=act.filter(c=>tipos.includes(c.Tipo)); if(!cs.length) return "";
       return `<div class="card"><h2>${tt}</h2>${cs.map(c=>{ const n=c.Cuenta, t=c.Tipo, cr=t==="Crédito"||t==="Departamental", [c1,c2]=cpCol(n,i++);
@@ -1232,6 +1245,8 @@ function renderSub(){
         const kpi = cr
           ? `<div><small>Deuda hoy</small><b class="${deuda>0?"neg":""}">${mx2(deuda)}</b></div><div><small>${lim? "Disponible de "+mx(lim) : "Gastado "+esc(pl.toLowerCase())}</small><b>${lim? mx2(Math.max(0,lim-deuda)) : mx(gp)}</b></div>`
           : t==="Tenate"? `<div class="priv"><small>Recibido ${esc(pl.toLowerCase())}</small><b class="pos">${mx(sum(S.movs.filter(m=>m.Tipo==="Ingreso"&&esTenate(m.Fuente)&&m.Fecha>=pa&&m.Fecha<=pb)))}</b></div><div><small>Gastado ${esc(pl.toLowerCase())}</small><b>${mx(gp)}</b></div>`
+          : ctaPres&&n===ctaPres.Cuenta&&libreHoy!=null? `<div class="priv"><small>Libre para gastar</small><b class="${libreHoy<0?"neg":""}">${mx2(libreHoy)}</b></div><div><small>Gastado ${esc(pl.toLowerCase())}</small><b>${mx(gp)}</b></div>
+              <div class="priv" style="grid-column:1/-1"><div class="between small"><span class="muted">💵 Dinero en la cuenta</span><b>${mx2(s0)}</b></div>${apartT>0? `<div class="between small"><span class="muted">💳 Apartado para pagar tarjetas</span><b>${mx2(apartT)}</b></div><div class="small muted">Lo que gastaste con tarjeta de tu presupuesto y aún no pagas. Al registrar el pago desde Efectivo, sale de aquí.</div>`:""}</div>`
           : `<div class="priv"><small>${t==="Fondo"?"Disponible en el fondo":"Saldo hoy"}</small><b class="${s0<0?"neg":""}">${mx2(s0)}</b></div><div><small>Gastado ${esc(pl.toLowerCase())}</small><b>${mx(gp)}</b></div>`;
         const util = cr&&lim? `<div class="track"><div class="fill ${deuda>lim*.85?"over":deuda>lim*.6?"warn":""}" style="width:${Math.min(100,deuda/lim*100)}%"></div></div>`:"";
         const fechas = cr&&(c.DiaCorte||c.DiaPago)? `<div class="small muted">${c.DiaCorte? "✂️ Corte "+prox(c.DiaCorte):""}${c.DiaCorte&&c.DiaPago?" · ":""}${c.DiaPago? "📅 Pagar antes del "+prox(c.DiaPago):""}</div>`:"";
@@ -1239,14 +1254,16 @@ function renderSub(){
           <div class="acc-k">${kpi}</div>${util}
           ${cr&&lim? `<div class="small muted">Gastado ${esc(pl.toLowerCase())}: <b>${mx(gp)}</b></div>`:""}${fechas}
           ${msiPend[n]? `<div class="small warn">Meses sin intereses por pagar: ${mx(msiPend[n])}</div>`:""}
-          <div class="acc-a"><button class="btn sm" data-det="${esc(n)}">Ver desglose ›</button>${cr? `<button class="btn sm" data-pagar="${esc(n)}">Registrar pago</button>`:""}${t==="Ahorro"? `<button class="btn sm" data-ainv="1">📈 Pasar a inversión</button>`:""}</div></div>`; }).join("")}</div>`; }).join("");
+          <div class="acc-a"><button class="btn sm" data-det="${esc(n)}">Ver desglose ›</button>${ctaPres&&n===ctaPres.Cuenta? `<button class="btn sm" data-goto="arqueo">💵 Contar efectivo</button>`:""}${cr? `<button class="btn sm" data-pagar="${esc(n)}">Registrar pago</button>`:""}${t==="Ahorro"? `<button class="btn sm" data-ainv="1">📈 Pasar a inversión</button>`:""}</div></div>`; }).join("")}</div>`; }).join("");
     $$("[data-ainv]",el).forEach(x=>x.onclick=moverAInversion);
     $$("#ctPer button",el).forEach(x=>x.onclick=()=>{ F2.per=x.dataset.p; renderSub(); });
     $$("[data-ct]",el).forEach(x=>x.onclick=()=>{ F2.tipo=x.dataset.ct; renderSub(); });
     $$("[data-pagar]",el).forEach(x=>x.onclick=()=>openForm({Tipo:"Pago tarjeta", CuentaDestino:x.dataset.pagar},{dst:x.dataset.pagar}));
     $$("[data-det]",el).forEach(x=>x.onclick=()=>{ S.ctaDet=x.dataset.det; S.ctaPer=F2.per; openSub("ctadet"); });
+    $$("[data-goto]",el).forEach(x=>x.onclick=()=>openSub(x.dataset.goto));
   }
   if(k==="ctadet") renderCtaDet(el);
+  if(k==="arqueo") renderArqueo(el);
   if(k==="ingresos") renderIngresos(el);
   if(k==="msi"){
     const act=S.d.msi.map(x=>Object.assign({},x,msiEstado(x))).filter(x=>x.restan>0).sort((a,b)=>b.pend-a.pend);
@@ -1736,6 +1753,57 @@ function perRango(p){
            mes:[ym+"-01",fin(ym),"Este mes"], mesAnt:[pm+"-01",fin(pm),"Mes anterior"], anio:[y+"-01-01",y+"-12-31","Año "+y] }[p];
 }
 function gastosCuenta(n,a,b){ return S.movs.filter(m=>m.Tipo==="Gasto"&&m.Cuenta===n&&m.Fecha>=a&&m.Fecha<=b); }
+/* ================= Arqueo de efectivo ================= */
+const DENOM=[1000,500,200,100,50,20,10,5,2,1,0.5,0.2,0.1];
+const denTxt=d=> d>=20? "$"+d.toLocaleString("es-MX") : d>=1? "$"+d : (d*100)+"¢";
+function arqParse(t){ const o={}; String(t||"").split(/[,;]/).forEach(p=>{ const [d,c]=p.split(":"); if(d&&c) o[+d]=+c||0; }); return o; }
+function arqUltimo(){ const L=(S.d.arqueos||[]).slice().sort((a,b)=>(a.Fecha+(a.Hora||""))<(b.Fecha+(b.Hora||""))?-1:1); return L[L.length-1]||null; }
+function arqBorrador(){
+  let d=store("fc_arq"); if(d&&d.c) return d;
+  const u=arqUltimo(); return u? {c:arqParse(u.Detalle), otro:+u.OtroDinero||0} : {c:{}, otro:0};
+}
+function renderArqueo(el){
+  const D=S.arq=S.arq||arqBorrador(), c=catorcenaActual(S.hoy), x=c? catRes(c) : null;
+  const ef=Object.entries(saldosCuentas()).filter(([n])=>{ const k=S.cta[n]; return k&&k.Tipo==="Efectivo"; }).reduce((a,[,v])=>a+v,0);
+  const calc=()=>{ const billetes=DENOM.reduce((a,d)=>a+d*(+D.c[d]||0),0); const tot=billetes+(+D.otro||0); return {billetes, tot, q:x? x.queda : 0}; };
+  const hist=(S.d.arqueos||[]).slice().sort((a,b)=>(a.Fecha+(a.Hora||""))<(b.Fecha+(b.Hora||""))?1:-1).slice(0,8);
+  el.innerHTML=`<div class="card"><h2>💵 ¿Cuánto tienes en la cartera?</h2>
+      <div class="small muted">Escribe cuántos billetes y monedas tienes de cada uno. Se guarda lo último que contaste.</div>
+      <div class="arq">${DENOM.map(d=>`<div class="arq-r"><span class="arq-d ${d>=20?"bill":"coin"}">${denTxt(d)}</span>
+        <span class="arq-s"><button class="btn sm" data-am="${d}" aria-label="menos">−</button><input inputmode="numeric" data-ad="${d}" value="${+D.c[d]||""}" placeholder="0"><button class="btn sm" data-ap="${d}" aria-label="más">+</button></span>
+        <b class="arq-t priv" data-at="${d}">${mx2(d*(+D.c[d]||0))}</b></div>`).join("")}
+        <div class="arq-r" style="margin-top:4px"><span class="grow"><b>➕ Otro dinero</b><div class="small muted">Opcional, ej. Klar débito</div></span><input id="arqOtro" class="money" style="width:130px" value="${+D.otro||""}"></div>
+      </div>
+      <div class="between" style="border-top:1px solid var(--line);padding-top:8px"><b>Total contado</b><b class="mid priv" id="arqTot"></b></div></div>
+    <div class="card priv" id="arqCuadre"></div>
+    <div class="actions" style="display:flex;gap:8px"><button class="btn" id="arqLimpiar">Poner en ceros</button><button class="btn primary grow" id="arqGuardar">Guardar arqueo</button></div>
+    ${hist.length? `<div class="card"><h2>Arqueos anteriores</h2>${hist.map(h=>`<div class="between small"><span>${sDate(h.Fecha)} ${String(h.Fecha).slice(0,4)}${h.Hora? " · "+esc(h.Hora):""}</span><span class="priv">${mx2(+h.Contado)} · <b class="${+h.Diferencia<0?"neg":"pos"}">${+h.Diferencia>=0?"+":""}${mx2(+h.Diferencia)}</b></span></div>`).join("")}</div>`:""}`;
+  const pinta=()=>{ const k=calc(), dif=k.tot-k.q;
+    $("#arqTot").textContent=mx2(k.tot);
+    DENOM.forEach(d=>{ const t=$(`[data-at="${d}"]`,el); if(t) t.textContent=mx2(d*(+D.c[d]||0)); });
+    $("#arqCuadre").innerHTML=`<h2>⚖️ ¿Cuadra con tu catorcena?</h2>
+      ${row2("💵 Contado (billetes, monedas y otro)",k.tot)}
+      ${row2("🛒 Queda del presupuesto"+(c? " · catorcena "+(+c.Num):""),k.q)}
+      <div class="between" style="border-top:1px solid var(--line);padding-top:6px"><b>${dif>=0? "👛 En cartera (extra)" : "⚠️ Te falta"}</b><b class="mid ${dif<0?"neg":"pos"}">${mx2(Math.abs(dif))}</b></div>
+      <div class="small muted">${Math.abs(dif)<0.01? "✓ Cuadra exacto con lo que te queda de la catorcena." : dif>0? "Tienes más de lo que te queda del presupuesto: es dinero apartado que no es para gastar en esta catorcena." : "Tienes menos de lo que te queda del presupuesto: revisa si falta capturar algún gasto en efectivo."}</div>
+      <div class="small muted" style="margin-top:6px">En la app, la cuenta Efectivo tiene ${mx2(ef)} (incluye lo apartado para pagar tarjetas).</div>`;
+    store("fc_arq",{c:D.c, otro:D.otro});
+  };
+  const row2=(t,v)=>`<div class="between"><span class="muted">${t}</span><b>${mx2(v)}</b></div>`;
+  $$("[data-ad]",el).forEach(i=>i.oninput=()=>{ i.value=i.value.replace(/\D/g,""); D.c[i.dataset.ad]=+i.value||0; pinta(); });
+  const paso=(d,n)=>{ D.c[d]=Math.max(0,(+D.c[d]||0)+n); const i=$(`[data-ad="${d}"]`,el); i.value=D.c[d]||""; pinta(); };
+  $$("[data-am]",el).forEach(b=>b.onclick=()=>paso(b.dataset.am,-1));
+  $$("[data-ap]",el).forEach(b=>b.onclick=()=>paso(b.dataset.ap,1));
+  const ot=$("#arqOtro",el); moneyInput(ot); ot.value=+D.otro||""; ot.addEventListener("input",()=>{ D.otro=+ot.value||0; pinta(); });
+  $("#arqLimpiar",el).onclick=()=>{ D.c={}; D.otro=0; renderArqueo(el); };
+  $("#arqGuardar",el).onclick=()=>{ const k=calc(), btn=$("#arqGuardar",el);
+    const o={Fecha:S.hoy, Hora:new Date().toTimeString().slice(0,5), Detalle:DENOM.filter(d=>+D.c[d]).map(d=>d+":"+D.c[d]).join(","), OtroDinero:+D.otro||0, Contado:+k.tot.toFixed(2), QuedaCatorcena:+k.q.toFixed(2), Diferencia:+(k.tot-k.q).toFixed(2), Nota:c? "Catorcena "+(+c.Num):""};
+    btn.disabled=true; btn.textContent="Guardando…";
+    api("saveArqueo",o).then(id=>{ o.ID=id; S.d.arqueos=(S.d.arqueos||[]).concat(o); store("fc_arq",null); toast("Arqueo guardado"); renderArqueo(el); })
+      .catch(e=>{ btn.disabled=false; btn.textContent="Guardar arqueo"; toast(e.auth? "Clave incorrecta" : "No se pudo guardar: "+(e.message||e)+". Tu conteo sigue aquí."); });
+  };
+  pinta();
+}
 function renderCtaDet(el){
   const n=S.ctaDet, c=S.cta[n]||{}, t=c.Tipo||"", [c1,c2]=cpCol(n,0);
   S.ctaPer=S.ctaPer||"cat"; const R=perRango(S.ctaPer)||perRango("cat"), [a,b,lab]=R;
