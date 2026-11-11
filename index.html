@@ -376,8 +376,8 @@ details.mas .f{margin-top:6px}
           <div class="f"><label for="fSepD">Concepto</label><input id="fSepD" placeholder="Ej. Sauces"></div></div>
         <div class="chips hide" id="fSepPr" style="margin-top:6px"></div>
         <div id="fSepInfo" style="font-size:12.5px;margin-top:8px"></div></div></div>
-    <div class="f hide" id="fSplitW"><button type="button" class="btn sm" id="fSplitBtn" style="align-self:flex-start">➗ Repartir en varias cuentas</button>
-      <div class="hide" id="fSplitBox"><div class="hint">Divide este ingreso entre varias cuentas. Se guarda un registro por cuenta.</div><div id="fSplitRows"></div>
+    <div class="f hide" id="fSplitW"><button type="button" class="btn sm" id="fSplitBtn" style="align-self:flex-start">➗ Repartir en varias cuentas o inversiones</button>
+      <div class="hide" id="fSplitBox"><div class="hint">Divide este ingreso entre cuentas (Efectivo, Banamex…) o inversiones (Finsus, Nu…). Se guarda un registro por destino; lo que mandes a inversión también suma a su saldo.</div><div id="fSplitRows"></div>
         <button type="button" class="btn sm" id="fSplitAdd" style="margin-top:8px">＋ Otra cuenta</button><div id="fSplitInfo"></div></div></div>
   </div>
   <div class="f" data-for="vales">
@@ -732,15 +732,17 @@ document.addEventListener("click", e=>{
   abrirZoom(k, D.titulo, rows, campo);
 });
 function abrirZoom(k, titulo, rows, campo){
+  const esIng=rows.length&&rows.every(m=>m.Tipo==="Ingreso");
   const T=sum(rows), subs=group(rows, m=>m.Subcategoria||"Sin subcategoría"), desc=group(rows, m=>m.Descripcion||"—").slice(0,10);
   const meses=group(rows, m=>m.Fecha.slice(0,7)).sort((a,b)=>a[0]<b[0]?-1:1);
   const box=document.createElement("div");
   box.style.cssText="position:fixed;inset:0;background:rgb(8 10 20 / .5);display:flex;align-items:flex-end;z-index:44";
   box.innerHTML=`<div class="sheet on" style="position:relative;transform:none;max-height:90%">
-    <div class="grab"></div><div class="between"><span><h2 style="margin:0;font-size:18px">${esc(k)}</h2><div class="small muted">${esc(titulo)} · ${rows.length} gastos</div></span><button type="button" class="btn sm" data-x>Cerrar</button></div>
-    <div class="between"><span class="muted">Total</span><b class="mid neg">${mx(T)}</b></div>
-    ${campo==="Categoria" && subs.length>1? `<div class="card"><h2>Por subcategoría</h2>${barsHTML(subs,T)}</div>`:""}
-    ${campo!=="Descripcion"? `<div class="card"><h2>En qué se fue más</h2>${barsHTML(desc,T)}</div>`:""}
+    <div class="grab"></div><div class="between"><span><h2 style="margin:0;font-size:18px">${esc(k)}</h2><div class="small muted">${esc(titulo)} · ${rows.length} ${esIng?"ingresos":"gastos"}</div></span><button type="button" class="btn sm" data-x>Cerrar</button></div>
+    <div class="between"><span class="muted">Total</span><b class="mid ${esIng?"pos":"neg"} ${esIng?"priv":""}">${mx(T)}</b></div>
+    ${!esIng && campo==="Categoria" && subs.length>1? `<div class="card"><h2>Por subcategoría</h2>${barsHTML(subs,T)}</div>`:""}
+    ${esIng? `${(()=>{ const G=group(rows,m=>m.Fuente===NOMINA? "Nómina" : m.Descripcion||m.Fuente); return G.length>1? `<div class="card priv"><h2>¿De qué conceptos vino?</h2>${barsHTML(G.slice(0,10),T)}</div>` : ""; })()}<div class="card priv"><h2>¿Dónde se depositó?</h2>${barsHTML(group(rows,destLabel),T)}</div>`
+      : campo!=="Descripcion"? `<div class="card"><h2>En qué se gastó más</h2>${barsHTML(desc,T)}</div>`:""}
     ${meses.length>1? `<div class="card"><h2>Por mes</h2>${barsHTML(meses.map(([ym,v])=>[mLabel(ym),v]),T)}</div>`:""}
     <div class="card" style="padding:4px 12px"><div class="list">${rows.slice(0,60).map(m=>itemHTML(m,true)).join("")}</div>${rows.length>60? `<div class="small muted" style="padding:8px 0">Se muestran 60 de ${rows.length}.</div>`:""}</div></div>`;
   document.body.appendChild(box);
@@ -1449,7 +1451,7 @@ function openForm(m, lock){
   { const tp = esTenate(m.Fuente) && m.Monto ? tenParts(m) : {app:0,prop:0}; $("#fTenA").value = tp.app||""; $("#fTenP").value = tp.prop||""; }
   F.proy = esProy(m.Fuente)? (m.Subcategoria||null) : null;
   F.sep={on:false,f:null}; $("#fSepBox").classList.add("hide"); $("#fSepBtn").textContent="✂️ Separar una parte en otra fuente"; $("#fSepM").value=""; $("#fSepD").value="";
-  F.split=null; $("#fSplitBox").classList.add("hide"); $("#fSplitBtn").textContent="➗ Repartir en varias cuentas";
+  F.split=null; $("#fSplitBox").classList.add("hide"); $("#fSplitBtn").textContent="➗ Repartir en varias cuentas o inversiones";
   $("#fTipo").classList.toggle("hide", !!F.lock);
   F.edit = m.ID ? m : null;
   F.t = m.Tipo || "Gasto";
@@ -1497,7 +1499,7 @@ function tipo(t, keep){
   $("#fCta").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Débito","Efectivo"] : null, LK.cta||cuenta, LK.cta);
   let dst = $("#fDst").value || F.dst;
   if(t==="Ingreso" && !dst){ const fu=$("#fFuente").value; dst = /vales/i.test(fu)? "Vales de despensa" : /tenate/i.test(fu)? CAJA_T : (S.d.cuentas.find(c=>c.Tipo==="Débito")||{}).Cuenta; }
-  $("#fDst").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Crédito","Departamental"] : null, LK.dst||dst, LK.dst);
+  $("#fDst").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Crédito","Departamental"] : null, LK.dst||dst, LK.dst) + (t==="Ingreso"&&!LK.dst? insOpts(F.edit&&F.edit.Instrumento&&!F.edit.CuentaDestino? INV_PRE+F.edit.Instrumento : dst) : "");
   renderPicks();
   $("#dlSub").innerHTML = (S.cats[$("#fCat").value]||[]).map(s=>`<option value="${esc(s)}">`).join("");
   $("#fVeh").innerHTML = (LK.veh?[LK.veh]:S.vehs).map(v=>`<button type="button" class="chip ${F.veh===v?"on":""}" data-v="${esc(v)}">${esc(v)}</button>`).join("");
@@ -1521,15 +1523,15 @@ function tipo(t, keep){
   $("#fProy").innerHTML=pn.map(n=>`<button type="button" class="chip ${F.proy===n?"on":""}" data-pr="${esc(n)}">🧩 ${esc(n)}</button>`).join("");
   $$("#fProy .chip").forEach(c=>c.onclick=()=>{ F.proy=c.dataset.pr; $$("#fProy .chip").forEach(x=>x.classList.toggle("on",x===c)); descAuto(); });
   descAuto();
-  $("#fSplitW").classList.toggle("hide", !(t==="Ingreso"&&!F.edit));
+  $("#fSplitW").classList.toggle("hide", t!=="Ingreso");
   $("#fSepW").classList.toggle("hide", !(t==="Ingreso"&&F.edit)); if(F.sep&&F.sep.on) sepPaint();
   if(t!=="Ingreso"&&F.split) splitToggle(false);
   if(F.split) $("[data-for=dst]").classList.add("hide");
 }
 /* ===== Selector visual de cuentas ===== */
 const CP_COL=[[/banamex/i,"#d4243a","#7a0f1f"],[/^nu\b/i,"#9b3df0","#4b0d8c"],[/klar/i,"#3a3d4a","#111219"],[/liverpool|f[aá]bricas/i,"#ee3a9a","#8e0f57"],
- [/palacio/i,"#5b5548","#1d1a14"],[/sears/i,"#1f7fd1","#0b3f73"],[/vales/i,"#27a86a","#0d5c37"],[/tenate/i,"#f08a24","#9a4a05"],[/fondo/i,"#e0a43a","#8a5a0c"],[/efectivo/i,"#3fae7c","#1b6b49"]];
-const CP_ICO={"Tenate":"🚚","Débito":"🏦","Crédito":"💳","Departamental":"🛍️","Vales":"🧺","Fondo":"🐷","Efectivo":"💵"};
+ [/palacio/i,"#5b5548","#1d1a14"],[/sears/i,"#1f7fd1","#0b3f73"],[/vales/i,"#27a86a","#0d5c37"],[/tenate/i,"#f08a24","#9a4a05"],[/finsus|klar|nu\b|stori|didi|ual[aá]|mercado|cetes|gbm|supertasas|kubo/i,"#3b82c4","#173f6b"],[/fondo/i,"#e0a43a","#8a5a0c"],[/efectivo/i,"#3fae7c","#1b6b49"]];
+const CP_ICO={"Inversión":"📈","Tenate":"🚚","Débito":"🏦","Crédito":"💳","Departamental":"🛍️","Vales":"🧺","Fondo":"🐷","Efectivo":"💵"};
 function cpCol(n,i){ for(const [re,a,b] of CP_COL) if(re.test(n)) return [a,b]; const p=[["#4f5bd5","#232a7a"],["#e0703a","#8a3410"],["#2a9bb0","#10525e"]]; return p[i%p.length]; }
 /* ===== Listas desplegables con estilo ===== */
 const DD_ICO=[
@@ -1603,11 +1605,11 @@ function cardsHTML(sel){
   return '<div class="cpick">'+[...sel.querySelectorAll("optgroup")].map(g=>{
     const ops=[...g.querySelectorAll("option")];
     return `<div class="cp-g">${esc(g.label)}</div><div class="cp-row">`+ops.map(o=>{
-      const n=o.value||o.textContent, c=S.cta[n]||{}, t=c.Tipo||g.label, [c1,c2]=cpCol(n,i++), s=sal[n]||0;
+      const n=o.value||o.textContent, lab=o.textContent, c=S.cta[n]||{}, t=c.Tipo||g.label, [c1,c2]=cpCol(lab,i++), s=sal[n]||0;
       const sub=esc(ctaSub(n,t));
       return `<button type="button" class="cp ${n===v?"on":""} ${ops.length===1?"wide":""}" data-cp="${esc(n)}" style="--c1:${c1};--c2:${c2}">
         <div class="cp-top"><span class="cp-ico">${CP_ICO[t]||"💳"}</span><span class="cp-chk">${n===v?"✓":""}</span></div>
-        <div><div class="cp-n">${esc(n)}</div><div class="cp-s">${sub}</div></div></button>`;
+        <div><div class="cp-n">${esc(lab)}</div><div class="cp-s">${sub}</div></div></button>`;
     }).join("")+`</div>`;
   }).join("")+'</div>';
 }
@@ -1615,9 +1617,9 @@ function cardTrigger(sel){
   const o=sel.options[sel.selectedIndex], n=o&&o.value;
   if(!n) return `<span class="dd-ic" style="--ic-bg:var(--bg)">💳</span><span class="dd-l ph">Elige una cuenta</span>`+CHEV;
   let sal={}; try{ sal=saldosCuentas(); }catch(e){}
-  const all=[...sel.options].filter(x=>x.value), idx=all.indexOf(o), c=S.cta[n]||{}, t=c.Tipo||"", [c1,c2]=cpCol(n,idx), s=sal[n]||0;
+  const all=[...sel.options].filter(x=>x.value), idx=all.indexOf(o), c=S.cta[n]||{}, t=c.Tipo||(String(n).startsWith(INV_PRE)?"Inversión":""), lab=o.textContent, [c1,c2]=cpCol(lab,idx), s=sal[n]||0;
   const sub=esc(ctaSub(n,t));
-  return `<span class="dd-card" style="--c1:${c1};--c2:${c2}">${CP_ICO[t]||"💳"}</span><span class="dd-l">${esc(n)}<small>${sub}</small></span>`+CHEV;
+  return `<span class="dd-card" style="--c1:${c1};--c2:${c2}">${CP_ICO[t]||"💳"}</span><span class="dd-l">${esc(lab)}<small>${sub}</small></span>`+CHEV;
 }
 function renderPick(id){
   const sel=$(id); if(!sel) return;
@@ -1649,9 +1651,9 @@ function ddSheet(title, search, body, onPick, trig){
   $("#pkScrim").classList.add("on"); requestAnimationFrame(()=>pk.classList.add("on"));
 }
 /* ===== Textos claros para cuentas ===== */
-const TIPO_TXT={"Tenate":"Dinero de El Tenate","Efectivo":"Dinero en efectivo","Débito":"Tarjeta de débito","Crédito":"Tarjeta de crédito","Departamental":"Tarjeta de tienda","Vales":"Tarjeta de vales","Fondo":"Fondo de ahorro"};
+const TIPO_TXT={"Inversión":"Va directo a tu inversión","Tenate":"Dinero de El Tenate","Efectivo":"Dinero en efectivo","Débito":"Tarjeta de débito","Crédito":"Tarjeta de crédito","Departamental":"Tarjeta de tienda","Vales":"Tarjeta de vales","Fondo":"Fondo de ahorro"};
 function valesSaldo(){ return S.movs.filter(m=>(m.Tipo==="Ingreso"&&m.Fuente===VALES)||(m.Tipo==="Gasto"&&m.Cuenta===VALES)).reduce((s,m)=>s+(m.Tipo==="Ingreso"?m.Monto:-m.Monto),0); }
-function ctaSub(n,t){ return t==="Tenate" ? "Saldo "+mx2(saldosCuentas()[n]||0) : t==="Vales" ? "Saldo en vales "+mx2(valesSaldo()) : (TIPO_TXT[t]||t||""); }
+function ctaSub(n,t){ if(t==="Inversión"){ const x=(typeof saldosInversion==="function"? saldosInversion() : {})[String(n).replace(INV_PRE,"")]; return "Inversión · saldo "+mx(x? x.saldo : 0); } return t==="Tenate" ? "Saldo "+mx2(saldosCuentas()[n]||0) : t==="Vales" ? "Saldo en vales "+mx2(valesSaldo()) : (TIPO_TXT[t]||t||""); }
 function updVeh(){
   const isAuto=F.t==="Gasto"&&S.autoCats.has($("#fCat").value), txt=$("#fDesc").value+" "+$("#fSub").value;
   const gas=/gasolin|combustib|di[eé]sel|magna|premium/i.test(txt), serv=/servicio|afinaci|aceite|llanta|mantenim|verificaci|refacci|bater[ií]a|frenos/i.test(txt);
@@ -1761,7 +1763,7 @@ function renderIngresos(el){
     ? `<div class="card priv"><h2>Por mes</h2>${igTabla(R,m=>m.Fecha.slice(0,7),k=>esc(mLabel(k)),cols)}</div><div class="card priv"><h2>Por catorcena</h2>${igTabla(R,m=>{ const c=catDe(m.Fecha); return c? c.Inicio : "0000"; },k=>{ const c=S.d.catorcenas.find(x=>x.Inicio===k); return c? `<b>${+c.Num}</b> <span class="muted" style="font-size:10.5px">${dm2(c.Inicio)}–${dm2(c.Fin)}/${c.Fin.slice(2,4)}</span>` : "Sin catorcena"; },cols)}</div>`
     : "";
   const filas=R.slice(0,300).map(m=>{ const gr=igGrupo(m.Fuente), c=catDe(m.Fecha);
-    const det=[sDate(m.Fecha)+" "+m.Fecha.slice(2,4), c? "Cat. "+(+c.Num):"", gr==="Prestaciones"||!IG_ICO[gr]? m.Fuente : gr, m.CuentaDestino? "→ "+m.CuentaDestino:""].filter(Boolean).join(" · ");
+    const det=[sDate(m.Fecha)+" "+m.Fecha.slice(2,4), c? "Cat. "+(+c.Num):"", gr==="Prestaciones"||!IG_ICO[gr]? m.Fuente : gr, "→ "+destLabel(m)].filter(Boolean).join(" · ");
     return `<button class="ig-row" data-id="${esc(m.ID)}">${igIcoSpan(gr)}<span class="grow"><div class="t">${esc(m.Descripcion||m.Fuente)}${esTenate(m.Fuente)?`<span class="ig-tag">${esc(tenLabel(m))}</span>`:""}</div><div class="s">${esc(det)}</div></span><span class="amt pos priv">+${mx2(m.Monto)}</span></button>`; }).join("");
   const cajaS=(saldosCuentas()[CAJA_T]||0);
   el.innerHTML=`
@@ -1782,7 +1784,20 @@ function renderIngresos(el){
       <div class="small muted">Toca un ingreso en el Detalle para ajustar cuánto fue de ruta, app o propinas.</div>
       <div class="between small" style="margin-top:6px"><span class="muted">Dinero en ${esc(CAJA_T)} hoy</span><b>${mx2(cajaS)}</b></div>
       <div class="small muted">Lo del Tenate suma a tus ingresos y a tu ahorro, pero no entra al presupuesto de la catorcena.</div></div>`:""}
-    ${R.length? `<div class="card priv"><h2>¿A qué cuenta entró?</h2>${barsHTML(group(R,m=>m.CuentaDestino||"Sin cuenta"),T)}</div>`:""}
+    ${R.length? (()=>{ const en={cat:"en la catorcena",mes:"en el mes",anio:"en el año",todo:"en todo el historial",rango:"en estas fechas"}[g.per]||"";
+      const F3=flujoSalida(R,a,b), dirInv=group(R.filter(m=>!m.CuentaDestino&&m.Instrumento),m=>"📈 "+m.Instrumento), vales=sum(R.filter(m=>m.CuentaDestino===VALES));
+      const bloque=x=>{ let L=x.L.slice(0,6), rest=Math.max(0,x.queda), plan=false;
+        if(!x.L.length){ const nx=igNom(R.filter(m=>m.CuentaDestino===x.cta)); if(nx.N){ plan=true; L=[["🐷 Ahorro de catorcena → tus inversiones",nx.A],["🛒 Presupuesto para gastar",nx.P]].filter(r=>r[1]>0); rest=x.entro-nx.N; } }
+        const rows=[...L, ...(rest>0.5? [[x.cta===FONDO? "🐷 Se queda en tu fondo de ahorro" : "🏦 Sigue en "+x.cta, rest]] : [])];
+        return `<div style="margin-top:12px"><div class="between"><b>Entró a ${esc(x.cta)}</b><b>${mx(x.entro)}</b></div>
+          ${barsHTML(rows,Math.max(x.entro,x.salio))}
+          ${plan? `<div class="small muted">Según tu plan de cada catorcena (ahorro capturado). Si registras las Transferencias o Inversiones desde ${esc(x.cta)}, aquí verás el reparto exacto.</div>`
+            : !x.L.length&&x.cta!==FONDO? `<div class="small muted">No hay salidas registradas de ${esc(x.cta)} ${esc(en)}. Si mueves este dinero a otra cuenta o a una inversión, regístralo como Transferencia o Inversión desde ${esc(x.cta)} y aparecerá aquí.</div>`
+            : x.queda<0? `<div class="small muted">Salió más de lo que entró ${esc(en)}; se usó saldo que ya tenías.</div>`:""}</div>`; };
+      return `<div class="card priv"><h2>¿A dónde se fue el dinero?</h2><div class="small muted" style="margin-top:-6px">Dónde cayó cada ingreso y qué salió después de esa cuenta ${esc(en)}.</div>
+        ${F3.map(bloque).join("")}
+        ${dirInv.length? `<div style="margin-top:12px"><div class="between"><b>Directo a inversión</b><b>${mx(sum(R.filter(m=>!m.CuentaDestino&&m.Instrumento)))}</b></div>${barsHTML(dirInv,T)}</div>`:""}
+        ${vales? `<div style="margin-top:12px" class="between"><b>🧺 Tarjeta de vales</b><b>${mx(vales)}</b></div>`:""}</div>`; })() : ""}
     ${tabla}
     <div class="card"><div class="between"><h2>Detalle</h2><span class="small muted">${R.length>300? "Mostrando 300 de "+R.length : R.length+" registros"}</span></div>${filas||'<div class="empty">No hay ingresos con este filtro.</div>'}</div>
     <div class="actions"><button class="btn" id="igTen">🚚 Ingreso El Tenate</button><button class="btn primary" id="igAdd">＋ Registrar ingreso</button></div>`;
@@ -1800,9 +1815,9 @@ function TENATE(){ return S.fuentes.find(esTenate)||"El Tenate (reparto)"; }
 /* ===== Repartir un ingreso en varias cuentas ===== */
 function splitPaint(){
   const box=$("#fSplitRows"); if(!box) return;
-  box.innerHTML=F.split.map((r,i)=>`<div class="split-r"><button type="button" class="dd" data-si="${i}">${r.c? (()=>{ const t=(S.cta[r.c]||{}).Tipo, [c1,c2]=cpCol(r.c,i); return `<span class="dd-card" style="--c1:${c1};--c2:${c2}">${CP_ICO[t]||"💳"}</span><span class="dd-l">${esc(r.c)}</span>`; })() : `<span class="dd-l ph">Elige cuenta</span>`}${CHEV}</button>
+  box.innerHTML=F.split.map((r,i)=>`<div class="split-r"><button type="button" class="dd" data-si="${i}">${r.c? (()=>{ const t=(S.cta[r.c]||{}).Tipo, [c1,c2]=cpCol(r.c,i); const inv=String(r.c).startsWith(INV_PRE), lb=inv? r.c.slice(INV_PRE.length) : r.c; return `<span class="dd-card" style="--c1:${c1};--c2:${c2}">${inv?"📈":(CP_ICO[t]||"💳")}</span><span class="dd-l">${esc(lb)}</span>`; })() : `<span class="dd-l ph">Elige cuenta</span>`}${CHEV}</button>
     <input type="number" inputmode="decimal" step="0.01" min="0" placeholder="$0" value="${r.m}" data-sm="${i}">${F.split.length>2? `<button type="button" class="split-x" data-sx="${i}" aria-label="Quitar">✕</button>`:"<span></span>"}</div>`).join("");
-  $$("[data-si]",box).forEach(bn=>bn.onclick=()=>{ const i=+bn.dataset.si, sel=document.createElement("select"); sel.innerHTML=ctaOpts(null,F.split[i].c);
+  $$("[data-si]",box).forEach(bn=>bn.onclick=()=>{ const i=+bn.dataset.si, sel=document.createElement("select"); sel.innerHTML=ctaOpts(null,F.split[i].c)+insOpts(F.split[i].c);
     ddSheet("¿A qué cuenta?", false, ()=>cardsHTML(sel), v=>{ F.split[i].c=v; splitPaint(); }, null); });
   $$("[data-sm]",box).forEach(inp=>inp.oninput=()=>{ F.split[+inp.dataset.sm].m=inp.value; splitInfo(); });
   $$("[data-sx]",box).forEach(x=>x.onclick=()=>{ F.split.splice(+x.dataset.sx,1); splitPaint(); });
@@ -1813,8 +1828,10 @@ function splitInfo(){
   $("#fSplitInfo").innerHTML = !tot? '<span class="muted">Primero escribe el monto total arriba.</span>' : f===0? '<span class="pos">✓ Repartido completo</span>' : f>0? `<span class="warn">Falta repartir ${mx2(f)}</span>` : `<span class="neg">Te pasaste por ${mx2(-f)}</span>`;
 }
 function splitToggle(on){
+  if(on&&F.sep&&F.sep.on) sepToggle(false); if(F.edit) $("#fSepW").classList.toggle("hide",on);
   F.split = on? [{c:$("#fDst").value||"",m:$("#fMonto").value||""},{c:"",m:""}] : null;
-  $("#fSplitBox").classList.toggle("hide",!on); $("#fSplitBtn").textContent = on? "✕ No repartir, una sola cuenta" : "➗ Repartir en varias cuentas";
+  if(on&&F.edit&&F.split[0].m) F.split[0].m="";
+  $("#fSplitBox").classList.toggle("hide",!on); $("#fSplitBtn").textContent = on? "✕ No repartir, una sola cuenta" : "➗ Repartir en varias cuentas o inversiones";
   $("[data-for=dst]").classList.toggle("hide", on || F.t!=="Ingreso" && !["Pago tarjeta","Transferencia"].includes(F.t));
   if(on) splitPaint();
 }
@@ -1872,7 +1889,7 @@ function sepInfo(){
   $("#fSepInfo").innerHTML = !m? '<span class="muted">Escribe cuánto de este depósito corresponde a la otra fuente.</span>' : m>=tot? `<span class="neg">Debe ser menor al total (${mx2(tot)}).</span>` :
     `Este registro queda en <b>${mx2(tot-m)}</b> (${esc($("#fFuente").value)}) y se crea otro de <b>${mx2(m)}</b> en <b>${esc(F.sep.f)}</b>, misma fecha y cuenta.`;
 }
-function sepToggle(on){ F.sep.on=on; $("#fSepBox").classList.toggle("hide",!on); $("#fSepBtn").textContent = on? "✕ No separar" : "✂️ Separar una parte en otra fuente"; if(on) sepPaint(); }
+function sepToggle(on){ if(on&&F.split) splitToggle(false); $("#fSplitW").classList.toggle("hide",on); F.sep.on=on; $("#fSepBox").classList.toggle("hide",!on); $("#fSepBtn").textContent = on? "✕ No separar" : "✂️ Separar una parte en otra fuente"; if(on) sepPaint(); }
 /* ===== Concepto automático y sugerencias (ingresos, pagos, transferencias, inversiones) ===== */
 const ddmm = f => f.slice(8,10)+"/"+f.slice(5,7);
 function sumDia(f,n){ const d=new Date(f+"T12:00:00"); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
@@ -1951,6 +1968,28 @@ function igNomHTML(R,per){
     <div class="r sub"><span class="dd-ic" style="--ic-bg:${ddBg("Presupuesto")}">🛒</span><span class="grow"><b>Presupuesto para gastar</b><small>Lo que queda para tus gastos · ${pc(x.P)}${x.sinPlan? " · incluye "+mx(x.sinPlan)+" de catorcenas sin ahorro capturado":""}</small></span><b>${mx(x.P)}</b></div>
     <div class="ig-sep"></div>`;
 }
+/* ===== Ingresos directo a inversión y rastreo "¿A dónde se fue?" ===== */
+const INV_PRE="INV:";
+function insOpts(sel){ if(!S.ins||!S.ins.length) return ""; return `<optgroup label="Inversión">${S.ins.map(i=>{ const v=INV_PRE+i.Instrumento; return `<option value="${esc(v)}"${v===sel?" selected":""}>${esc(i.Instrumento)}</option>`; }).join("")}</optgroup>`; }
+function destLabel(m){ return m.CuentaDestino || (m.Instrumento? "📈 "+m.Instrumento : "Sin cuenta"); }
+function quitarAutoInv(id,p){ const L=S.movs.filter(m=>m.Tipo==="Inversión"&&String(m.Nota||"").includes("Automático por ingreso "+id));
+  L.forEach(m=>{ S.movs.splice(S.movs.indexOf(m),1); const k=p.findIndex(x=>x.op==="save"&&x.o.ID===m.ID); if(k>=0) p.splice(k,1); else p.push({op:"del",id:m.ID}); }); }
+function aplicarDestInv(o){ // o.CuentaDestino puede venir como "INV:Finsus"
+  if(!String(o.CuentaDestino||"").startsWith(INV_PRE)) return null;
+  const ins=o.CuentaDestino.slice(INV_PRE.length); o.CuentaDestino=""; o.Instrumento=ins; o.Nota=(o.Nota? o.Nota+" · ":"")+"Directo a inversión";
+  return {ID:uid(),Tipo:"Inversión",Fecha:o.Fecha,Monto:o.Monto,MovInversion:"Aportación",Instrumento:ins,Cuenta:"",Descripcion:"Aportación "+ins+" (desde "+(o.Fuente||"ingreso")+")",
+    Nota:"Automático por ingreso "+o.ID,Categoria:"",Subcategoria:"",Fuente:"",CuentaDestino:"",Vehiculo:"",Km:"",Litros:"",MesesMSI:""};
+}
+function flujoSalida(R,a,b){
+  const dep=group(R.filter(m=>m.CuentaDestino&&m.CuentaDestino!==VALES),"CuentaDestino");
+  return dep.map(([cta,entro])=>{
+    const out=S.movs.filter(m=>m.Fecha>=a&&m.Fecha<=b&&m.Cuenta===cta&&m.ID);
+    const dest={};
+    out.forEach(m=>{ const k = m.Tipo==="Transferencia"? "→ "+(m.CuentaDestino||"otra cuenta") : m.Tipo==="Inversión"? (m.MovInversion==="Retiro"? null : "📈 "+m.Instrumento) : m.Tipo==="Pago tarjeta"? "💳 Pago de tarjetas" : m.Tipo==="Gasto"? "🛒 Gastos" : null; if(k) dest[k]=(dest[k]||0)+(+m.Monto||0); });
+    const L=Object.entries(dest).sort((x,y)=>y[1]-x[1]), salio=L.reduce((s,x)=>s+x[1],0);
+    return {cta, entro, L, salio, queda:entro-salio};
+  });
+}
 function applyMem(m, setDesc){
   if(!m) return;
   if(setDesc) $("#fDesc").value=m.Descripcion;
@@ -2020,12 +2059,18 @@ function submit(again){
       if(new Set(ok.map(r=>r.c)).size!==ok.length) return e.textContent="Hay una cuenta repetida.";
       if(Math.abs(rep-o.Monto)>0.009) return e.textContent="Lo repartido ("+mx2(rep)+") debe sumar "+mx2(o.Monto)+".";
       if(!o.Descripcion) o.Descripcion=o.Fuente;
-      const p=pend(); ok.forEach((r,i)=>{ const x=Object.assign({},o,{ID:uid(),Monto:Math.round(parseFloat(r.m)*100)/100,CuentaDestino:r.c,Nota:(o.Nota?o.Nota+" · ":"")+"Repartido "+(i+1)+"/"+ok.length});
-        if(tp){ const f=x.Monto/o.Monto, a=Math.round(tp.app*f*100)/100, pr=Math.round(tp.prop*f*100)/100; x.Subcategoria=tenCod({ruta:x.Monto-a-pr,app:a,prop:pr}); } S.movs.push(x); p.push({op:"save",o:x}); });
-      sortMovs(); setPend(p); toast("Guardado en "+ok.length+" cuentas: "+(o.Descripcion)+" "+mx2(o.Monto)); flush();
+      const p=pend(); if(F.edit) quitarAutoInv(F.edit.ID,p);
+      const notaB=String(o.Nota||"").replace(/\s*·?\s*Repartido \d+\/\d+/g,"").replace(/\s*·?\s*Directo a inversión/g,"").trim();
+      ok.forEach((r,i)=>{ const x=Object.assign({},o,{ID: F.edit&&i===0? F.edit.ID : uid(),Monto:Math.round(parseFloat(r.m)*100)/100,CuentaDestino:r.c,Instrumento:"",Nota:(notaB?notaB+" · ":"")+"Repartido "+(i+1)+"/"+ok.length});
+        if(tp){ const f=x.Monto/o.Monto, a=Math.round(tp.app*f*100)/100, pr=Math.round(tp.prop*f*100)/100; x.Subcategoria=tenCod({ruta:x.Monto-a-pr,app:a,prop:pr}); }
+        const ap=aplicarDestInv(x); if(ap){ S.movs.push(ap); p.push({op:"save",o:ap}); }
+        const ix=S.movs.findIndex(m=>m.ID===x.ID); if(ix>=0) S.movs[ix]=x; else S.movs.push(x); p.push({op:"save",o:x}); });
+      sortMovs(); setPend(p); toast((F.edit?"Repartido en ":"Guardado en ")+ok.length+" destinos: "+(o.Descripcion)+" "+mx2(o.Monto)); flush();
       if(again){ $("#fMonto").value=""; $("#fDesc").value=""; $("#fNota").value=""; e.textContent=""; splitToggle(true); tipo(t,true); } else closeForm();
       render(); return; }
     if(!o.CuentaDestino) return e.textContent="¿A qué cuenta entró?"; if(!o.Descripcion) o.Descripcion=o.Fuente;
+    if(F.edit && F.edit.Instrumento && !String(o.CuentaDestino).startsWith(INV_PRE)){ o.Instrumento=""; const pq=pend(); quitarAutoInv(F.edit.ID,pq); setPend(pq); }
+    if(String(o.CuentaDestino).startsWith(INV_PRE)){ if(F.edit){ const ins=o.CuentaDestino.slice(INV_PRE.length); if(F.edit.Instrumento===ins&&!F.edit.CuentaDestino){ o.CuentaDestino=""; o.Instrumento=ins; } else return e.textContent="Para mandar un ingreso ya guardado a inversión, registra una Inversión (Aportación)."; } else { const ap=aplicarDestInv(o); if(ap){ S.movs.push(ap); const pp=pend(); pp.push({op:"save",o:ap}); setPend(pp); } } }
     if(sepX){ S.movs.push(sepX); const pp=pend(); pp.push({op:"save",o:sepX}); setPend(pp); setTimeout(()=>toast("Separado: "+mx2(sepX.Monto)+" a "+sepX.Fuente),1600); } }
   else if(t==="Pago tarjeta"||t==="Transferencia"){ o.Cuenta=v("#fCta"); o.CuentaDestino=v("#fDst"); if(!o.Cuenta||!o.CuentaDestino) return e.textContent="Elige origen y destino."; if(o.Cuenta===o.CuentaDestino) return e.textContent="Origen y destino deben ser distintos."; if(!o.Descripcion) o.Descripcion=t+" "+o.CuentaDestino; }
   else if(t==="Inversión"){ o.MovInversion=v("#fInvM"); o.Instrumento=v("#fIns"); if(!o.Instrumento) return e.textContent="Elige el instrumento."; if(o.MovInversion!=="Rendimiento"){ o.Cuenta=v("#fCta"); if(!o.Cuenta) return e.textContent="Elige la cuenta."; } if(!o.Descripcion) o.Descripcion=o.MovInversion+" "+o.Instrumento; }
