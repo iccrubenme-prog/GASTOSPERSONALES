@@ -302,14 +302,77 @@ details.mas .f{margin-top:6px}
 @keyframes spShine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
 @media (prefers-reduced-motion:reduce){.sp-orbit,.sp-bar,.sp-fill::after,.sp-dot{animation:none}.sp-line{stroke-dashoffset:0}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
-.arq{display:flex;flex-direction:column;gap:6px;margin:8px 0}
-.arq-r{display:flex;align-items:center;gap:8px}
-.arq-d{min-width:58px;text-align:center;font-weight:700;border-radius:10px;padding:6px 4px;font-size:13px}
-.arq-d.bill{background:#e3f3ea;color:#1d7a4c}.arq-d.coin{background:#fdf1dc;color:#9a6400}
-.arq-s{display:flex;align-items:center;gap:4px;flex:1}
-.arq-s input{width:56px;text-align:center;padding:6px 4px}
-.arq-s .btn{min-width:34px;padding:6px 0}
-.arq-t{min-width:84px;text-align:right;font-size:14px}
+
+/* ===== Títulos con icono animado (estilo portada) ===== */
+.bar h1{display:flex;align-items:center;gap:10px;min-width:0}
+.bar h1 .ht{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;animation:spUp .45s ease both}
+.hico{width:36px;height:36px;flex:none;border-radius:12px;background:rgb(255 255 255 / .14);display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgb(255 255 255 / .12);animation:spIn .55s cubic-bezier(.2,.9,.3,1.3) both}
+.hico svg{width:24px;height:24px;overflow:visible}
+.hico .o{transform-origin:12px 12px;animation:spSpin 2.4s linear infinite}
+.hico .g{transform-box:fill-box;transform-origin:bottom;animation:spGrow 1.3s ease-in-out infinite alternate}
+.hico .g2{animation-delay:.2s}.hico .g3{animation-delay:.4s}
+.hico .d{stroke-dasharray:40;stroke-dashoffset:40;animation:spDraw 1.2s .2s ease forwards}
+.hico .p{animation:hPulse 1.6s ease-in-out infinite}
+.hico .bo{animation:hBob 1.8s ease-in-out infinite}
+.hico .dr{animation:hDrop 1.8s ease-in infinite}
+.hico .sw{transform-box:fill-box;transform-origin:center;animation:hSwing 2.2s ease-in-out infinite}
+.hico .sh{animation:hShine 2.4s ease-in-out infinite}
+.hico .sl{animation:hSlide 1.8s ease-in-out infinite}.hico .sl2{animation-delay:.25s}.hico .sl3{animation-delay:.5s}
+@keyframes hPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.8)}}
+@keyframes hBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
+@keyframes hDrop{0%{transform:translateY(-7px);opacity:0}35%{opacity:1}70%,100%{transform:translateY(3px);opacity:0}}
+@keyframes hSwing{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+@keyframes hShine{0%,60%{transform:translateX(-14px)}100%{transform:translateX(16px)}}
+@keyframes hSlide{0%,100%{transform:translateX(0);opacity:1}50%{transform:translateX(2.5px);opacity:.6}}
+
+/* ===== Arqueo de efectivo ===== */
+.aq-hero{background:linear-gradient(135deg,#2f3a8f,#4a58c9);color:#fff;border:0;position:relative;overflow:hidden}
+.aq-hero::after{content:"";position:absolute;right:-30px;top:-30px;width:140px;height:140px;border-radius:50%;background:rgb(255 255 255 / .08)}
+.aq-hero .muted{color:#dfe3ff}
+.aq-big{font-size:34px;font-weight:800;letter-spacing:-.02em;transition:transform .2s}
+.aq-big.bump{transform:scale(1.06)}
+.aq-chips{display:flex;gap:6px;flex-wrap:wrap}
+.aq-chip{background:rgb(255 255 255 / .14);border-radius:99px;padding:5px 10px;font-size:12.5px;font-weight:600}
+.aq-chip.ok{background:#9fe3c0;color:#0f3d27}.aq-chip.bad{background:#ffb4ab;color:#5c1410}
+.aq-h{display:flex;align-items:center;justify-content:space-between;margin:0 0 4px}
+.aq-h h2{margin:0}
+.aq-sub{font-weight:800;color:var(--primary)}
+.aq-list{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.aq-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:16px;background:var(--bg);transition:background .2s,box-shadow .2s}
+.aq-row.on{background:var(--primary-soft);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--primary) 35%,transparent)}
+.bill{position:relative;width:86px;height:46px;flex:none;border-radius:8px;overflow:hidden;cursor:pointer;
+  background:linear-gradient(135deg,var(--b1),var(--b2));box-shadow:0 3px 8px rgb(0 0 0 / .18);color:#fff;transition:transform .15s}
+.bill::before{content:"";position:absolute;inset:3px;border:1.5px solid rgb(255 255 255 / .45);border-radius:5px}
+.bill .med{position:absolute;left:7px;top:50%;width:16px;height:16px;margin-top:-6px;border-radius:50%;background:rgb(255 255 255 / .28);box-shadow:inset 0 0 0 2px rgb(255 255 255 / .35)}
+.bill .v{position:absolute;right:7px;top:50%;transform:translateY(-50%);font-weight:800;font-size:15px;text-shadow:0 1px 2px rgb(0 0 0 / .3)}
+.bill.k .v{font-size:12.5px}
+.bill .c{position:absolute;left:5px;top:3px;font-size:7.5px;font-weight:800;opacity:.85}
+.bill::after{content:"";position:absolute;top:0;bottom:0;width:30px;left:-40px;background:linear-gradient(90deg,transparent,rgb(255 255 255 / .45),transparent);transform:skewX(-20deg);animation:billShine 3.2s ease-in-out infinite}
+.aq-row:nth-child(2) .bill::after{animation-delay:.4s}.aq-row:nth-child(3) .bill::after{animation-delay:.8s}.aq-row:nth-child(4) .bill::after{animation-delay:1.2s}.aq-row:nth-child(5) .bill::after{animation-delay:1.6s}.aq-row:nth-child(6) .bill::after{animation-delay:2s}
+@keyframes billShine{0%,55%{left:-40px}100%{left:110px}}
+.coinw{width:86px;flex:none;display:grid;place-items:center}
+.coin{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12.5px;cursor:pointer;transition:transform .15s;
+  background:radial-gradient(circle at 35% 30%,#fff7d6,var(--k1) 45%,var(--k2));box-shadow:0 3px 7px rgb(0 0 0 / .2),inset 0 0 0 3px rgb(255 255 255 / .35);color:#4a3500}
+.coin.bi{background:radial-gradient(circle at 35% 30%,#fff7d6,#e5b94c 32%,#c08d1f 44%,#d9dde3 47%,#a9b0ba 70%,#8b929c);color:#3b2a00}
+.coin.sm{width:38px;height:38px;font-size:11px}
+.bill.pop,.coin.pop{transform:scale(.9) rotate(-4deg)}
+.aq-step{display:flex;align-items:center;gap:6px;flex:1;justify-content:center}
+.aq-step button{width:34px;height:34px;border-radius:50%;background:var(--surface);color:var(--primary);font-size:18px;font-weight:800;box-shadow:0 1px 3px rgb(0 0 0 / .12);display:grid;place-items:center}
+.aq-step button:active{transform:scale(.9)}
+.aq-step input{width:46px;height:34px;text-align:center;border-radius:10px;border:0;background:var(--surface);font-weight:800;font-size:16px;padding:0;color:var(--ink)}
+.aq-row.on .aq-step input{color:var(--primary)}
+.aq-t{min-width:76px;text-align:right;font-weight:700;font-size:14px}
+.aq-row:not(.on) .aq-t{color:var(--muted);font-weight:500}
+.aq-otro{display:flex;align-items:center;gap:10px;padding:10px;border-radius:16px;background:var(--bg)}
+.aq-otro .oi{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px;background:var(--primary-soft);flex:none}
+.aq-otro input{width:130px}
+.aq-cmp{display:flex;flex-direction:column;gap:8px}
+.aq-bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden;display:flex}
+.aq-bar i{display:block;height:100%}
+.aq-res{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px}
+.aq-res.ok{background:color-mix(in srgb,var(--pos) 14%,transparent)}.aq-res.bad{background:color-mix(in srgb,var(--neg) 14%,transparent)}
+.aq-res .e{font-size:28px;animation:hBob 1.8s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.hico *, .bill::after, .aq-res .e{animation:none!important}}
 </style>
 </head>
 <body>
@@ -623,7 +686,7 @@ window.addEventListener("online", flush);
 
 /* ================= navegación ================= */
 const TITLES = {inicio:"Finanzas RME", movs:"Movimientos", anal:"Análisis", mas:"Más"};
-function go(v){ S.view=v; S.sub=null; $$(".page").forEach(p=>p.classList.toggle("on", p.id==="p-"+v)); $$(".tab[data-v]").forEach(t=>t.classList.toggle("on", t.dataset.v===v)); $("#bar").classList.remove("sub"); $("#vTitle").textContent=TITLES[v]; $("#scr").scrollTop=0; render(); }
+function go(v){ S.view=v; S.sub=null; $$(".page").forEach(p=>p.classList.toggle("on", p.id==="p-"+v)); $$(".tab[data-v]").forEach(t=>t.classList.toggle("on", t.dataset.v===v)); $("#bar").classList.remove("sub"); setTitle(v, TITLES[v]); $("#scr").scrollTop=0; render(); }
 function openSub(k, push){ if(push!==false){ (S.nav=S.nav||[]).push({v:S.view, sub:S.sub, top:$("#scr").scrollTop}); try{ history.pushState({fsub:S.nav.length},""); }catch(e){} } S.sub=k; $$(".page").forEach(p=>p.classList.toggle("on", p.id==="p-sub")); $("#bar").classList.add("sub"); $("#scr").scrollTop=0; render(); }
 function goBack(){ const o=(S.nav||[]).pop(); if(!o){ go(S.view||"mas"); return; } if(o.sub){ S.view=o.v; openSub(o.sub,false); } else go(o.v); requestAnimationFrame(()=>{ $("#scr").scrollTop=o.top||0; }); }
 $("#back").onclick=()=>{ if(history.state&&history.state.fsub&&(S.nav||[]).length) history.back(); else goBack(); };
@@ -1157,7 +1220,7 @@ function anAutos(){
 /* ================= Sub-páginas de "Más" ================= */
 function renderSub(){
   const k=S.sub, el=$("#p-sub");
-  $("#vTitle").textContent = {ahorro:"Ahorros", cuentas:"Tarjetas y cuentas", msi:"Compras a meses", inv:"Inversiones", vales:"Vales de despensa", pres:"Presupuesto", ingresos:"Ingresos", arqueo:"Arqueo de efectivo"}[k] || (k==="ctadet"? S.ctaDet : "");
+  setTitle(k, {ahorro:"Ahorros", cuentas:"Tarjetas y cuentas", msi:"Compras a meses", inv:"Inversiones", vales:"Vales de despensa", pres:"Presupuesto", ingresos:"Ingresos", arqueo:"Arqueo de efectivo"}[k] || (k==="ctadet"? S.ctaDet : ""));
   if(k==="ahorro"){
     if(!S.ahAnio) S.ahAnio=+S.hoy.slice(0,4);
     const TODO=S.ahAnio==="todo", yHoy=+S.hoy.slice(0,4);
@@ -1755,55 +1818,90 @@ function perRango(p){
 function gastosCuenta(n,a,b){ return S.movs.filter(m=>m.Tipo==="Gasto"&&m.Cuenta===n&&m.Fecha>=a&&m.Fecha<=b); }
 /* ================= Arqueo de efectivo ================= */
 const DENOM=[1000,500,200,100,50,20,10,5,2,1,0.5,0.2,0.1];
-const denTxt=d=> d>=20? "$"+d.toLocaleString("es-MX") : d>=1? "$"+d : (d*100)+"¢";
+const BILL_COL={1000:["#8e44ad","#5b2c83"],500:["#2e78c7","#1b4f8f"],200:["#2f9e5b","#1c6b3c"],100:["#d1495b","#962c3a"],50:["#c2408f","#86275f"],20:["#2a9fb0","#1a6b77"]};
+const denTxt=d=> d>=20? "$"+d.toLocaleString("es-MX") : d>=1? "$"+d : (Math.round(d*100))+"¢";
 function arqParse(t){ const o={}; String(t||"").split(/[,;]/).forEach(p=>{ const [d,c]=p.split(":"); if(d&&c) o[+d]=+c||0; }); return o; }
 function arqUltimo(){ const L=(S.d.arqueos||[]).slice().sort((a,b)=>(a.Fecha+(a.Hora||""))<(b.Fecha+(b.Hora||""))?-1:1); return L[L.length-1]||null; }
 function arqBorrador(){
   let d=store("fc_arq"); if(d&&d.c) return d;
   const u=arqUltimo(); return u? {c:arqParse(u.Detalle), otro:+u.OtroDinero||0} : {c:{}, otro:0};
 }
+function denIcon(d){
+  if(d>=20){ const [a,b]=BILL_COL[d]; return `<span class="bill${d>=1000?" k":""}" data-tap="${d}" style="--b1:${a};--b2:${b}"><span class="c">MXN</span><span class="med"></span><span class="v">${denTxt(d)}</span></span>`; }
+  const bi=d>=1, k= d>=1? "" : `style="--k1:#c9ced6;--k2:#8d949e"`;
+  return `<span class="coinw"><span class="coin ${bi?"bi":"sm"}" data-tap="${d}" ${k}>${denTxt(d)}</span></span>`;
+}
 function renderArqueo(el){
   const D=S.arq=S.arq||arqBorrador(), c=catorcenaActual(S.hoy), x=c? catRes(c) : null;
   const ef=Object.entries(saldosCuentas()).filter(([n])=>{ const k=S.cta[n]; return k&&k.Tipo==="Efectivo"; }).reduce((a,[,v])=>a+v,0);
-  const calc=()=>{ const billetes=DENOM.reduce((a,d)=>a+d*(+D.c[d]||0),0); const tot=billetes+(+D.otro||0); return {billetes, tot, q:x? x.queda : 0}; };
+  const calc=()=>{ const bil=DENOM.filter(d=>d>=20).reduce((a,d)=>a+d*(+D.c[d]||0),0), mon=DENOM.filter(d=>d<20).reduce((a,d)=>a+d*(+D.c[d]||0),0);
+    const piezas=DENOM.reduce((a,d)=>a+(+D.c[d]||0),0); return {bil, mon, piezas, tot:bil+mon+(+D.otro||0), q:x? x.queda : 0}; };
   const hist=(S.d.arqueos||[]).slice().sort((a,b)=>(a.Fecha+(a.Hora||""))<(b.Fecha+(b.Hora||""))?1:-1).slice(0,8);
-  el.innerHTML=`<div class="card"><h2>💵 ¿Cuánto tienes en la cartera?</h2>
-      <div class="small muted">Escribe cuántos billetes y monedas tienes de cada uno. Se guarda lo último que contaste.</div>
-      <div class="arq">${DENOM.map(d=>`<div class="arq-r"><span class="arq-d ${d>=20?"bill":"coin"}">${denTxt(d)}</span>
-        <span class="arq-s"><button class="btn sm" data-am="${d}" aria-label="menos">−</button><input inputmode="numeric" data-ad="${d}" value="${+D.c[d]||""}" placeholder="0"><button class="btn sm" data-ap="${d}" aria-label="más">+</button></span>
-        <b class="arq-t priv" data-at="${d}">${mx2(d*(+D.c[d]||0))}</b></div>`).join("")}
-        <div class="arq-r" style="margin-top:4px"><span class="grow"><b>➕ Otro dinero</b><div class="small muted">Opcional, ej. Klar débito</div></span><input id="arqOtro" class="money" style="width:130px" value="${+D.otro||""}"></div>
-      </div>
-      <div class="between" style="border-top:1px solid var(--line);padding-top:8px"><b>Total contado</b><b class="mid priv" id="arqTot"></b></div></div>
+  const fila=d=>`<div class="aq-row ${+D.c[d]?"on":""}" data-row="${d}">${denIcon(d)}
+      <span class="aq-step"><button data-am="${d}" aria-label="Quitar ${denTxt(d)}">−</button><input inputmode="numeric" data-ad="${d}" value="${+D.c[d]||""}" placeholder="0" aria-label="Cantidad de ${denTxt(d)}"><button data-ap="${d}" aria-label="Agregar ${denTxt(d)}">+</button></span>
+      <b class="aq-t priv" data-at="${d}"></b></div>`;
+  const u=arqUltimo();
+  el.innerHTML=`<div class="card aq-hero priv">
+      <div class="small muted">💵 Total en tu cartera</div>
+      <div class="aq-big" id="aqTot"></div>
+      <div class="aq-chips" id="aqChips"></div>
+      <div class="small muted">${u? "Último arqueo guardado: "+sDate(u.Fecha)+(u.Hora? " · "+esc(u.Hora):"") : "Aún no guardas ningún arqueo"} · toca un billete o moneda para sumar uno</div></div>
+    <div class="card"><div class="aq-h"><h2>💸 Billetes</h2><span class="aq-sub priv" id="aqBil"></span></div><div class="aq-list">${DENOM.filter(d=>d>=20).map(fila).join("")}</div></div>
+    <div class="card"><div class="aq-h"><h2>🪙 Monedas</h2><span class="aq-sub priv" id="aqMon"></span></div><div class="aq-list">${DENOM.filter(d=>d<20).map(fila).join("")}</div></div>
+    <div class="card"><div class="aq-otro"><span class="oi">💳</span><span class="grow"><b>Otro dinero</b><div class="small muted">Opcional, ej. Klar débito</div></span><input id="arqOtro" class="money" value="${+D.otro||""}"></div></div>
     <div class="card priv" id="arqCuadre"></div>
-    <div class="actions" style="display:flex;gap:8px"><button class="btn" id="arqLimpiar">Poner en ceros</button><button class="btn primary grow" id="arqGuardar">Guardar arqueo</button></div>
-    ${hist.length? `<div class="card"><h2>Arqueos anteriores</h2>${hist.map(h=>`<div class="between small"><span>${sDate(h.Fecha)} ${String(h.Fecha).slice(0,4)}${h.Hora? " · "+esc(h.Hora):""}</span><span class="priv">${mx2(+h.Contado)} · <b class="${+h.Diferencia<0?"neg":"pos"}">${+h.Diferencia>=0?"+":""}${mx2(+h.Diferencia)}</b></span></div>`).join("")}</div>`:""}`;
-  const pinta=()=>{ const k=calc(), dif=k.tot-k.q;
-    $("#arqTot").textContent=mx2(k.tot);
-    DENOM.forEach(d=>{ const t=$(`[data-at="${d}"]`,el); if(t) t.textContent=mx2(d*(+D.c[d]||0)); });
-    $("#arqCuadre").innerHTML=`<h2>⚖️ ¿Cuadra con tu catorcena?</h2>
-      ${row2("💵 Contado (billetes, monedas y otro)",k.tot)}
-      ${row2("🛒 Queda del presupuesto"+(c? " · catorcena "+(+c.Num):""),k.q)}
-      <div class="between" style="border-top:1px solid var(--line);padding-top:6px"><b>${dif>=0? "👛 En cartera (extra)" : "⚠️ Te falta"}</b><b class="mid ${dif<0?"neg":"pos"}">${mx2(Math.abs(dif))}</b></div>
-      <div class="small muted">${Math.abs(dif)<0.01? "✓ Cuadra exacto con lo que te queda de la catorcena." : dif>0? "Tienes más de lo que te queda del presupuesto: es dinero apartado que no es para gastar en esta catorcena." : "Tienes menos de lo que te queda del presupuesto: revisa si falta capturar algún gasto en efectivo."}</div>
-      <div class="small muted" style="margin-top:6px">En la app, la cuenta Efectivo tiene ${mx2(ef)} (incluye lo apartado para pagar tarjetas).</div>`;
+    <div style="display:flex;gap:8px"><button class="btn" id="arqLimpiar">↺ Ceros</button><button class="btn primary grow" id="arqGuardar">💾 Guardar arqueo</button></div>
+    ${hist.length? `<div class="card"><h2>🗂️ Arqueos anteriores</h2>${hist.map(h=>`<div class="between small" style="padding:4px 0"><span>${sDate(h.Fecha)} ${String(h.Fecha).slice(0,4)}${h.Hora? " · "+esc(h.Hora):""}</span><span class="priv">${mx2(+h.Contado)} · <b class="${+h.Diferencia<0?"neg":"pos"}">${+h.Diferencia>=0?"+":""}${mx2(+h.Diferencia)}</b></span></div>`).join("")}</div>`:""}`;
+  const pinta=bump=>{ const k=calc(), dif=k.tot-k.q, ok=Math.abs(dif)<0.01;
+    const t=$("#aqTot",el); t.textContent=mx2(k.tot); if(bump){ t.classList.add("bump"); setTimeout(()=>t.classList.remove("bump"),180); }
+    $("#aqBil",el).textContent=mx2(k.bil); $("#aqMon",el).textContent=mx2(k.mon);
+    $("#aqChips",el).innerHTML=`<span class="aq-chip">${k.piezas} pieza${k.piezas===1?"":"s"}</span><span class="aq-chip">Queda catorcena ${mx2(k.q)}</span><span class="aq-chip ${dif<0?"bad":"ok"}">${ok? "✓ Cuadra" : dif>0? "👛 Extra "+mx2(dif) : "⚠️ Faltan "+mx2(-dif)}</span>`;
+    DENOM.forEach(d=>{ const n=+D.c[d]||0, tt=$(`[data-at="${d}"]`,el); if(tt) tt.textContent=mx2(d*n); const r=$(`[data-row="${d}"]`,el); if(r) r.classList.toggle("on",n>0); });
+    const mxv=Math.max(k.tot,k.q,1), pq=Math.max(0,Math.min(k.tot,k.q))/mxv*100, pe=Math.max(0,dif)/mxv*100, pf=Math.max(0,-dif)/mxv*100;
+    $("#arqCuadre",el).innerHTML=`<h2>⚖️ ¿Cuadra con tu catorcena?</h2><div class="aq-cmp">
+      <div class="between"><span class="muted">💵 Contado</span><b>${mx2(k.tot)}</b></div>
+      <div class="between"><span class="muted">🛒 Queda del presupuesto${c? " · catorcena "+(+c.Num):""}</span><b>${mx2(k.q)}</b></div>
+      <div class="aq-bar"><i style="width:${pq}%;background:var(--primary)"></i><i style="width:${pe}%;background:var(--pos)"></i><i style="width:${pf}%;background:var(--neg)"></i></div>
+      <div class="aq-res ${dif<0?"bad":"ok"}"><span class="e">${ok?"✅":dif>0?"👛":"⚠️"}</span><span class="grow"><b>${ok? "Cuadra exacto" : dif>0? "En cartera (extra)" : "Te falta"}</b>
+        <div class="small muted">${ok? "Tu efectivo es justo lo que te queda de la catorcena." : dif>0? "Tienes más de lo que te queda del presupuesto: es dinero apartado, no para gastar en esta catorcena." : "Tienes menos de lo que te queda del presupuesto: revisa si falta capturar algún gasto en efectivo."}</div></span>
+        <b class="mid ${dif<0?"neg":"pos"}">${ok?"":mx2(Math.abs(dif))}</b></div>
+      <div class="small muted">En la app, la cuenta Efectivo tiene ${mx2(ef)} (incluye lo apartado para pagar tarjetas).</div></div>`;
     store("fc_arq",{c:D.c, otro:D.otro});
   };
-  const row2=(t,v)=>`<div class="between"><span class="muted">${t}</span><b>${mx2(v)}</b></div>`;
-  $$("[data-ad]",el).forEach(i=>i.oninput=()=>{ i.value=i.value.replace(/\D/g,""); D.c[i.dataset.ad]=+i.value||0; pinta(); });
-  const paso=(d,n)=>{ D.c[d]=Math.max(0,(+D.c[d]||0)+n); const i=$(`[data-ad="${d}"]`,el); i.value=D.c[d]||""; pinta(); };
+  const pop=d=>{ const i=$(`[data-tap="${d}"]`,el); if(i){ i.classList.add("pop"); setTimeout(()=>i.classList.remove("pop"),140); } };
+  const paso=(d,n)=>{ D.c[d]=Math.max(0,(+D.c[d]||0)+n); const i=$(`[data-ad="${d}"]`,el); i.value=D.c[d]||""; pop(d); pinta(true); };
+  $$("[data-ad]",el).forEach(i=>i.oninput=()=>{ i.value=i.value.replace(/\D/g,""); D.c[i.dataset.ad]=+i.value||0; pinta(true); });
   $$("[data-am]",el).forEach(b=>b.onclick=()=>paso(b.dataset.am,-1));
   $$("[data-ap]",el).forEach(b=>b.onclick=()=>paso(b.dataset.ap,1));
-  const ot=$("#arqOtro",el); moneyInput(ot); ot.value=+D.otro||""; ot.addEventListener("input",()=>{ D.otro=+ot.value||0; pinta(); });
+  $$("[data-tap]",el).forEach(b=>b.onclick=()=>paso(b.dataset.tap,1));
+  const ot=$("#arqOtro",el); moneyInput(ot); ot.value=+D.otro||""; ot.addEventListener("input",()=>{ D.otro=+ot.value||0; pinta(true); });
   $("#arqLimpiar",el).onclick=()=>{ D.c={}; D.otro=0; renderArqueo(el); };
   $("#arqGuardar",el).onclick=()=>{ const k=calc(), btn=$("#arqGuardar",el);
     const o={Fecha:S.hoy, Hora:new Date().toTimeString().slice(0,5), Detalle:DENOM.filter(d=>+D.c[d]).map(d=>d+":"+D.c[d]).join(","), OtroDinero:+D.otro||0, Contado:+k.tot.toFixed(2), QuedaCatorcena:+k.q.toFixed(2), Diferencia:+(k.tot-k.q).toFixed(2), Nota:c? "Catorcena "+(+c.Num):""};
     btn.disabled=true; btn.textContent="Guardando…";
     api("saveArqueo",o).then(id=>{ o.ID=id; S.d.arqueos=(S.d.arqueos||[]).concat(o); store("fc_arq",null); toast("Arqueo guardado"); renderArqueo(el); })
-      .catch(e=>{ btn.disabled=false; btn.textContent="Guardar arqueo"; toast(e.auth? "Clave incorrecta" : "No se pudo guardar: "+(e.message||e)+". Tu conteo sigue aquí."); });
+      .catch(e=>{ btn.disabled=false; btn.textContent="💾 Guardar arqueo"; toast(e.auth? "Clave incorrecta" : "No se pudo guardar: "+(e.message||e)+". Tu conteo sigue aquí."); });
   };
   pinta();
 }
+/* ================= Títulos con icono animado ================= */
+const W='fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+const HICO={
+  inicio:`<circle class="o" cx="12" cy="12" r="10.5" fill="none" stroke="#9fb0ff" stroke-width="2" stroke-dasharray="14 52" stroke-linecap="round"/><rect class="g" x="7" y="11" width="2.6" height="6" rx="1" fill="#fff"/><rect class="g g2" x="10.7" y="8.5" width="2.6" height="8.5" rx="1" fill="#fff"/><rect class="g g3" x="14.4" y="6.5" width="2.6" height="10.5" rx="1" fill="#9fe3c0"/>`,
+  movs:`<path class="sl" d="M5 7h14" ${W}/><path class="sl sl2" d="M5 12h10" ${W}/><path class="sl sl3" d="M5 17h12" ${W}/><circle class="p" cx="19" cy="17" r="1.6" fill="#ffd36e"/>`,
+  anal:`<rect class="g" x="4" y="12" width="3.4" height="8" rx="1" fill="#fff"/><rect class="g g2" x="10.3" y="7" width="3.4" height="13" rx="1" fill="#9fe3c0"/><rect class="g g3" x="16.6" y="10" width="3.4" height="10" rx="1" fill="#fff"/><path class="d" d="M4 9l6-4 4 2 6-4" fill="none" stroke="#ffd36e" stroke-width="2" stroke-linecap="round"/>`,
+  mas:`<circle class="p" cx="6" cy="12" r="2.2" fill="#fff"/><circle class="p" style="animation-delay:.2s" cx="12" cy="12" r="2.2" fill="#9fe3c0"/><circle class="p" style="animation-delay:.4s" cx="18" cy="12" r="2.2" fill="#ffd36e"/>`,
+  ingresos:`<rect x="3" y="9" width="18" height="11" rx="3" ${W}/><path d="M16 14.5h2" ${W}/><g class="bo"><path d="M12 2v8M8.5 6.5 12 10l3.5-3.5" fill="none" stroke="#9fe3c0" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>`,
+  ahorro:`<path d="M4 13c0-3.6 3.4-6 7.5-6 3 0 5 1 6.3 2.6L20 9v3.2l1 .8v2.5l-1.6.5c-.6 1.4-1.7 2.5-3.2 3.1V21h-2.6v-1.4h-3.6V21H7.4v-2.3C5.3 17.6 4 15.5 4 13z" ${W}/><circle cx="16.5" cy="11.5" r=".9" fill="#fff"/><circle class="dr" cx="11" cy="4" r="2.2" fill="#ffd36e"/>`,
+  cuentas:`<rect x="2.5" y="5.5" width="19" height="13" rx="2.5" ${W}/><path d="M2.5 9.5h19" ${W}/><rect x="5" y="13" width="5" height="2.2" rx="1" fill="#ffd36e"/><clipPath id="hcc"><rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/></clipPath><g clip-path="url(#hcc)"><rect class="sh" x="4" y="3" width="4" height="18" fill="rgb(255 255 255 / .35)" transform="skewX(-20)"/></g>`,
+  ctadet:`<rect x="2.5" y="5.5" width="19" height="13" rx="2.5" ${W}/><path d="M2.5 9.5h19" ${W}/><path class="sl" d="M6 14h7" stroke="#9fe3c0" stroke-width="2" stroke-linecap="round"/><circle class="p" cx="17" cy="14.3" r="1.6" fill="#ffd36e"/>`,
+  msi:`<rect x="3.5" y="5" width="17" height="15.5" rx="2.5" ${W}/><path d="M3.5 9.5h17M8 3v4M16 3v4" ${W}/><circle class="p" cx="8.5" cy="14" r="1.3" fill="#fff"/><circle class="p" style="animation-delay:.25s" cx="12" cy="14" r="1.3" fill="#9fe3c0"/><circle class="p" style="animation-delay:.5s" cx="15.5" cy="14" r="1.3" fill="#ffd36e"/>`,
+  inv:`<path d="M3 20h18" ${W}/><path class="d" d="M4 16l5-5 4 3 7-8" fill="none" stroke="#9fe3c0" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle class="p" cx="20" cy="6" r="2" fill="#ffd36e"/>`,
+  vales:`<g class="sw"><path d="M4 9h16l-1.6 9.5a2 2 0 0 1-2 1.5H7.6a2 2 0 0 1-2-1.5z" ${W}/><path d="M8.5 9 12 4l3.5 5" ${W}/></g><circle class="p" cx="12" cy="14" r="1.6" fill="#9fe3c0"/>`,
+  pres:`<circle cx="12" cy="12" r="8.5" ${W}/><path class="o" d="M12 3.5A8.5 8.5 0 0 1 20.5 12H12z" fill="#ffd36e"/>`,
+  arqueo:`<g class="sw"><rect x="2.5" y="7" width="19" height="10" rx="2" fill="#2f9e5b" stroke="#fff" stroke-width="1.6"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="#fff" stroke-width="1.6"/></g><circle class="dr" cx="19" cy="4" r="2" fill="#ffd36e"/>`
+};
+function setTitle(key, txt){ const h=$("#vTitle"); const ic=HICO[key]; h.innerHTML=(ic? `<span class="hico" aria-hidden="true"><svg viewBox="0 0 24 24">${ic}</svg></span>`:"")+`<span class="ht">${esc(txt)}</span>`; }
 function renderCtaDet(el){
   const n=S.ctaDet, c=S.cta[n]||{}, t=c.Tipo||"", [c1,c2]=cpCol(n,0);
   S.ctaPer=S.ctaPer||"cat"; const R=perRango(S.ctaPer)||perRango("cat"), [a,b,lab]=R;
@@ -2419,6 +2517,8 @@ $("#fAgain").onclick=()=>submit(true);
 
 syncBadge();
 pantallaEntrar(claveGuardada()? "Toca Entrar para ver tus finanzas." : null);
+
+try{ if(!S.sub) setTitle(S.view||"inicio", TITLES[S.view||"inicio"]); }catch(e){}
 </script>
 </body>
 </html>
