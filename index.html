@@ -1499,7 +1499,7 @@ function tipo(t, keep){
   $("#fCta").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Débito","Efectivo"] : null, LK.cta||cuenta, LK.cta);
   let dst = $("#fDst").value || F.dst;
   if(t==="Ingreso" && !dst){ const fu=$("#fFuente").value; dst = /vales/i.test(fu)? "Vales de despensa" : /tenate/i.test(fu)? CAJA_T : (S.d.cuentas.find(c=>c.Tipo==="Débito")||{}).Cuenta; }
-  $("#fDst").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Crédito","Departamental"] : null, LK.dst||dst, LK.dst) + (t==="Ingreso"&&!LK.dst? insOpts(F.edit&&F.edit.Instrumento&&!F.edit.CuentaDestino? INV_PRE+F.edit.Instrumento : dst) : "");
+  $("#fDst").innerHTML = (t==="Ingreso"&&!LK.dst? ingCtaOpts(dst) : ctaOpts(t==="Pago tarjeta"? ["Crédito","Departamental"] : null, LK.dst||dst, LK.dst)) + (t==="Ingreso"&&!LK.dst? insOpts(F.edit&&F.edit.Instrumento&&!F.edit.CuentaDestino? INV_PRE+F.edit.Instrumento : dst) : "");
   renderPicks();
   $("#dlSub").innerHTML = (S.cats[$("#fCat").value]||[]).map(s=>`<option value="${esc(s)}">`).join("");
   $("#fVeh").innerHTML = (LK.veh?[LK.veh]:S.vehs).map(v=>`<button type="button" class="chip ${F.veh===v?"on":""}" data-v="${esc(v)}">${esc(v)}</button>`).join("");
@@ -1817,7 +1817,7 @@ function splitPaint(){
   const box=$("#fSplitRows"); if(!box) return;
   box.innerHTML=F.split.map((r,i)=>`<div class="split-r"><button type="button" class="dd" data-si="${i}">${r.c? (()=>{ const t=(S.cta[r.c]||{}).Tipo, [c1,c2]=cpCol(r.c,i); const inv=String(r.c).startsWith(INV_PRE), lb=inv? r.c.slice(INV_PRE.length) : r.c; return `<span class="dd-card" style="--c1:${c1};--c2:${c2}">${inv?"📈":(CP_ICO[t]||"💳")}</span><span class="dd-l">${esc(lb)}</span>`; })() : `<span class="dd-l ph">Elige cuenta</span>`}${CHEV}</button>
     <input type="number" inputmode="decimal" step="0.01" min="0" placeholder="$0" value="${r.m}" data-sm="${i}">${F.split.length>2? `<button type="button" class="split-x" data-sx="${i}" aria-label="Quitar">✕</button>`:"<span></span>"}</div>`).join("");
-  $$("[data-si]",box).forEach(bn=>bn.onclick=()=>{ const i=+bn.dataset.si, sel=document.createElement("select"); sel.innerHTML=ctaOpts(null,F.split[i].c)+insOpts(F.split[i].c);
+  $$("[data-si]",box).forEach(bn=>bn.onclick=()=>{ const i=+bn.dataset.si, sel=document.createElement("select"); sel.innerHTML=ctaOpts(ingTipos(),F.split[i].c)+insOpts(F.split[i].c);
     ddSheet("¿A qué cuenta?", false, ()=>cardsHTML(sel), v=>{ F.split[i].c=v; splitPaint(); }, null); });
   $$("[data-sm]",box).forEach(inp=>inp.oninput=()=>{ F.split[+inp.dataset.sm].m=inp.value; splitInfo(); });
   $$("[data-sx]",box).forEach(x=>x.onclick=()=>{ F.split.splice(+x.dataset.sx,1); splitPaint(); });
@@ -1970,6 +1970,8 @@ function igNomHTML(R,per){
 }
 /* ===== Ingresos directo a inversión y rastreo "¿A dónde se fue?" ===== */
 const INV_PRE="INV:";
+function ingTipos(){ const f=$("#fFuente").value; return ["Débito","Efectivo","Fondo",...(esTenate(f)?["Tenate"]:[]),...(f===VALES?["Vales"]:[])]; }
+function ingCtaOpts(sel){ const T=ingTipos(), c=S.cta[sel]; if(c&&!T.includes(c.Tipo)) T.push(c.Tipo); return ctaOpts(T,sel); }
 function insOpts(sel){ if(!S.ins||!S.ins.length) return ""; return `<optgroup label="Inversión">${S.ins.map(i=>{ const v=INV_PRE+i.Instrumento; return `<option value="${esc(v)}"${v===sel?" selected":""}>${esc(i.Instrumento)}</option>`; }).join("")}</optgroup>`; }
 function destLabel(m){ return m.CuentaDestino || (m.Instrumento? "📈 "+m.Instrumento : "Sin cuenta"); }
 function quitarAutoInv(id,p){ const L=S.movs.filter(m=>m.Tipo==="Inversión"&&String(m.Nota||"").includes("Automático por ingreso "+id));
