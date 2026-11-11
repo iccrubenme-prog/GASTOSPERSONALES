@@ -241,6 +241,11 @@ details.mas .f{margin-top:6px}
 .ten3 input{text-align:right}
 .ten3 .ro{background:var(--primary-soft);border-color:transparent;font-weight:700;color:var(--primary)}
 #fTenInfo{font-size:12.5px;margin-top:6px}
+.ig-uso .r.sub{padding-left:18px;position:relative}
+.ig-uso .r.sub::before{content:"";position:absolute;left:16px;top:-8px;bottom:50%;width:10px;border-left:2px solid var(--line);border-bottom:2px solid var(--line);border-bottom-left-radius:8px}
+.ig-uso .r.sub .dd-ic{width:28px;height:28px;font-size:14px;margin-left:14px}
+.ig-uso .r.sub b{font-size:13.5px}
+.ig-sep{height:1px;background:var(--line);margin:2px 0}
 .f input,.f select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);min-height:44px}
 .f input.monto{font-size:30px;font-weight:800;padding:8px 12px;text-align:center}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -1768,7 +1773,8 @@ function renderIngresos(el){
       <div class="small muted">${R.length} ${R.length===1?"ingreso":"ingresos"}${cmp? " · "+cmp:""}</div></div>
     ${g.tipo==="Todos"&&R.length? `<div class="card priv"><h2>¿De dónde vino?</h2>${barsHTML(group(R,m=>igGrupo(m.Fuente)),T,null,setDrillFn("ig-g",R,"Ingresos · "+lab,m=>igGrupo(m.Fuente)))}</div>
       <div class="card priv"><h2>¿Para qué es cada peso?</h2><div class="ig-uso">
-        ${[["Nómina","Para gastar en la catorcena","Es tu presupuesto (menos lo que apartas de ahorro)."],["Prestaciones","Va al fondo de ahorro","Bonos, aguinaldo, PTU, vacaciones…"],["__ext","Va directo a ahorro","El Tenate, Informatics, proyectos y otros extras."],["Vales","Solo para súper","Se gastan con la tarjeta de vales."]].map(([k,t,d])=>{ const v=k==="__ext"? sum(ext) : sumG(k); return v? `<div class="r">${igIcoSpan(k==="__ext"?"El Tenate":k)}<span class="grow"><b>${t}</b><small>${d}</small></span><b>${mx(v)}</b></div>`:""; }).join("")}
+        ${igNomHTML(R,g.per)}
+        ${[["Prestaciones","Va al fondo de ahorro","Bonos, aguinaldo, PTU, vacaciones…"],["__ext","Va directo a ahorro","El Tenate, Informatics, proyectos y otros extras."],["Vales","Solo para súper","Se gastan con la tarjeta de vales."]].map(([k,t,d])=>{ const v=k==="__ext"? sum(ext) : sumG(k); return v? `<div class="r">${igIcoSpan(k==="__ext"?"El Tenate":k)}<span class="grow"><b>${t}</b><small>${d}</small></span><b>${mx(v)}</b></div>`:""; }).join("")}
       </div></div>`:""}
     ${(()=>{ if(g.tipo==="Todos"||g.tipo==="El Tenate"||!R.length) return ""; const multi=new Set(R.map(m=>m.Fuente)).size>1, kf=m=>multi? m.Fuente : (m.Subcategoria||(m.Descripcion!==m.Fuente?m.Descripcion:"")||"Sin concepto"), G=group(R,kf); return G.length>1? `<div class="card priv"><h2>${esProy(g.tipo)?"🧩 Por proyecto":"Por concepto"}</h2>${barsHTML(G,T)}</div>` : ""; })()}
     ${ten.length&&(g.tipo==="Todos"||g.tipo==="El Tenate")? `<div class="card priv"><div class="between"><h2>🚚 El Tenate</h2><b class="pos">${mx(sum(ten))}</b></div>
@@ -1929,6 +1935,22 @@ function moneyInput(el){
   el.addEventListener("focus",()=>{ setTimeout(()=>{ try{ const n=d.get.call(el).length; el.setSelectionRange(n,n); }catch(e){} },0); });
 }
 ["#fMonto","#fTenA","#fTenP","#fTenR","#fSepM"].forEach(s=>moneyInput($(s)));
+function igNom(R){
+  const nom=R.filter(m=>m.Fuente===NOMINA), byC=new Map();
+  nom.forEach(m=>{ const c=catorcenaActual(m.Fecha), k=c? c.Inicio : "x"; const o=byC.get(k)||{c,N:0}; o.N+=+m.Monto||0; byC.set(k,o); });
+  let A=0, sinPlan=0, nc=0; byC.forEach(({c,N})=>{ nc++; const a=c? ahorroCat(c) : null; if(a==null) sinPlan+=N; else A+=Math.min(Math.max(a,0),N); });
+  const N=sum(nom); return {N, A, P:N-A, sinPlan, nc};
+}
+function igNomHTML(R,per){
+  const x=igNom(R); if(!x.N) return "";
+  const en={cat:"en la catorcena",mes:"en el mes",anio:"en el año",todo:"en todo tu historial",rango:"en estas fechas"}[per]||"";
+  const cats= per==="cat"? "" : ` (${x.nc} ${x.nc===1?"catorcena":"catorcenas"})`;
+  const pc=v=>x.N? Math.round(v/x.N*100)+"%" : "";
+  return `<div class="r">${igIcoSpan("Nómina")}<span class="grow"><b>Nómina que entró ${en}</b><small>Tu ingreso de catorcena${cats}. Se divide en:</small></span><b>${mx(x.N)}</b></div>
+    <div class="r sub"><span class="dd-ic" style="--ic-bg:${ddBg("Ahorro")}">🐷</span><span class="grow"><b>Ahorro de catorcena</b><small>Lo que apartas de la nómina · ${pc(x.A)}</small></span><b>${mx(x.A)}</b></div>
+    <div class="r sub"><span class="dd-ic" style="--ic-bg:${ddBg("Presupuesto")}">🛒</span><span class="grow"><b>Presupuesto para gastar</b><small>Lo que queda para tus gastos · ${pc(x.P)}${x.sinPlan? " · incluye "+mx(x.sinPlan)+" de catorcenas sin ahorro capturado":""}</small></span><b>${mx(x.P)}</b></div>
+    <div class="ig-sep"></div>`;
+}
 function applyMem(m, setDesc){
   if(!m) return;
   if(setDesc) $("#fDesc").value=m.Descripcion;
