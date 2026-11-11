@@ -667,7 +667,6 @@ function catList(){ return S.d.catorcenas.filter(c=>c.Inicio<=S.hoy).sort((a,b)=
 const FONDO="Fondo de ahorro", AHORRO="Ahorro"; let CAJA_T="Caja El Tenate";
 function esPrest(f){ return S.fTipo[f]==="Prestación" && f!==VALES; }
 function esExtra(f){ return S.fTipo[f]==="Extra" || (!S.fTipo[f] && f!==NOMINA && f!==VALES); }
-function ahorroCat(c){ const v = c.AhorroCatorcena!==undefined ? c.AhorroCatorcena : c.MetaAhorro; return v===""||v==null ? null : +v; }
 function catRes(c){
   const r=inRange(c.Inicio,c.Fin);
   const gas=r.filter(m=>m.Tipo==="Gasto"&&!pagoVales(m));
@@ -678,7 +677,8 @@ function catRes(c){
   const A=ahorroCat(c);
   const GF=(+c.GastoFondo||0)+sum(gas.filter(m=>m.Cuenta===FONDO));
   const AF=+c.ApoyoFondo||0;
-  const P = c.PptoGastos!==""&&c.PptoGastos!=null ? +c.PptoGastos : (A!=null? N-A+AF : 0);
+  const AR=ahorroRealCat(c);
+  const P = AR!=null ? N-AR+AF : c.PptoGastos!==""&&c.PptoGastos!=null ? +c.PptoGastos : (A!=null? N-A+AF : 0);
   const GT=sum(gas.filter(m=>m.Cuenta===CAJA_T));
   const Gord=G-GF-GT;
   return {r, gas, G, GF, GT, Gord, N, P, AF, E, ext, pre, PR:sum(pre), A, queda:P-Gord, ahorro:A||0, libre:N-G, valesG:sum(r.filter(pagoVales))};
@@ -1840,30 +1840,13 @@ function renderIngresos(el){
     <div class="card hero priv"><div class="small muted">${esc(g.tipo==="Todos"?"Ingresos":g.tipo)} · ${esc(lab)}</div><div class="big">${mx2(T)}</div>
       <div class="small muted">${R.length} ${R.length===1?"ingreso":"ingresos"}${cmp? " · "+cmp:""}</div></div>
     ${g.tipo==="Todos"&&R.length? `<div class="card priv"><h2>¿De dónde vino?</h2>${barsHTML(group(R,m=>igGrupo(m.Fuente)),T,null,setDrillFn("ig-g",R,"Ingresos · "+lab,m=>igGrupo(m.Fuente)))}</div>
-      <div class="card priv"><h2>¿Para qué es cada peso?</h2><div class="ig-uso">
-        ${igNomHTML(R,g.per)}
-        ${[["Prestaciones","Va al fondo de ahorro","Bonos, aguinaldo, PTU, vacaciones…"],["__ext","Va directo a ahorro","El Tenate, Informatics, proyectos y otros extras."],["Vales","Solo para súper","Se gastan con la tarjeta de vales."]].map(([k,t,d])=>{ const v=k==="__ext"? sum(ext) : sumG(k); return v? `<div class="r">${igIcoSpan(k==="__ext"?"El Tenate":k)}<span class="grow"><b>${t}</b><small>${d}</small></span><b>${mx(v)}</b></div>`:""; }).join("")}
-      </div></div>`:""}
+      `:""}
     ${(()=>{ if(g.tipo==="Todos"||g.tipo==="El Tenate"||!R.length) return ""; const multi=new Set(R.map(m=>m.Fuente)).size>1, kf=m=>multi? m.Fuente : (m.Subcategoria||(m.Descripcion!==m.Fuente?m.Descripcion:"")||"Sin concepto"), G=group(R,kf); return G.length>1? `<div class="card priv"><h2>${esProy(g.tipo)?"🧩 Por proyecto":"Por concepto"}</h2>${barsHTML(G,T)}</div>` : ""; })()}
     ${ten.length&&(g.tipo==="Todos"||g.tipo==="El Tenate")? `<div class="card priv"><div class="between"><h2>🚚 El Tenate</h2><b class="pos">${mx(sum(ten))}</b></div>
       ${(()=>{ const t=tenSum(ten); return barsHTML([["🚚 Ruta",t.ruta],["📱 App",t.app],["💵 Propinas",t.prop]].filter(x=>x[1]>0),sum(ten)); })()}
       <div class="small muted">Toca un ingreso en el Detalle para ajustar cuánto fue de ruta, app o propinas.</div>
       <div class="small muted">Lo del Tenate suma a tus ingresos y a tu ahorro, pero no entra al presupuesto de la catorcena.</div></div>`:""}
-    ${R.length? (()=>{ const en={cat:"en la catorcena",mes:"en el mes",anio:"en el año",todo:"en todo el historial",rango:"en estas fechas"}[g.per]||"";
-      const F3=flujoSalida(R.filter(m=>m.Fuente!==NOMINA),a,b), arbol=repArbol(R,a,b,g.per), dirInv=group(R.filter(m=>!m.CuentaDestino&&m.Instrumento),m=>"📈 "+m.Instrumento), vales=sum(R.filter(m=>m.CuentaDestino===VALES));
-      const bloque=x=>{ let L=x.L.slice(0,6), rest=Math.max(0,x.queda), plan=false;
-        if(!x.L.length){ const nx=igNom(R.filter(m=>m.CuentaDestino===x.cta)); if(nx.N){ plan=true; L=[["🐷 Ahorro de catorcena → tus inversiones",nx.A],["🛒 Presupuesto para gastar",nx.P]].filter(r=>r[1]>0); rest=x.entro-nx.N; } }
-        const rows=[...L, ...(rest>0.5? [[x.cta===FONDO? "🐷 Se queda en tu fondo de ahorro" : "🏦 Sigue en "+x.cta, rest]] : [])];
-        return `<div style="margin-top:12px"><div class="between"><b>Entró a ${esc(x.cta)}</b><b>${mx(x.entro)}</b></div>
-          ${barsHTML(rows,Math.max(x.entro,x.salio))}
-          ${plan? `<div class="small muted">Según tu plan de cada catorcena (ahorro capturado). Si registras las Transferencias o Inversiones desde ${esc(x.cta)}, aquí verás el reparto exacto.</div>`
-            : !x.L.length&&x.cta!==FONDO? `<div class="small muted">No hay salidas registradas de ${esc(x.cta)} ${esc(en)}. Si mueves este dinero a otra cuenta o a una inversión, regístralo como Transferencia o Inversión desde ${esc(x.cta)} y aparecerá aquí.</div>`
-            : x.queda<0? `<div class="small muted">Salió más de lo que entró ${esc(en)}; se usó saldo que ya tenías.</div>`:""}</div>`; };
-      return `<div class="card priv"><h2>¿A dónde se fue el dinero?</h2><div class="small muted" style="margin-top:-6px">Dónde cayó cada ingreso y qué salió después de esa cuenta ${esc(en)}.</div>
-        ${arbol? `<div style="margin-top:12px">${arbol}</div>`:""}
-        ${F3.map(bloque).join("")}
-        ${dirInv.length? `<div style="margin-top:12px"><div class="between"><b>Directo a inversión</b><b>${mx(sum(R.filter(m=>!m.CuentaDestino&&m.Instrumento)))}</b></div>${barsHTML(dirInv,T)}</div>`:""}
-        ${vales? `<div style="margin-top:12px" class="between"><b>🧺 Tarjeta de vales</b><b>${mx(vales)}</b></div>`:""}</div>`; })() : ""}
+    ${distribHTML(R,g.per)}
     ${tabla}
     <div class="card"><div class="between"><h2>Detalle</h2><span class="small muted">${R.length>300? "Mostrando 300 de "+R.length : R.length+" registros"}</span></div>${filas||'<div class="empty">No hay ingresos con este filtro.</div>'}</div>
     <div class="actions"><button class="btn" id="igTen">🚚 Ingreso El Tenate</button><button class="btn primary" id="igAdd">＋ Registrar ingreso</button></div>`;
@@ -2073,7 +2056,7 @@ function igNom(R){
     if(esParteNom(m)){ o.Nr+=M; if(esInvDirecto(m)) o.Br+=M; }
     else { const r=repDe(m.ID); if(r.b){ o.Nr+=M; o.Br+=+r.b.Monto||0; } }
     byC.set(k,o); });
-  let A=0, sinPlan=0, nc=0; byC.forEach(({c,N,Nr,Br})=>{ nc++; A+=Br; const rest=N-Nr; if(rest<=0) return; const a=c? ahorroCat(c) : null; if(a==null) sinPlan+=rest; else A+=Math.min(Math.max(a-Br,0),rest); });
+  let A=0, sinPlan=0, nc=0; byC.forEach(({c,N,Nr,Br})=>{ nc++; A+=Br; const rest=N-Nr; if(rest<=0) return; const a=c? ahorroPlan(c) : null; if(a==null) sinPlan+=rest; else A+=Math.min(Math.max(a-Br,0),rest); });
   const N=sum(nom); return {N, A, P:N-A, sinPlan, nc};
 }
 function igNomHTML(R,per){
@@ -2115,7 +2098,7 @@ function EFECTIVO(){ const c=S.d.cuentas.find(c=>c.Cuenta==="Efectivo")||S.d.cue
 function repIds(id){ return {a:"R"+id+"A", b:"R"+id+"B"}; }
 function repDe(id){ const r=repIds(id); return {a:S.movs.find(m=>m.ID===r.a), b:S.movs.find(m=>m.ID===r.b)}; }
 function esReparto(m){ return /^Reparto nómina /.test(m.Nota||""); }
-function ahorroSugerido(fe){ const c=catorcenaActual(fe||S.hoy); if(!c) return {v:0,txt:""}; const a=ahorroCat(c);
+function ahorroSugerido(fe){ const c=catorcenaActual(fe||S.hoy); if(!c) return {v:0,txt:""}; const a=ahorroPlan(c);
   const self=F.edit? repIds(F.edit.ID).b : "", usado=sum(S.movs.filter(m=>m.Fecha>=c.Inicio&&m.Fecha<=c.Fin&&((esReparto(m)&&m.CuentaDestino===AHORRO&&m.ID!==self)||(m.Tipo==="Ingreso"&&m.Fuente===NOMINA&&esInvDirecto(m)&&!(F.edit&&m.ID===F.edit.ID)))));
   if(a!=null){ const r=Math.max(0,a-usado); return {v:r, txt: usado? `Tu plan de la catorcena ${+c.Num} dice ${mx(a)} de ahorro; ya apartaste ${mx(usado)} con otra nómina.` : `Tu plan de la catorcena ${+c.Num} dice ${mx(a)} de ahorro.`}; }
   let n=0; try{ const mc=metaCat(c); n=mc&&mc.nuevo>0? Math.round(mc.nuevo) : 0; }catch(e){}
@@ -2210,6 +2193,52 @@ function moverAInversion(){
     } else L.push(Object.assign({},base,{ID:uid(),Tipo:"Inversión",Fecha:f,Monto:m,MovInversion:"Aportación",Instrumento:st.d,Cuenta:AHORRO,Descripcion:"Aportación "+st.d+" (desde Ahorro)",Nota:"Pase de efectivo a inversión"}));
     L.forEach(x=>{ S.movs.push(x); p.push({op:"save",o:x}); }); sortMovs(); setPend(p); flush(); ddClose(); toast("Movido "+mx2(m)+" a "+st.d); render();
   };
+}
+/* ===== Distribución de ingresos: todo cuadra al 100% ===== */
+function ahorroPlan(c){ const v = c.AhorroCatorcena!==undefined ? c.AhorroCatorcena : c.MetaAhorro; return v===""||v==null ? null : +v; }
+function ahorroRealCat(c){ const L=S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fuente===NOMINA&&m.Fecha>=c.Inicio&&m.Fecha<=c.Fin);
+  if(!L.some(esParteNom)) return null; return sum(L.filter(esInvDirecto)); }
+function ahorroCat(c){ const r=ahorroRealCat(c); return r!=null? r : ahorroPlan(c); }
+function destDe(m){ return esInvDirecto(m)? "📈 "+m.Instrumento : (m.CuentaDestino||"Sin cuenta"); }
+function distribHTML(R,per){
+  if(!R.length) return "";
+  const en={cat:"en la catorcena",mes:"en el mes",anio:"en el año",todo:"en todo el historial",rango:"en estas fechas"}[per]||"";
+  const T=sum(R), nom=R.filter(m=>m.Fuente===NOMINA), x=igNom(nom);
+  const partes=nom.filter(esParteNom), sin=nom.filter(m=>!esParteNom(m)), est=igNom(sin);
+  const presD=group(partes.filter(m=>!esInvDirecto(m)),destDe), ahoD=group(partes.filter(esInvDirecto),destDe);
+  const ext=R.filter(m=>m.Fuente!==NOMINA&&esExtra(m.Fuente)), pre=R.filter(m=>m.Fuente!==VALES&&esPrest(m.Fuente)), val=R.filter(m=>m.Fuente===VALES);
+  const otros=R.filter(m=>m.Fuente!==NOMINA&&!esExtra(m.Fuente)&&!esPrest(m.Fuente)&&m.Fuente!==VALES);
+  const ic=(e,k)=>`<span class="dd-ic" style="--ic-bg:${ddBg(k)}">${e}</span>`;
+  const row=(lv,e,k,t,s,v,cls)=>`<div class="r ${lv}">${ic(e,k)}<span class="grow"><b>${t}</b>${s?`<small>${s}</small>`:""}</span><b class="${cls||""}">${mx(v)}</b></div>`;
+  const pc=v=>T? Math.round(v/T*100)+"%" : "";
+  const extInv=sum(ext.filter(esInvDirecto)), extCta=sum(ext)-extInv;
+  const fuentesExt=group(ext,"Fuente");
+  const P=x.P, A=x.A, S_=A+sum(ext), F=sum(pre), V=sum(val), O=sum(otros);
+  let h=`<div class="tree">`;
+  if(nom.length){
+    h+=row("","💼","Nómina","Nómina",(pc(x.N))+" de tus ingresos",x.N);
+    h+=row("l1","🛒","Presupuesto","Presupuesto para gastar","Lo que mandaste a "+(presD.map(d=>d[0]).join(", ")||"Efectivo"),P);
+    presD.forEach(([k,v])=>{ if(presD.length>1) h+=row("l2","💵",k,esc(k),"",v); });
+    if(sin.length) h+=row("l2","📝","Estimado","Sin repartir","Estimado con tu plan",est.P,"muted");
+    h+=row("l1","🐷","Ahorro","Ahorro de catorcena","Va a tu inversión",A);
+    ahoD.forEach(([k,v])=>h+=row("l2","📈",k,esc(k.replace("📈 ","")),"",v));
+    if(sin.length&&est.A) h+=row("l2","📝","Estimado","Sin repartir","Estimado con tu plan",est.A,"muted");
+  }
+  fuentesExt.forEach(([f,v])=>{ const L=ext.filter(m=>m.Fuente===f), d=group(L,destDe);
+    h+=row("",igIco(igGrupo(f)),f,esc(f),"Ingreso extra · "+pc(v),v);
+    d.forEach(([k,vv])=>h+=row("l1",k.startsWith("📈")?"📈":"💵",k,esc(k.replace("📈 ","")),k.startsWith("📈")?"Directo a inversión":"Entró a esta cuenta",vv)); });
+  if(F) h+=row("","🎁","Prestaciones","Prestaciones","Van a tu fondo de ahorro · "+pc(F),F);
+  if(O) h+=row("","➕","Otros","Otros ingresos",pc(O),O);
+  if(V) h+=row("","🧺","Vales","Vales de despensa","Solo para súper · "+pc(V),V);
+  h+=`</div>`;
+  const tot=[["🛒 Para gastar",P],["🐷 Ahorro e inversión",S_],["🎁 Fondo de ahorro",F],["➕ Otros",O],["🧺 Vales",V]].filter(r=>r[1]);
+  const cuadra=Math.abs(tot.reduce((a,r)=>a+r[1],0)-T)<1;
+  h+=`<div style="border-top:2px solid var(--line);margin-top:8px;padding-top:8px;display:flex;flex-direction:column;gap:4px">
+    ${tot.map(([l,v])=>`<div class="between small"><span>${l}</span><b>${mx(v)} <span class="muted" style="font-weight:500">${pc(v)}</span></b></div>`).join("")}
+    <div class="between"><b>Total de ingresos ${esc(en)}</b><b>${mx(T)} ${cuadra?'<span class="pos">✓</span>':'<span class="neg">≠</span>'}</b></div></div>`;
+  if(sin.length) h+=`<div class="small muted" style="margin-top:6px">${sin.length} ${sin.length===1?"nómina":"nóminas"} sin repartir: se estimó con tu plan. Ábrela y usa ➗ Repartir para dejarla exacta.</div>`;
+  if(extCta>0) h+=`<div class="small muted" style="margin-top:4px">Hay ${mx(extCta)} de ingresos extra que entraron a una cuenta en vez de a una inversión.</div>`;
+  return `<div class="card priv"><h2>📊 ¿Cómo se distribuyeron tus ingresos?</h2>${h}</div>`;
 }
 function applyMem(m, setDesc){
   if(!m) return;
