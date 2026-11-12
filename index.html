@@ -1670,8 +1670,12 @@ const TIENDAS=["BODEGA AURRERA","MI BODEGA","AURRERA","WALMART","WAL-MART","SAMS
 const NO_ART=/\b(sub\s*-?total|total|iva|i\.v\.a|ieps|cambio|efectivo|tarjeta|vales?|pago|importe|su\s+ahorro|ahorro|redondeo|art[ií]culos|arts?\.?\b|saldo|monedero|puntos|rfc|folio|ticket|caja|cajero|tienda|sucursal|tel[eé]fono|gracias|cliente|autoriza|aprob|referencia|no\.\s*de|transacc|operaci|cuenta|venc|fecha|hora|d[eé]bito|cr[eé]dito|visa|master|electr[oó]nic|despensa|sodexo|edenred|si\s*vale|pluxee|bono)\b/i;
 const NO_ART2=/(=|\bfol|\bid\b|r[eé]gimen|s\.\s?a\.|c\.\s?v\.|colonia|c\.\s?p\.|n[uú]mero|calle|av\.|emisor|venta\b|afiliaci|\baut\b|pesos|m\.\s?n\.|bbva|banamex|santander|inbursa|banorte|hsbc|scotiabank|iva incluido|gracias|vuelva|www\.|\.com\b|sociedades|cadena comercial|tel\b|sucursal|cajer)/i;
 // limpia códigos de barras, cantidades y signos del nombre del artículo
+// encabezados de departamento que imprimen algunas tiendas (Chedraui, Soriana, Walmart…) antes de los artículos: no son artículos
+const DEPTOS=/^(farmacia|abarrotes?|abarrotes (comestibles|no comestibles)|frutas( y verduras)?|verduras|lácteos|lacteos|l[aá]cteos y huevo|carnes?( y aves)?|pollo|pescados?( y mariscos)?|salchichoner[ií]a|panader[ií]a|tortiller[ií]a|cremer[ií]a|perfumer[ií]a|higiene( personal)?|cuidado personal|limpieza|hogar|bebidas|vinos( y licores)?|licores|cerveza|botanas|dulcer[ií]a|congelados|mascotas|beb[eé]s|jugueter[ií]a|ferreter[ií]a|papeler[ií]a|electr[oó]nica|ropa|zapater[ií]a|deportes|automotriz|jard[ií]n|farmacia y salud|salud|desechables|enlatados|granos|cereales|galletas|refrescos|agua|mercer[ií]a|electrodom[eé]sticos|varios|departamento \d+|depto\.? ?\d*)$/i;
+const esDepto = s => DEPTOS.test(String(s||"").trim());
+const conCant = s => /^\s*\d+(?:[.,]\d{1,3})?\s+(?:x\s+)?[A-Za-zÁÉÍÓÚÑ]/i.test(String(s||""));
 function limpiarNombre(s){
-  return String(s||"").replace(/^\s*\d{6,14}\s*/,"").replace(/\b\d+(\.\d+)?\s*[x@]\s*\$?\d+[.,]\d{2}\b/i,"").replace(/[$*]+/g,"").replace(/\s+\d{1,2}\s*$/,"").replace(/\s+/g," ").trim();
+  return String(s||"").replace(/^\s*\d{6,14}\s*/,"").replace(/^\s*\d+[.,]\d{3}\s+/,"").replace(/^\s*\d{1,2}\s+(x\s+)?(?=[A-Za-zÁÉÍÓÚÑ])/i,"").replace(/\s+\$?\d{1,3}(?:,\d{3})*[.,]\d{2}\s*$/,"").replace(/\b\d+(\.\d+)?\s*[x@]\s*\$?\d+[.,]\d{2}\b/i,"").replace(/[$*]+/g,"").replace(/\s+\d{1,2}\s*$/,"").replace(/\s+/g," ").trim();
 }
 // un nombre válido tiene al menos una palabra de 3 letras y no es un código suelto (p. ej. FEARR00708140)
 function esNombre(s){
@@ -1705,21 +1709,26 @@ function parseTicket(texto){
     }
   }
   // artículos: "DESCRIPCION ... 29.90", o descripción y precio en líneas separadas (el OCR a veces lee primero toda la columna izquierda)
-  const items=[]; const cola=[];
+  const items=[]; const cola=[]; let prevSolo=false;
   for(let i=0;i<L.length;i++){
     const l=L[i];
-    if(/\btotal\b/i.test(l)){ cola.length=0; }
+    if(/\btotal\b/i.test(l) && !/precio|cant|art[ií]culo|descrip|importe\s*$/i.test(l)){ cola.length=0; }
     if(NO_ART.test(l) || NO_ART2.test(l)) continue;
     const mm=l.match(precio);
     if(mm){
       let nombre=limpiarNombre(l.slice(0,mm.index));
-      if(!esNombre(nombre)) nombre=cola.shift()||"";
+      // precio suelto justo después de otro precio suelto: es la columna TOTAL del mismo artículo (precio unitario y total)
+      const solo=!esNombre(nombre);
+      if(solo && prevSolo && items.length){ const v=numTk(mm[1].replace(/,(\d{2})$/,".$1")); if(v>0 && (!total||v<=total)) items[items.length-1].m=v; prevSolo=false; continue; }
+      prevSolo=solo;
+      if(!esNombre(nombre)||esDepto(nombre)){ const k=cola.findIndex(conCant); nombre= k>=0? cola.splice(k,1)[0] : (cola.shift()||""); nombre=limpiarNombre(nombre); }
       const v=numTk(mm[1].replace(/,(\d{2})$/,".$1"));
-      if(esNombre(nombre) && v>0 && v<20000 && (!total || v<=total)) items.push({n:nombre.slice(0,60), m:v});
+      if(esNombre(nombre) && !esDepto(nombre) && v>0 && v<20000 && (!total || v<=total)) items.push({n:nombre.slice(0,60), m:v});
     } else {
+      if(!/^\d{6,14}$/.test(l)) prevSolo=false;
       // las primeras líneas son el encabezado (razón social, sucursal, dirección): no son artículos
       const n=limpiarNombre(l);
-      if(i>=4 && esNombre(n) && !(tienda && norm(n).includes(norm(tienda)))) cola.push(n);
+      if(i>=4 && esNombre(n) && !esDepto(n) && !(tienda && norm(n).includes(norm(tienda)))) cola.push(conCant(l)? l : n);
     }
   }
   if(!total) total=Math.round(items.reduce((s,x)=>s+x.m,0)*100)/100;
