@@ -510,6 +510,48 @@ details.mas .f{margin-top:6px}
 .hico .o{animation-duration:1.2s!important;animation-timing-function:cubic-bezier(.3,.7,.3,1)!important}
 .ini-ring .arc{animation:iniRing 1s .15s cubic-bezier(.3,.7,.3,1) both}
 @keyframes iniRing{from{stroke-dashoffset:var(--C)}}
+
+/* ================= SISTEMA DE DISEÑO UNIFICADO ================= */
+/* Tarjeta principal de cada sección: mismo degradado que la portada */
+.card.hero{background:linear-gradient(150deg,#243082 0%,#2f3a8f 45%,#4a58c9 100%);color:#fff;border:0;position:relative;overflow:hidden}
+.card.hero::before{content:"";position:absolute;right:-60px;top:-70px;width:200px;height:200px;border-radius:50%;background:rgb(255 255 255 / .07);pointer-events:none}
+.card.hero::after{content:"";position:absolute;left:-50px;bottom:-80px;width:170px;height:170px;border-radius:50%;background:rgb(159 227 192 / .08);pointer-events:none}
+.card.hero>*{position:relative;z-index:1}
+.card.hero .muted{color:#dfe3ff;opacity:1}
+.card.hero .big{letter-spacing:-.02em;font-weight:800}
+.card.hero .fill{background:linear-gradient(90deg,#9fe3c0,#ffffff)}
+/* Tarjetas: misma esquina, borde y sombra suave */
+.card{border-radius:20px;box-shadow:0 1px 2px rgb(16 24 64 / .04),0 4px 14px rgb(16 24 64 / .04)}
+/* Títulos de tarjeta con icono en mosaico (igual que Inicio) */
+.card h2.dec{display:flex;align-items:center;gap:10px;font-size:15.5px;font-weight:800}
+.card h2.dec .ic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:17px;flex:none;background:var(--primary-soft)}
+.card h2.dec .ic.t1{background:color-mix(in srgb,var(--pos) 14%,transparent)}
+.card h2.dec .ic.t2{background:color-mix(in srgb,#e0a43a 18%,transparent)}
+.card h2.dec .ic.t3{background:color-mix(in srgb,var(--neg) 12%,transparent)}
+.card.hero h2.dec .ic{background:rgb(255 255 255 / .16)}
+/* Barras con degradado y redondeo */
+.fill{background:linear-gradient(90deg,#4cc38a,#1d7a4c)}
+.bar-r .fill{background:linear-gradient(90deg,#6f7de0,#2f3a8f)}
+.fill.warn{background:linear-gradient(90deg,#f0c25a,#c98a1b)!important}
+.fill.over{background:linear-gradient(90deg,#f2766b,#b3362e)!important}
+/* KPIs como mosaicos */
+.kpi{border-radius:16px;padding:12px;box-shadow:0 1px 2px rgb(16 24 64 / .04)}
+.kpi .v{font-size:17px;font-weight:800}
+/* Tablas formales: encabezado azul, renglones alternados */
+.tbl table:not(.vl-tbl){border-collapse:separate;border-spacing:0}
+.tbl table:not(.vl-tbl) th{background:var(--primary);color:var(--primary-ink);padding:9px 6px;font-size:10.5px;letter-spacing:.04em}
+.tbl table:not(.vl-tbl) th:first-child{border-radius:10px 0 0 10px}.tbl table:not(.vl-tbl) th:last-child{border-radius:0 10px 10px 0}
+.tbl table:not(.vl-tbl) td{border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.tbl table:not(.vl-tbl) tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--primary-soft) 45%,transparent)}
+.tbl table:not(.vl-tbl) tr:last-child td{font-weight:800;border-top:2px solid var(--primary);border-bottom:0}
+/* Lista de movimientos: icono de categoría */
+.ico.em{font-size:18px;font-weight:400}
+/* Menú Más: mosaicos de icono */
+.menu .item .ico{width:42px;height:42px;border-radius:13px;font-size:20px;font-weight:400}
+.menu .item .t{font-weight:700}
+/* Navegador de periodo y segmentos */
+.nav{border-radius:16px}
+.seg{border-radius:14px}
 </style>
 </head>
 <body>
@@ -531,19 +573,19 @@ details.mas .f{margin-top:6px}
     </section>
     <section class="page" id="p-mas">
       <div class="card menu" style="padding:2px 12px">
-        <button class="item" data-sub="ingresos"><span class="ico i">+</span><span class="grow"><div class="t">Ingresos</div><div class="s">Nómina, prestaciones, vales, El Tenate y extras: todo el detalle</div></span><span class="arrow">›</span></button>
-        <button class="item" data-sub="ahorro"><span class="ico i">A</span><span class="grow"><div class="t">Ahorros</div><div class="s">Acumulado, meta por catorcena, fondo y total de dinero</div></span><span class="arrow">›</span></button>
+        <button class="item" data-sub="ingresos"><span class="ico i">💼</span><span class="grow"><div class="t">Ingresos</div><div class="s">Nómina, prestaciones, vales, El Tenate y extras: todo el detalle</div></span><span class="arrow">›</span></button>
+        <button class="item" data-sub="ahorro"><span class="ico i">🐷</span><span class="grow"><div class="t">Ahorros</div><div class="s">Acumulado, meta por catorcena, fondo y total de dinero</div></span><span class="arrow">›</span></button>
         <button class="item" data-sub="arqueo"><span class="ico i">💵</span><span class="grow"><div class="t">Arqueo de efectivo</div><div class="s">Cuenta tus billetes y monedas y cuádralos con tu catorcena</div></span><span class="arrow">›</span></button>
-        <button class="item" data-sub="cuentas"><span class="ico">$</span><span class="grow"><div class="t">Tarjetas y cuentas</div><div class="s">Deuda por tarjeta, saldos y pagos</div></span><span class="arrow">›</span></button>
-        <button class="item" data-sub="msi"><span class="ico">MSI</span><span class="grow"><div class="t">Compras a meses</div><div class="s">Liverpool / Fábricas, Palacio, Sears y tarjetas</div></span><span class="arrow">›</span></button>
-        <button class="item" data-sub="inv"><span class="ico v">%</span><span class="grow"><div class="t">Inversiones</div><div class="s">SOFIPOs, bancos y efectivo</div></span><span class="arrow">›</span></button>
-        <button class="item" data-sub="vales"><span class="ico i">V</span><span class="grow"><div class="t">Vales de despensa</div><div class="s">Depósitos, gasto y saldo</div></span><span class="arrow">›</span></button>
-        <button class="item" data-sub="pres"><span class="ico">P</span><span class="grow"><div class="t">Presupuesto</div><div class="s">Monto mensual por categoría</div></span><span class="arrow">›</span></button>
+        <button class="item" data-sub="cuentas"><span class="ico">💳</span><span class="grow"><div class="t">Tarjetas y cuentas</div><div class="s">Deuda por tarjeta, saldos y pagos</div></span><span class="arrow">›</span></button>
+        <button class="item" data-sub="msi"><span class="ico">📆</span><span class="grow"><div class="t">Compras a meses</div><div class="s">Liverpool / Fábricas, Palacio, Sears y tarjetas</div></span><span class="arrow">›</span></button>
+        <button class="item" data-sub="inv"><span class="ico i">📈</span><span class="grow"><div class="t">Inversiones</div><div class="s">SOFIPOs, bancos y efectivo</div></span><span class="arrow">›</span></button>
+        <button class="item" data-sub="vales"><span class="ico i">🧺</span><span class="grow"><div class="t">Vales de despensa</div><div class="s">Depósitos, gasto y saldo</div></span><span class="arrow">›</span></button>
+        <button class="item" data-sub="pres"><span class="ico v">🎯</span><span class="grow"><div class="t">Presupuesto</div><div class="s">Monto mensual por categoría</div></span><span class="arrow">›</span></button>
       </div>
       <div class="card menu" style="padding:2px 12px">
-        <button class="item" id="reload"><span class="ico">↻</span><span class="grow"><div class="t">Actualizar datos</div><div class="s" id="lastSync">Vuelve a leer la hoja de Google</div></span></button>
+        <button class="item" id="reload"><span class="ico">🔄</span><span class="grow"><div class="t">Actualizar datos</div><div class="s" id="lastSync">Vuelve a leer la hoja de Google</div></span></button>
         <button class="item hide" id="olvidar"><span class="ico">🔑</span><span class="grow"><div class="t">Olvidar clave guardada</div><div class="s">La app te la pedirá la próxima vez</div></span></button>
-        <a class="item" id="sheetLink" href="#" target="_blank" rel="noopener" style="color:inherit;text-decoration:none"><span class="ico">⊞</span><span class="grow"><div class="t">Abrir la hoja de Google</div><div class="s">Catálogos, saldos iniciales y respaldo</div></span><span class="arrow">↗</span></a>
+        <a class="item" id="sheetLink" href="#" target="_blank" rel="noopener" style="color:inherit;text-decoration:none"><span class="ico i">📗</span><span class="grow"><div class="t">Abrir la hoja de Google</div><div class="s">Catálogos, saldos iniciales y respaldo</div></span><span class="arrow">↗</span></a>
       </div>
       <p class="small muted" id="about"></p>
     </section>
@@ -938,7 +980,10 @@ const catLabel = c => "Catorcena "+(+c.Num)+" · "+sDate(c.Inicio)+" – "+sDate
 const perKey = p => String(p.Periodo)==="BASE" ? "BASE" : String(p.Periodo).slice(0,7);
 function presupuesto(ym){ const o={}; S.d.presupuesto.forEach(p=>{ if(perKey(p)==="BASE") o[p.Categoria]=+p.Monto; }); S.d.presupuesto.forEach(p=>{ if(perKey(p)===ym) o[p.Categoria]=+p.Monto; }); return o; }
 function group(arr,key){ const o={}; arr.forEach(m=>{ const k=typeof key==="function"?key(m):(m[key]||"—"); o[k]=(o[k]||0)+m.Monto; }); return Object.entries(o).sort((a,b)=>b[1]-a[1]); }
-function icon(m){ const t=m.Tipo; const c = t==="Gasto"?"g": t==="Ingreso"?"i": t==="Inversión"?"v":""; const l=(t==="Gasto"? (m.Categoria||"?") : t==="Ingreso"?(m.Fuente||"Ingreso") : t).slice(0,2).toUpperCase(); return `<span class="ico ${c}">${esc(l)}</span>`; }
+function icon(m){ const t=m.Tipo; const c = t==="Gasto"?"g": t==="Ingreso"?"i": t==="Inversión"?"v":"";
+  const e = t==="Gasto"? ddIco(m.Categoria||m.Descripcion||"") : t==="Ingreso"? (/n[oó]mina/i.test(m.Fuente)?"💼": /vale/i.test(m.Fuente)?"🧺": /tenate/i.test(m.Fuente)?"🚚": /proyecto/i.test(m.Fuente)?"🧩": /prestaci|fondo|bono|aguinaldo|utilidad/i.test(m.Fuente)?"🎁":"💰")
+    : t==="Pago tarjeta"? "💳" : t==="Transferencia"? "🔁" : t==="Inversión"? (m.MovInversion==="Rendimiento"?"✨": m.MovInversion==="Retiro"?"⬇️":"📈") : "📌";
+  return `<span class="ico em ${c}">${e}</span>`; }
 function itemHTML(m, conFecha){
   const sub = m.Tipo==="Gasto" ? [m.Categoria, m.Vehiculo, m.Cuenta].filter(Boolean).join(" · ")
     : m.Tipo==="Ingreso" ? [m.Fuente, m.CuentaDestino].filter(Boolean).join(" → ")
@@ -1567,7 +1612,7 @@ function renderSub(){
     const cats=[...new Set([...Object.keys(S.cats),...Object.keys(real)])].sort((a,b)=>(real[b]||0)-(real[a]||0));
     const TB=Object.values(bud).reduce((a,v)=>a+v,0), TR=sum(gas);
     el.innerHTML = `<div class="nav"><button id="prPrev" aria-label="Mes anterior">‹</button><b>${mLabel(ym)}</b><button id="prNext" aria-label="Mes siguiente">›</button></div>
-      <div class="card"><div class="between"><span>Gastado ${mx(TR)}</span><span class="muted priv">de ${mx(TB)}</span></div><div class="track"><div class="fill ${TR>TB?"over":TR>TB*.85?"warn":""}" style="width:${TB?Math.min(100,TR/TB*100):0}%"></div></div>
+      <div class="card hero"><div class="small muted">🎯 Gastado en ${mLabel(ym)}</div><div class="big priv">${mx(TR)}</div><div class="between small"><span class="muted priv">de ${mx(TB)} de presupuesto</span><b>${TB? Math.round(TR/TB*100):0}%</b></div><div class="track"><div class="fill ${TR>TB?"over":TR>TB*.85?"warn":""}" style="width:${TB?Math.min(100,TR/TB*100):0}%"></div></div>
         <label class="small muted"><input type="checkbox" id="prMes"> Cambiar solo ${mLabel(ym)} (si no, cambia el monto base de todos los meses)</label></div>
       <div class="card">${cats.map(c=>{ const b=bud[c]||0, r=real[c]||0, p=b?r/b:0;
         return `<div style="display:flex;flex-direction:column;gap:4px;padding:6px 0;border-bottom:1px solid var(--line)"><div class="row"><span class="grow"><b>${esc(c)}</b><div class="small ${b&&r>b?"neg":"muted"}">Real ${mx(r)}${b? " · "+Math.round(p*100)+"%":""}</div></span>
@@ -2712,6 +2757,28 @@ syncBadge();
 pantallaEntrar(claveGuardada()? "Toca Entrar para ver tus finanzas." : null);
 
 try{ if(!S.sub) setTitle(S.view||"inicio", TITLES[S.view||"inicio"]); }catch(e){}
+
+/* ===== Títulos de tarjeta con icono (se aplica solo a toda la app) ===== */
+const H2_ICO=[[/ingreso y ahorro/i,"💰",1],[/por categor/i,"🏷️",0],[/en qu[eé] se fue/i,"🔥",3],[/tendencia/i,"📈",0],[/filtros/i,"🎛️",0],[/nivel de detalle/i,"🧩",0],
+ [/con qu[eé] se pag/i,"💳",0],[/mes a mes/i,"📊",0],[/categor[ií]as vs/i,"⚖️",2],[/cirrus|taos|veh[ií]culo|auto/i,"🚗",0],[/resumen hoy/i,"🧾",2],[/tarjetas de cr[eé]dito/i,"💳",0],
+ [/tarjetas de tienda|departament/i,"🛍️",3],[/d[eé]bito y efectivo/i,"💵",1],[/^ahorro$/i,"🐷",1],[/compras activas|a meses/i,"📆",0],[/meta de ahorro/i,"🎯",2],[/total de dinero/i,"💰",1],
+ [/fondo/i,"🛟",1],[/de d[oó]nde vino/i,"🧭",1],[/conceptos que m[aá]s pesan/i,"🏷️",2],[/todas las compras/i,"🧾",0],[/total del filtro/i,"🧮",0],[/ahorro por/i,"🐷",1],
+ [/plan|presupuesto/i,"🎯",2],[/inversi/i,"📈",1],[/vales/i,"🧺",1],[/tenate/i,"🚚",2],[/proyecto/i,"🧩",0],[/prestaci/i,"🎁",1],[/distribu/i,"📊",0],[/catorcena/i,"📅",0],
+ [/movimiento/i,"🕘",0],[/semana|d[ií]a/i,"📅",0],[/tienda/i,"🏪",0],[/art[ií]culo/i,"🧾",2],[/meses|mes/i,"🗓️",0],[/a[nñ]o/i,"📆",0]];
+const EMO_RE=/^(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic})*️?)\s*/u;
+function decorarTitulos(root){
+  (root||document).querySelectorAll(".card h2:not(.dec)").forEach(h=>{
+    if(h.closest(".ini-h,.aq-h,.vl-head") || h.parentElement.querySelector(":scope > .ic")) { h.classList.add("dec-skip"); return; }
+    let ic="", tono=0;
+    const first=h.firstChild;
+    if(first && first.nodeType===3){ const m=first.nodeValue.match(EMO_RE); if(m){ ic=m[1]; first.nodeValue=first.nodeValue.slice(m[0].length); } }
+    if(!ic){ if(/^\s*Σ/.test(h.textContent)) { ic="🧮"; if(first&&first.nodeType===3) first.nodeValue=first.nodeValue.replace(/^\s*Σ\s*/,""); }
+      else { const t=h.textContent.trim(); const r=H2_ICO.find(([re])=>re.test(t)); ic=r? r[1] : "📌"; tono=r? r[2] : 0; } }
+    else { const r=H2_ICO.find(([re])=>re.test(h.textContent)); tono=r? r[2] : 0; }
+    h.classList.add("dec"); h.insertAdjacentHTML("afterbegin",`<span class="ic${tono? " t"+tono:""}" aria-hidden="true">${ic}</span>`);
+  });
+}
+try{ const mo=new MutationObserver(ms=>{ for(const m of ms) if(m.addedNodes.length){ decorarTitulos(); break; } }); mo.observe(document.body,{childList:true,subtree:true}); decorarTitulos(); }catch(e){}
 </script>
 </body>
 </html>
