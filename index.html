@@ -320,7 +320,7 @@ details.mas .f{margin-top:6px}
 .hico .sl{animation:hSlide 1.8s ease-in-out infinite}.hico .sl2{animation-delay:.25s}.hico .sl3{animation-delay:.5s}
 @keyframes hPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.8)}}
 @keyframes hBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
-@keyframes hDrop{0%{transform:translateY(-7px);opacity:0}35%{opacity:1}70%,100%{transform:translateY(3px);opacity:0}}
+@keyframes hDrop{0%{transform:translateY(-8px);opacity:0}60%,100%{transform:none;opacity:1}}
 @keyframes hSwing{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
 @keyframes hShine{0%,60%{transform:translateX(-14px)}100%{transform:translateX(16px)}}
 @keyframes hSlide{0%,100%{transform:translateX(0);opacity:1}50%{transform:translateX(2.5px);opacity:.6}}
@@ -435,6 +435,81 @@ details.mas .f{margin-top:6px}
 .vl-acts button span{font-size:22px}
 .vl-acts .a1{background:var(--primary-soft);color:var(--primary)}.vl-acts .a2{background:var(--primary);color:var(--primary-ink)}
 @media (prefers-reduced-motion:reduce){.iv-logo::after,.vl-ico{animation:none}}
+
+/* tabla de vales formal */
+.vl-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+.vl-tbl th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--primary-ink);background:var(--primary);padding:9px 8px;text-align:right;font-weight:700}
+.vl-tbl th:first-child{text-align:left;border-radius:10px 0 0 10px}.vl-tbl th:last-child{border-radius:0 10px 10px 0}
+.vl-tbl td{padding:9px 8px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.vl-tbl td:first-child{text-align:left;font-weight:700;white-space:nowrap}
+.vl-tbl td:first-child small{font-weight:500;color:var(--muted);margin-left:3px}
+.vl-tbl tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--primary-soft) 45%,transparent)}
+.vl-tbl tr.act td{background:color-mix(in srgb,#27a86a 12%,transparent)!important}
+.vl-tbl .sal{font-weight:800}
+.vl-tbl .pill{display:inline-block;min-width:44px;font-weight:700;border-radius:99px;padding:2px 7px;font-size:12px}
+.vl-tbl .pill.pos{background:color-mix(in srgb,var(--pos) 13%,transparent);color:var(--pos)}.vl-tbl .pill.neg{background:color-mix(in srgb,var(--neg) 13%,transparent);color:var(--neg)}
+.vl-tbl tfoot td{border-bottom:0;font-weight:800;border-top:2px solid var(--primary);background:transparent}
+/* inversiones plegables */
+.iv-card{gap:8px;cursor:pointer}
+.iv-more{display:none;flex-direction:column;gap:10px;padding-top:4px;border-top:1px dashed var(--line);animation:spUp .3s ease both}
+.iv-card.open .iv-more{display:flex}
+.iv-hint{font-size:12px;color:var(--primary);font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.iv-hint i{font-style:normal;display:inline-block;transition:transform .25s}
+.iv-card.open .iv-hint i{transform:rotate(180deg)}
+.iv-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ===== Inicio tipo portada (iconos estáticos) ===== */
+.ini-hero{background:linear-gradient(150deg,#243082 0%,#2f3a8f 45%,#4a58c9 100%);color:#fff;border:0;position:relative;overflow:hidden;gap:14px}
+.ini-hero::before{content:"";position:absolute;right:-60px;top:-70px;width:220px;height:220px;border-radius:50%;background:rgb(255 255 255 / .07)}
+.ini-hero::after{content:"";position:absolute;left:-50px;bottom:-80px;width:180px;height:180px;border-radius:50%;background:rgb(159 227 192 / .08)}
+.ini-hero>*{position:relative;z-index:1}
+.ini-hero .muted{color:#dfe3ff}
+.ini-hola{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.ini-fecha{font-size:13px;color:#dfe3ff}
+.ini-chips{display:flex;gap:6px;flex-wrap:wrap}
+.ini-chip{display:inline-flex;align-items:center;gap:5px;background:rgb(255 255 255 / .14);border-radius:99px;padding:5px 11px;font-size:12.5px;font-weight:600}
+.ini-chip.warn{background:#ffd36e;color:#3d2c00}.ini-chip.bad{background:#ffb4ab;color:#5c1410}.ini-chip.ok{background:#9fe3c0;color:#0f3d27}
+.ini-main{display:flex;align-items:center;gap:16px}
+.ini-ring{width:112px;height:112px;flex:none;position:relative}
+.ini-ring svg{width:112px;height:112px;transform:rotate(-90deg)}
+.ini-ring .c{position:absolute;inset:0;display:grid;place-items:center;text-align:center;line-height:1.1}
+.ini-ring .c b{font-size:22px;font-weight:800}.ini-ring .c small{font-size:10.5px;color:#dfe3ff}
+.ini-q .l{font-size:12.5px;color:#dfe3ff}
+.ini-q .big{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.ini-q .s{font-size:12.5px;color:#dfe3ff;margin-top:2px}
+.ini-kp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ini-k{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:6px;text-align:left}
+.ini-k .ic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:18px}
+.ini-k .l{font-size:11.5px;color:var(--muted)}
+.ini-k .v{font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ic.g{background:color-mix(in srgb,var(--pos) 14%,transparent)}.ic.r{background:color-mix(in srgb,var(--neg) 13%,transparent)}.ic.b{background:var(--primary-soft)}.ic.y{background:color-mix(in srgb,#e0a43a 18%,transparent)}
+.ini-h{display:flex;align-items:center;gap:10px}
+.ini-h .ic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:17px;flex:none}
+.ini-h h2{margin:0;flex:1}
+.ini-rt{display:flex;flex-direction:column;gap:2px}
+.ini-rt .r{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.ini-rt .r:last-child{border-bottom:0}
+.ini-pill{font-weight:700;font-size:12px;border-radius:99px;padding:2px 9px;white-space:nowrap}
+.ini-pill.mas{background:color-mix(in srgb,var(--neg) 13%,transparent);color:var(--neg)}
+.ini-pill.menos{background:color-mix(in srgb,var(--pos) 13%,transparent);color:var(--pos)}
+.ini-pill.igual{background:var(--bg);color:var(--muted)}
+.ini-dia{display:flex;align-items:center;gap:12px;padding:10px;border-radius:14px;background:var(--primary-soft)}
+.ini-dia b{font-size:20px;color:var(--primary)}
+.ini-ah{display:flex;flex-direction:column;gap:2px}
+.ini-ah .r{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
+.ini-ah .r:last-of-type{border-bottom:0}
+.ini-ah .r .ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-size:15px;flex:none}
+.ini-ah .r span.t{flex:1;font-size:13px;color:var(--muted)}
+.ini-acc{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ini-acc button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 2px;border-radius:14px;background:var(--bg);font-size:11.5px;font-weight:700;color:var(--ink)}
+.ini-acc .ic{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:20px;background:var(--surface);box-shadow:0 1px 3px rgb(0 0 0 / .08)}
+
+/* Criterio de movimiento: los iconos se animan una sola vez al entrar a cada sección y luego quedan quietos */
+.hico *, .bill::after, .iv-logo::after, .vl-ico, .aq-res .e{animation-iteration-count:1!important}
+.hico .g{animation-direction:normal!important;animation-duration:.9s!important}
+.hico .o{animation-duration:1.2s!important;animation-timing-function:cubic-bezier(.3,.7,.3,1)!important}
+.ini-ring .arc{animation:iniRing 1s .15s cubic-bezier(.3,.7,.3,1) both}
+@keyframes iniRing{from{stroke-dashoffset:var(--C)}}
 </style>
 </head>
 <body>
@@ -951,35 +1026,56 @@ function saldosInversion(){
 }
 
 /* ================= Inicio ================= */
+function saludo(){ const h=new Date().getHours(); return h<12? "Buenos días" : h<19? "Buenas tardes" : "Buenas noches"; }
+function fechaLarga(f){ const d=new Date(f+"T12:00"); const t=d.toLocaleDateString("es-MX",{weekday:"long", day:"numeric", month:"long"}); return t.charAt(0).toUpperCase()+t.slice(1); }
+function ritmoIni(c){
+  const real=porDia(c.Inicio,c.Fin); if(!real) return "";
+  const L=catList(), i=L.findIndex(k=>k.ID===c.ID), ant=i>0? L[i-1] : null;
+  const y=S.hoy.slice(0,4), ym=S.hoy.slice(0,7), pm=addMonth(ym,-1);
+  const comps=[["📆","Promedio "+y, porDia(y+"-01-01", S.hoy)],["⏮️","Catorcena anterior", ant? porDia(ant.Inicio, ant.Fin) : null],
+    ["🗓️","Mes actual ("+MES[+ym.slice(5)-1]+")", porDia(ym+"-01", finMes(ym))],["📅","Mes anterior ("+MES[+pm.slice(5)-1]+")", porDia(pm+"-01", finMes(pm))]].filter(k=>k[2]);
+  return `<div class="card"><div class="ini-h"><span class="ic b">⏱️</span><h2>Ritmo de gasto</h2></div>
+    <div class="ini-dia"><span style="font-size:24px">🧾</span><span class="grow" style="flex:1"><div class="small muted">Gastas en promedio (${real.d} día${real.d!==1?"s":""})</div><b>${mx(real.v)} por día</b></span></div>
+    <div class="ini-rt">${comps.map(([e,l,k])=>{ const d=k.v? (real.v-k.v)/k.v : 0, cl=d>0.005?"mas":d<-0.005?"menos":"igual";
+      return `<div class="r"><span>${e} <span class="muted">vs ${esc(l)}</span> · <b>${mx(k.v)}</b>/día</span><span class="ini-pill ${cl}">${cl==="mas"?"▲":cl==="menos"?"▼":"="} ${Math.abs(Math.round(d*100))}% ${cl==="igual"?"":cl==="mas"?"más":"menos"}</span></div>`; }).join("")}</div></div>`;
+}
 function rInicio(){
   const h=S.hoy, c=catorcenaActual(h);
   let hero="", kpis="";
+  const hola=`<div><div class="ini-hola">👋 ${saludo()}, Ruben</div><div class="ini-fecha">${esc(fechaLarga(h))}</div></div>`;
   if(c){
-    const x=catRes(c), p=x.P? x.G/x.P : 0, dias=Math.max(0,daysBetween(h,c.Fin)+1);
-    hero=`<div class="card hero"><div class="between"><span class="small muted">${esc(catLabel(c))}</span><span class="small muted" style="white-space:nowrap">${dias===1? "Último día" : "Quedan "+dias+" días"}</span></div>
-      <div><div class="small muted">${x.queda<0?"Te pasaste del presupuesto":"Queda del presupuesto"}</div><div class="big priv" style="${x.queda<0?"color:#ff9a90":""}">${mx(x.queda)}</div></div>
-      <div class="track"><div class="fill" style="width:${Math.min(100,p*100)}%"></div></div>
-      <div class="between small"><span>Gastado ${mx(x.Gord)} de <span class="priv">${mx(x.P)}</span>${x.GF? " (+"+mx(x.GF)+" del fondo)":""}</span><span class="priv">${dias>0&&x.queda>0? "Puedes "+mx(x.queda/dias)+"/día" : x.queda<=0? "Presupuesto agotado" : ""}</span></div>
-      ${presDesglose(c,x)}
-      ${x.AF? `<div class="small" style="opacity:.85">Incluye ${mx(x.AF)} de colchón del fondo</div>`:""}
-      ${x.queda<0? (()=>{ const f=ahorrosAnio(c.Anio).fondo; const falta=Math.ceil(-x.queda); return f>=falta? `<button class="btn sm" id="cubrir" style="background:#fff;color:#2f3a8f;align-self:flex-start">Cubrir <span class="priv">${mx(falta)}</span> con el fondo <span class="priv">(disponible ${mx(f)})</span></button>` : `<div class="small" style="opacity:.85">El fondo no alcanza para cubrir la diferencia (disponible <span class="priv">${mx(f)}</span>).</div>`; })() : ""}
-      ${ritmoHTML(c,x)}</div>`;
-    kpis=`<div class="kpis"><div class="kpi" id="goIng" style="cursor:pointer"><div class="l">Ingreso catorcena ›</div><div class="v pos priv">${mx(x.N)}</div></div>
-      <div class="kpi"><div class="l">Gastado</div><div class="v neg">${mx(x.G)}</div></div>
-      <div class="kpi"><div class="l">Ahorro apartado</div><div class="v priv">${x.A==null? "—" : mx(x.A)}</div></div></div>
-      ${(()=>{ const mc=metaCat(c), ay=ahorrosAnio(c.Anio), tot=totalDinero();
-        return `<button class="card priv" id="goAhorro" style="text-align:left;gap:6px">
-          <div class="between"><h2>Ahorro ${c.Anio}</h2><span class="small muted">Ver detalle ›</span></div>
-          <div class="between"><span class="muted small">Acumulado del año</span><b class="mid">${mx(ay.total)}</b></div>
-          <div class="between"><span class="muted small">Nueva meta por catorcena (${mc.rest} restantes)</span><b>${mx(mc.nuevo)}</b></div>
-          <div class="between"><span class="muted small">Total de dinero</span><b>${mx(tot.T)}</b></div>
-          <div class="small muted">${x.queda>0? `<span class="priv">Sobrante del presupuesto ${mx(x.queda)}</span> · `:""}${x.E? "Extras "+mx(x.E)+" · ":""}${x.PR? "Prestaciones al fondo "+mx(x.PR):""}</div></button>`; })()}`;
-  }
+    const x=catRes(c), p=x.P? x.Gord/x.P : 0, dias=Math.max(0,daysBetween(h,c.Fin)+1), pct=Math.round(p*100);
+    const R=48, C=2*Math.PI*R, col= x.queda<0? "#ffb4ab" : p>.85? "#ffd36e" : "#9fe3c0";
+    const est = x.queda<0? "" : x.queda===0? `<span class="ini-chip warn">🔒 Presupuesto agotado</span>` : `<span class="ini-chip ok">✅ Puedes ${mx(x.queda/Math.max(1,dias))}/día</span>`;
+    hero=`<div class="card ini-hero">${hola}
+      <div class="ini-chips"><span class="ini-chip">📅 ${esc(catLabel(c))}</span><span class="ini-chip">${dias===1? "⏰ Último día" : "⏳ Quedan "+dias+" días"}</span></div>
+      <div class="ini-main"><div class="ini-ring"><svg viewBox="0 0 112 112"><circle cx="56" cy="56" r="${R}" fill="none" stroke="rgb(255 255 255 / .16)" stroke-width="11"/><circle cx="56" cy="56" r="${R}" fill="none" stroke="${col}" stroke-width="11" stroke-linecap="round" class="arc" style="--C:${C}" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-Math.min(1,p))}"/></svg>
+          <div class="c"><div><b>${pct}%</b><br><small>gastado</small></div></div></div>
+        <div class="ini-q"><div class="l">${x.queda<0?"Te pasaste del presupuesto":"💰 Queda del presupuesto"}</div><div class="big priv" style="${x.queda<0?"color:#ffb4ab":""}">${mx(x.queda)}</div>
+          <div class="s">Gastado ${mx(x.Gord)} de <span class="priv">${mx(x.P)}</span>${x.GF? " (+"+mx(x.GF)+" del fondo)":""}</div></div></div>
+      <div class="ini-chips priv">${est}${x.AF? `<span class="ini-chip">🛟 Incluye ${mx(x.AF)} del fondo</span>`:""}</div>
+      ${x.queda<0? (()=>{ const f=ahorrosAnio(c.Anio).fondo; const falta=Math.ceil(-x.queda); return f>=falta? `<button class="btn sm" id="cubrir" style="background:#fff;color:#2f3a8f;align-self:flex-start">🛟 Cubrir <span class="priv">${mx(falta)}</span> con el fondo <span class="priv">(disponible ${mx(f)})</span></button>` : `<div class="small" style="opacity:.85">El fondo no alcanza para cubrir la diferencia (disponible <span class="priv">${mx(f)}</span>).</div>`; })() : ""}</div>`;
+    kpis=`<div class="ini-kp"><button class="ini-k" id="goIng"><span class="ic g">💼</span><span class="l">Ingreso catorcena ›</span><span class="v pos priv">${mx(x.N)}</span></button>
+      <div class="ini-k"><span class="ic r">🛒</span><span class="l">Gastado</span><span class="v neg">${mx(x.G)}</span></div>
+      <div class="ini-k"><span class="ic b">🐷</span><span class="l">Ahorro apartado</span><span class="v priv">${x.A==null? "—" : mx(x.A)}</span></div></div>
+      <div class="card"><div class="ini-h"><span class="ic y">📋</span><h2>Presupuesto de la catorcena</h2></div>${presDesglose(c,x)}</div>
+      ${ritmoIni(c)}
+      ${(()=>{ const mc=metaCat(c), ay=ahorrosAnio(c.Anio), tot=totalDinero(), M=mc.M;
+        return `<button class="card priv" id="goAhorro" style="text-align:left;gap:8px"><div class="ini-h"><span class="ic g">🐷</span><h2>Ahorro ${c.Anio}</h2><span class="small muted">Ver detalle ›</span></div>
+          <div class="ini-ah"><div class="r"><span class="ic y">🏆</span><span class="t">Acumulado del año</span><b class="mid">${mx(ay.total)}</b></div>
+          <div class="r"><span class="ic b">🎯</span><span class="t">Nueva meta por catorcena (${mc.rest} restantes)</span><b>${mx(mc.nuevo)}</b></div>
+          <div class="r"><span class="ic g">💰</span><span class="t">Total de dinero</span><b>${mx(tot.T)}</b></div></div>
+          ${M.total? `<div class="track"><div class="fill" style="width:${Math.min(100,ay.total/M.total*100)}%"></div></div><div class="between small muted"><span>Meta ${mx(M.total)}</span><span>${ay.total>=M.total? "🎉 ¡Meta cumplida!" : "Faltan "+mx(M.total-ay.total)}</span></div>`:""}
+          ${x.queda>0||x.E||x.PR? `<div class="small muted">${[x.queda>0? "Sobrante del presupuesto "+mx(x.queda):"", x.E? "Extras "+mx(x.E):"", x.PR? "Prestaciones al fondo "+mx(x.PR):""].filter(Boolean).join(" · ")}</div>`:""}</button>`; })()}`;
+  } else hero=`<div class="card ini-hero">${hola}</div>`;
+  const acc=[["ingresos","💼","Ingresos"],["cuentas","💳","Tarjetas"],["arqueo","💵","Arqueo"],["inv","📈","Inversión"],["vales","🧺","Vales"],["ahorro","🐷","Ahorros"],["msi","📆","A meses"],["pres","🎯","Presupuesto"]];
   const quick = Object.entries(S.freq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k])=>S.mem[k]);
   const last = S.movs.slice(0,8);
   $("#p-inicio").innerHTML = hero + kpis + `
-    <div class="card"><h2>⚡ Registro rápido</h2><div class="small muted" style="margin-top:-6px">Toca uno y se llena todo.</div><div class="chips">${quick.map(m=>`<button class="chip" style="display:inline-flex;align-items:center;gap:6px" data-q="${esc(norm(m.Descripcion))}"><span>${ddIco(m.Categoria||m.Descripcion)}</span>${esc(m.Descripcion)}</button>`).join("")||'<span class="muted small">Aparecerán tus gastos más frecuentes.</span>'}</div></div>
-    <div class="card" style="padding:12px 12px 4px"><div class="between"><h2>Últimos movimientos</h2><button class="btn sm" id="verTodos">Ver todos</button></div><div class="list">${last.map(itemHTML).join("")||'<div class="empty">Sin movimientos</div>'}</div></div>`;
+    <div class="card"><div class="ini-h"><span class="ic b">🧭</span><h2>Accesos</h2></div><div class="ini-acc">${acc.map(([k,e,l])=>`<button data-acc="${k}"><span class="ic">${e}</span>${l}</button>`).join("")}</div></div>
+    <div class="card"><div class="ini-h"><span class="ic y">⚡</span><h2>Registro rápido</h2></div><div class="small muted" style="margin-top:-4px">Toca uno y se llena todo.</div><div class="chips">${quick.map(m=>`<button class="chip" style="display:inline-flex;align-items:center;gap:6px" data-q="${esc(norm(m.Descripcion))}"><span>${ddIco(m.Categoria||m.Descripcion)}</span>${esc(m.Descripcion)}</button>`).join("")||'<span class="muted small">Aparecerán tus gastos más frecuentes.</span>'}</div></div>
+    <div class="card" style="padding:12px 12px 4px"><div class="ini-h"><span class="ic b">🕘</span><h2>Últimos movimientos</h2><button class="btn sm" id="verTodos">Ver todos</button></div><div class="list">${last.map(itemHTML).join("")||'<div class="empty">Sin movimientos</div>'}</div></div>`;
+  $$("[data-acc]",$("#p-inicio")).forEach(b=>b.onclick=()=>openSub(b.dataset.acc));
   $$("[data-q]",$("#p-inicio")).forEach(b=>b.onclick=()=>{ const m=S.mem[b.dataset.q]; openForm({Tipo:"Gasto", Descripcion:m.Descripcion, Categoria:m.Categoria, Subcategoria:m.Subcategoria, Vehiculo:m.Vehiculo, Cuenta:m.Cuenta}); });
   $("#verTodos").onclick=()=>go("movs");
   const ga=$("#goAhorro"); if(ga) ga.onclick=()=>openSub("ahorro");
@@ -1412,16 +1508,18 @@ function renderSub(){
         <div class="iv-kpis"><div><small>✨ Rendimientos ${y}</small><b>${mx2(RY)}</b></div><div><small>✨ Este mes</small><b>${mx2(RM)}</b></div></div></div>
       ${rows.map((r,i)=>{ const n=r.i.Instrumento, [c1,c2]=insCol(n,i), dias=r.foto? daysBetween(r.foto.Fecha,S.hoy) : null, ry=sum(S.movs.filter(m=>rend(m)&&m.Instrumento===n));
         return `<div class="card iv-card priv" style="--c1:${c1};--c2:${c2};animation-delay:${Math.min(i,6)*.05}s">
-          <button type="button" class="iv-top" data-insact="${esc(n)}" style="width:100%;text-align:left"><span class="iv-logo">${n==="Efectivo guardado"? "💵" : esc(ini(n))}</span>
-            <span class="grow" style="flex:1;min-width:0"><div class="iv-name">${esc(n)}<span class="iv-tag">${esc(r.i.Tipo)}${+r.i.TasaAnual? " · "+r.i.TasaAnual+"%":""}</span></div><div class="small" style="color:var(--primary);font-weight:600">Ver movimientos ›</div></span>
-            <span><div class="iv-sal">${mx2(r.saldo)}</div><div class="iv-pct">${T? (r.saldo/T*100).toFixed(1):0}% del total</div></span></button>
+          <div class="iv-top" data-ivtog><span class="iv-logo">${n==="Efectivo guardado"? "💵" : esc(ini(n))}</span>
+            <span class="grow" style="flex:1;min-width:0"><div class="iv-name">${esc(n)}</div><div><span class="iv-tag" style="margin-left:0">${esc(r.i.Tipo)}${+r.i.TasaAnual? " · "+r.i.TasaAnual+"%":""}</span> <span class="iv-hint">Opciones <i>⌄</i></span></div></span>
+            <span><div class="iv-sal">${mx2(r.saldo)}</div><div class="iv-pct">${T? (r.saldo/T*100).toFixed(1):0}% del total</div></span></div>
           <div class="iv-track"><i style="width:${T? Math.max(1,r.saldo/T*100):0}%"></i></div>
-          <div class="iv-chips">${r.foto? `<span class="iv-chip ${dias>30?"warn":""}">🏦 Saldo real ${sDate(r.foto.Fecha)}: ${mx2(r.foto.Saldo)}${dias>30? " · hace "+dias+" días":""}</span>`:`<span class="iv-chip warn">Sin saldo real capturado</span>`}
+          <div class="iv-more"><div class="iv-chips">${r.foto? `<span class="iv-chip ${dias>30?"warn":""}">🏦 Saldo real ${sDate(r.foto.Fecha)}: ${mx2(r.foto.Saldo)}${dias>30? " · hace "+dias+" días":""}</span>`:`<span class="iv-chip warn">Sin saldo real capturado</span>`}
             ${r.flujo? `<span class="iv-chip">↕️ Después: ${r.flujo>0?"+":""}${mx2(r.flujo)}</span>`:""}${ry? `<span class="iv-chip pos">✨ +${mx2(ry)} en ${y}</span>`:""}</div>
           <div class="iv-acts"><button data-iv="Aportación" data-n="${esc(n)}"><span>⬆️</span>Aportar</button><button data-iv="Rendimiento" data-n="${esc(n)}"><span>✨</span>Rendimiento</button><button data-iv="Retiro" data-n="${esc(n)}"><span>⬇️</span>Retirar</button><button data-ivupd="${esc(n)}"><span>🔄</span>Saldo real</button></div>
-          <div class="iv-upd hide" data-updrow="${esc(n)}"><input class="search" style="padding:8px 10px" type="number" inputmode="decimal" placeholder="Saldo que ves hoy en ${esc(n)}" data-sal="${esc(n)}" aria-label="Saldo real ${esc(n)}"><button class="btn sm primary" data-salbtn="${esc(n)}">Guardar</button></div></div>`; }).join("")}
+          <div class="iv-upd hide" data-updrow="${esc(n)}"><input class="search" style="padding:8px 10px" type="number" inputmode="decimal" placeholder="Saldo que ves hoy en ${esc(n)}" data-sal="${esc(n)}" aria-label="Saldo real ${esc(n)}"><button class="btn sm primary" data-salbtn="${esc(n)}">Guardar</button></div>
+          <button class="btn sm" data-insact="${esc(n)}" style="align-self:flex-start">📋 Ver últimos movimientos</button></div></div>`; }).join("")}
       ${cero.length? `<div class="card"><h2>Sin saldo</h2><div class="iv-zero">${cero.map(r=>`<button class="chip" data-insact="${esc(r.i.Instrumento)}">${esc(r.i.Instrumento)}</button>`).join("")}</div><div class="small muted" style="margin-top:6px">Toca uno para registrar una aportación.</div></div>`:""}`;
-    $$("[data-insact]",el).forEach(b=>b.onclick=()=>insAcciones(b.dataset.insact));
+    $$("[data-insact]",el).forEach(b=>b.onclick=e=>{ e.stopPropagation(); insAcciones(b.dataset.insact); });
+    $$(".iv-card",el).forEach(cd=>cd.onclick=e=>{ if(e.target.closest(".iv-more")) return; const o=!cd.classList.contains("open"); $$(".iv-card.open",el).forEach(x=>x.classList.remove("open")); if(o) cd.classList.add("open"); });
     $$("[data-iv]",el).forEach(b=>b.onclick=()=>openForm({Tipo:"Inversión",Instrumento:b.dataset.n,MovInversion:b.dataset.iv},{ins:b.dataset.n}));
     $$("[data-ivupd]",el).forEach(b=>b.onclick=()=>{ const r=$(`[data-updrow="${CSS.escape(b.dataset.ivupd)}"]`,el); r.classList.toggle("hide"); if(!r.classList.contains("hide")) $("input",r).focus(); });
     $$("[data-sal]",el).forEach(i=>moneyInput(i));
@@ -1449,12 +1547,10 @@ function renderSub(){
         <div class="vl-kpis"><div><small>⬆️ Depositado en ${MN}</small><b>${mx2(depMes)}</b></div><div><small>⬇️ Gastado en ${MN}</small><b>${mx2(gasMes)}</b></div></div>
         <div class="small muted">Saldo = depósitos − gastos pagados con vales. No se mezcla con tus gastos.</div></div>
       <div class="vl-acts"><button class="a1" id="vDep"><span>⬆️</span>Registrar depósito</button><button class="a2" id="vGas"><span>🛒</span>Gasto con vales</button></div>
-      <div class="card priv"><h2>📅 Últimos 12 meses</h2>
-        ${filas.map(x=>`<div class="vl-m"><div class="vl-lbl"><b>${MES[+x.ym.slice(5)-1]}</b><small>${x.ym.slice(0,4)}</small></div>
-          <div class="vl-bars"><div class="vl-bar d"><i style="width:${x.d/mxB*100}%"></i><em>${nmx(x.d)}</em></div><div class="vl-bar g"><i style="width:${x.g/mxB*100}%"></i><em>${nmx(x.g)}</em></div></div>
-          <div class="vl-s"><b>${nmx(x.saldo)}</b><span class="vl-dif ${x.dif<0?"neg":"pos"}">${x.dif>0?"+":""}${nmx(x.dif)}</span></div></div>`).join("")}
-        <div class="vl-tot"><div><small>Depositado</small><b class="pos">${nmx(TD)}</b></div><div><small>Gastado</small><b class="neg">${nmx(TG)}</b></div><div><small>Diferencia</small><b class="${TD-TG<0?"neg":"pos"}">${TD-TG>0?"+":""}${nmx(TD-TG)}</b></div></div>
-        <div class="small muted" style="margin-top:6px">🟢 depósito · 🔴 gasto del mes · a la derecha, el saldo al cierre y la diferencia del mes.</div></div>
+      <div class="card priv"><h2>📅 Últimos 12 meses <span class="small muted">(pesos)</span></h2><div class="tbl"><table class="vl-tbl"><thead><tr><th>Mes</th><th>Depósito</th><th>Gasto</th><th>Dif.</th><th>Saldo</th></tr></thead><tbody>
+        ${filas.map(x=>`<tr class="${x.ym===ymH?"act":""}"><td>${MES[+x.ym.slice(5)-1]}<small>${x.ym.slice(2,4)}</small></td><td class="pos">${nmx(x.d)}</td><td class="neg">${nmx(x.g)}</td><td><span class="pill ${x.dif<0?"neg":"pos"}">${x.dif>0?"+":""}${nmx(x.dif)}</span></td><td class="sal">${nmx(x.saldo)}</td></tr>`).join("")}
+        </tbody><tfoot><tr><td>Total</td><td class="pos">${nmx(TD)}</td><td class="neg">${nmx(TG)}</td><td><span class="pill ${TD-TG<0?"neg":"pos"}">${TD-TG>0?"+":""}${nmx(TD-TG)}</span></td><td></td></tr></tfoot></table></div>
+        <div class="small muted" style="margin-top:6px">Dif. = depósito − gasto del mes · Saldo = lo que quedaba al cierre de cada mes.</div></div>
       ${(()=>{ const desde=addMonth(S.hoy.slice(0,7),-5)+"-01"; const tk=(S.d.tickets||[]).filter(t=>t.Fecha>=desde); if(!tk.length) return `<div class="card"><h2>🧾 Artículos comprados con vales</h2><div class="empty">Escanea tus tickets al registrar un gasto con vales y aquí verás qué compras más.</div></div>`;
         const T=tk.reduce((s,t)=>s+(+t.Monto||0),0); const porArt=group(tk.map(t=>({Monto:+t.Monto, A:String(t.Articulo).toUpperCase()})),"A").slice(0,12); const porT=group(tk.map(t=>({Monto:+t.Monto,T:t.Tienda||"—"})),"T");
         return `<div class="card"><h2>🧾 Artículos comprados con vales <span class="small muted">(6 meses)</span></h2>${barsHTML(porArt,T)}</div><div class="card"><h2>🏪 Por tienda</h2>${barsHTML(porT,T)}</div>`; })()}`;
