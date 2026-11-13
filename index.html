@@ -2927,9 +2927,12 @@ function insForm(nombre){
   const ed = nombre? S.d.instrumentos.find(i=>i.Instrumento===nombre) : null;
   const usada = ed && (S.movs.some(m=>m.Instrumento===nombre) || S.d.saldosInv.some(x=>x.Instrumento===nombre));
   const saldo = ed? ((saldosInversion()[nombre]||{}).saldo||0) : 0;
-  const otras = S.ins.filter(i=>i.Instrumento!==nombre).map(i=>i.Instrumento);
-  const grupoAct = ed? String(ed.Grupo||"").trim() : "";
-  const conAct = grupoAct? (S.ins.find(i=>i.Instrumento!==nombre && String(i.Grupo||"").trim()===grupoAct)||{}).Instrumento||"" : "";
+  // Opciones: las cuentas que ya agrupan inversiones (ej. Klar) y las inversiones sueltas; nunca las que ya están dentro de un grupo
+  const gOf=i=>String(i.Grupo||"").trim();
+  const grupos=[...new Set(S.ins.map(gOf).filter(Boolean))].map(g=>({g, n:S.ins.filter(i=>gOf(i)===g).length})).sort((a,b)=>a.g.localeCompare(b.g));
+  const solos=S.ins.filter(i=>!gOf(i) && i.Instrumento!==nombre && !grupos.some(x=>x.g===i.Instrumento)).map(i=>i.Instrumento).sort((a,b)=>a.localeCompare(b));
+  const grupoAct = ed? gOf(ed) : "";
+  const conAct = grupoAct;
   const box=document.createElement("div");
   box.style.cssText="position:fixed;inset:0;background:rgb(8 10 20 / .5);display:flex;align-items:flex-end;z-index:45";
   box.innerHTML=`<form class="sheet on" style="position:relative;transform:none;max-height:92%" novalidate>
@@ -2937,8 +2940,8 @@ function insForm(nombre){
     <div class="f"><label for="inN">Nombre</label><input id="inN" value="${esc(nombre||"")}" placeholder="Ej. Klar 15%" autocomplete="off">${usada? `<div class="small muted">Si cambias el nombre, se actualiza en todos sus movimientos, saldos y en las inversiones que van junto con ella. No se pierde nada.</div>`:""}</div>
     <div class="two"><div class="f"><label for="inT">Tipo</label><select id="inT">${["SOFIPO","Banco","Efectivo","Fondo","Otro"].map(t=>`<option ${(ed?ed.Tipo:"SOFIPO")===t?"selected":""}>${t}</option>`).join("")}</select></div>
       <div class="f"><label for="inR">Tasa anual %</label><input id="inR" type="number" inputmode="decimal" step="0.01" min="0" value="${ed&&+ed.TasaAnual? +ed.TasaAnual : ""}" placeholder="Ej. 15"></div></div>
-    <div class="f"><label for="inG">¿Va junto con otra cuenta?</label><select id="inG"><option value="">No, independiente</option>${otras.map(n=>`<option value="${esc(n)}" ${n===conAct?"selected":""}>${esc(n)}</option>`).join("")}</select>
-      <div class="small muted">Ej. Klar 15% "va junto con" Klar: se ven en una sola tarjeta con el total, pero cada una con su saldo y sus rendimientos.</div></div>
+    <div class="f"><label for="inG">¿Va junto con otra cuenta?</label><select id="inG"><option value="">No, independiente</option>${grupos.map(x=>`<option value="${esc(x.g)}" ${x.g===conAct?"selected":""}>${esc(x.g)} · ${x.n} inversi${x.n===1?"ón":"ones"}</option>`).join("")}${solos.map(n=>`<option value="${esc(n)}" ${n===conAct?"selected":""}>${esc(n)}</option>`).join("")}</select>
+      <div class="small muted">Elige la cuenta (ej. Klar) y se verán en una sola tarjeta con el total, cada inversión con su saldo y sus rendimientos.</div></div>
     ${ed? "" : `<div class="f"><label for="inS">Saldo actual <span style="font-weight:400">(opcional)</span></label><input id="inS" placeholder="$0"><div class="small muted">Si ya tiene dinero, escribe lo que ves hoy en la app del banco. Si apenas vas a mandarle dinero, déjalo vacío y registra una aportación.</div></div>`}
     <div class="small neg" id="inErr"></div>
     <div style="display:flex;gap:8px">${ed? `<button type="button" class="btn" id="inDel" style="color:var(--neg)">${usada? "🗄️ Archivar" : "🗑️ Borrar"}</button>`:""}<button type="submit" class="btn primary" style="flex:1">${ed? "Guardar cambios" : "Agregar inversión"}</button></div>
@@ -2953,9 +2956,8 @@ function insForm(nombre){
     const n=$("#inN",box).value.trim(); if(!n){ err.textContent="Escribe el nombre."; return; }
     if((!ed || n!==nombre) && S.d.instrumentos.some(i=>i.Instrumento!==nombre && norm(i.Instrumento)===norm(n))){ err.textContent="Ya tienes una inversión con ese nombre."; return; }
     if(ed && n!==nombre && pend().length){ err.textContent="Hay movimientos sin sincronizar. Espera a que se guarden (o toca 🔄 Actualizar datos) y vuelve a intentar el cambio de nombre."; return; }
-    const con=$("#inG",box).value, socio=con? S.d.instrumentos.find(i=>i.Instrumento===con) : null;
-    const grupo= con? (String(socio&&socio.Grupo||"").trim()||con) : "";
-    const o={Instrumento:n, Original:ed? nombre:"", Tipo:$("#inT",box).value, TasaAnual:$("#inR",box).value, Grupo:grupo, GrupoCon:con, SaldoInicial:$("#inS",box)? $("#inS",box).value : "", Fecha:S.hoy};
+    const con=$("#inG",box).value, grupo=con;
+    const o={Instrumento:n, Original:ed? nombre:"", Tipo:$("#inT",box).value, TasaAnual:$("#inR",box).value, Grupo:grupo, GrupoCon: solos.includes(con)? con : "", SaldoInicial:$("#inS",box)? $("#inS",box).value : "", Fecha:S.hoy};
     const b=$("[type=submit]",box); b.disabled=true; b.textContent="Guardando…";
     api("saveInstrumento",o).then(()=>recargar(ed? (n!==nombre? nombre+" ahora se llama "+n : "Inversión actualizada") : "Inversión "+n+" agregada")).catch(e=>{ b.disabled=false; b.textContent=ed? "Guardar cambios":"Agregar inversión"; err.textContent=String(e.message||e); });
   };
