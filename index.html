@@ -80,6 +80,7 @@ body.privado .priv{filter:blur(8px);-webkit-user-select:none;user-select:none}
 .item .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item .s{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .amt{font-weight:700;white-space:nowrap}
+.ig-row .amt{flex:none}
 .day{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);font-weight:700;padding:12px 2px 2px;text-transform:capitalize}
 .bars{display:flex;flex-direction:column;gap:9px}
 .bar-r .between{font-size:13.5px}
@@ -226,7 +227,7 @@ details.mas .f{margin-top:6px}
 .ig-uso .r{display:flex;align-items:center;gap:10px}
 .ig-uso .r .dd-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px;background:var(--ic-bg)}
 .ig-uso .r small{display:block;color:var(--muted);font-size:11.5px}
-.ig-row{display:flex;align-items:center;gap:10px;width:100%;padding:10px 0;border-bottom:1px solid var(--line);text-align:left}
+.ig-row{display:flex;align-items:center;gap:10px;width:100%;min-width:0;box-sizing:border-box;padding:10px 0;border-bottom:1px solid var(--line);text-align:left}
 .ig-row:last-child{border-bottom:0}
 .ig-row .dd-ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:17px;flex:none;background:var(--ic-bg)}
 .ig-row .t{font-weight:600;font-size:14px}
@@ -2388,12 +2389,16 @@ function totalFiltro(rows){
   </div>`;
 }
 function insAcciones(ins){
-  const r=saldosInversion()[ins]||{saldo:0}, L=S.movs.filter(m=>m.Tipo==="Inversión"&&m.Instrumento===ins).sort((a,b)=>a.Fecha<b.Fecha?1:-1);
+  // Movimientos del instrumento: inversiones registradas + ingresos que entraron directo a él (ahorro de catorcena, El Tenate, extras…)
+  const r=saldosInversion()[ins]||{saldo:0};
+  const L=S.movs.filter(m=>m.Instrumento===ins && ((m.Tipo==="Inversión" && !/Automático por ingreso/i.test(m.Nota||"")) || (m.Tipo==="Ingreso" && esInvDirecto(m))))
+    .map(m=>m.Tipo==="Ingreso"? Object.assign(Object.create(m),{MovInversion:"Aportación", _et: m.Fuente===NOMINA? "Ahorro de catorcena" : "Ingreso directo · "+(m.Fuente||"")}) : m)
+    .sort((a,b)=>a.Fecha<b.Fecha?1:-1);
   // Solo consulta: las acciones (aportar, rendimiento, retirar) viven en "Opciones" de cada tarjeta
   const y=S.hoy.slice(0,4), LY=L.filter(m=>m.Fecha.startsWith(y)), tot=t=>sum(LY.filter(m=>m.MovInversion===t));
   ddSheet(ins, false, ()=>`<div class="small muted" style="margin:-4px 2px 10px">Saldo <b class="priv">${mx2(r.saldo)}</b> · toca un movimiento para verlo o corregirlo</div>
-    <div class="pk-g">En ${y}</div><div class="iv-kpis priv" style="grid-template-columns:repeat(3,1fr);margin:0 0 6px">${[["⬆️ Aportado",tot("Aportación")],["✨ Ganado",tot("Rendimiento")],["⬇️ Retirado",tot("Retiro")]].map(([l,v])=>`<div style="background:var(--bg);border-radius:12px;padding:8px 10px"><small style="color:var(--muted);font-size:11px;display:block;white-space:nowrap">${l}</small><b>${mx2(v)}</b></div>`).join("")}</div>
-    ${L.length? `<div class="pk-g">Últimos movimientos</div><div class="list">${L.slice(0,20).map(m=>`<button type="button" class="ig-row" data-v="mov:${esc(m.ID)}"><span class="dd-ic" style="--ic-bg:${ddBg(m.MovInversion)}">${m.MovInversion==="Retiro"?"⬇️":m.MovInversion==="Rendimiento"?"✨":"⬆️"}</span><span class="grow" style="flex:1;min-width:0"><div class="t">${esc(m.MovInversion)}</div><div class="s">${sDate(m.Fecha)} ${m.Fecha.slice(0,4)}${m.Cuenta? " · desde "+esc(m.Cuenta):""}</div></span><span class="amt ${m.MovInversion==="Retiro"?"neg":"pos"} priv">${m.MovInversion==="Retiro"?"−":"+"}${mx2(m.Monto)}</span></button>`).join("")}</div>`:`<div class="empty">Aún no hay movimientos de este instrumento. Regístralos desde <b>Opciones</b> en su tarjeta.</div>`}`,
+    <div class="pk-g">En ${y}</div><div class="iv-kpis priv" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 0 6px">${[["⬆️ Aportado",tot("Aportación")],["✨ Ganado",tot("Rendimiento")],["⬇️ Retirado",tot("Retiro")]].map(([l,v])=>`<div style="background:var(--bg);border-radius:12px;padding:8px;min-width:0"><small style="color:var(--muted);font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l}</small><b style="font-size:14px;white-space:nowrap">${mx(v)}</b></div>`).join("")}</div>
+    ${L.length? `<div class="pk-g">Últimos movimientos</div><div class="list">${L.slice(0,20).map(m=>`<button type="button" class="ig-row" data-v="mov:${esc(m.ID)}"><span class="dd-ic" style="--ic-bg:${ddBg(m.MovInversion)}">${m.MovInversion==="Retiro"?"⬇️":m.MovInversion==="Rendimiento"?"✨":"⬆️"}</span><span class="grow" style="flex:1;min-width:0"><div class="t">${esc(m._et||m.MovInversion)}</div><div class="s">${sDate(m.Fecha)} ${m.Fecha.slice(0,4)}${m._et? " · aportación" : m.Cuenta? " · desde "+esc(m.Cuenta):""}</div></span><span class="amt ${m.MovInversion==="Retiro"?"neg":"pos"} priv">${m.MovInversion==="Retiro"?"−":"+"}${mx2(m.Monto)}</span></button>`).join("")}</div>`:`<div class="empty">Aún no hay movimientos de este instrumento. Regístralos desde <b>Opciones</b> en su tarjeta.</div>`}`,
     v=>{ if(v.startsWith("mov:")){ const m=S.movs.find(x=>x.ID===v.slice(4)); if(m) setTimeout(()=>openForm(m),250); } }, null);
 }
 function esGastoEf(m){ return m.Tipo==="Gasto"&&!pagoVales(m); }
