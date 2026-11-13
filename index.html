@@ -564,6 +564,11 @@ details.mas .f{margin-top:6px}
 .iv-subh{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .iv-sub .iv-acts button{background:var(--surface)}
 .iv-sub .iv-chip{background:var(--surface)}
+.iv-submore{display:none;flex-direction:column;gap:8px}
+.iv-sub.open .iv-submore{display:flex}
+.iv-card.open .iv-sub .iv-hint i{transform:none}.iv-card.open .iv-sub.open .iv-hint i{transform:rotate(180deg)}
+.iv-subh{cursor:pointer}
+.iv-sub .iv-submore>.iv-chips{display:none}
 </style>
 </head>
 <body>
@@ -802,6 +807,10 @@ function spDone(){
   const s=$("#splash"); setTimeout(()=>{ s.classList.add("out"); setTimeout(()=>{ s.classList.add("hide"); s.classList.remove("out"); },460); },250);
 }
 /* ================= carga ================= */
+function recargarSilencioso(msg){
+  return api("getData").then(d=>{ S.d=d; build(); render(); renderMas(); if(msg) toast(msg); })
+    .catch(e=>toast("Se guardó, pero no pude actualizar la vista: "+(e.message||e)+". Toca 🔄 Actualizar datos."));
+}
 function load(){
   spStart();
   api("getData").then(d=>{
@@ -1621,7 +1630,7 @@ function renderSub(){
             ${r.flujo? `<span class="iv-chip">↕️ Después: ${r.flujo>0?"+":""}${mx2(r.flujo)}</span>`:""}${ry? `<span class="iv-chip pos">✨ +${mx2(ry)} en ${y}</span>`:""}</div>
           <div class="iv-acts"><button data-iv="Aportación" data-n="${esc(n)}"><span>⬆️</span>Aportar</button><button data-iv="Rendimiento" data-n="${esc(n)}"><span>✨</span>Rendimiento</button><button data-iv="Retiro" data-n="${esc(n)}"><span>⬇️</span>Retirar</button><button data-ivupd="${esc(n)}"><span>🔄</span>Saldo real</button></div>
           <div class="iv-upd hide" data-updrow="${esc(n)}"><input class="search" style="padding:8px 10px" type="number" inputmode="decimal" placeholder="Saldo que ves hoy en ${esc(n)}" data-sal="${esc(n)}" aria-label="Saldo real ${esc(n)}"><button class="btn sm primary" data-salbtn="${esc(n)}">Guardar</button></div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-insact="${esc(n)}">📋 Ver últimos movimientos</button><button class="btn sm" data-insed="${esc(n)}">⚙️ Editar</button></div>`; };
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px"><button class="btn sm" data-insact="${esc(n)}">📋 Movimientos</button><button class="btn sm" data-insed="${esc(n)}">⚙️ Editar</button><button class="btn sm" data-insdel="${esc(n)}" style="color:var(--neg)">🗑️ Eliminar</button></div>`; };
         return grupos.map((g,i)=>{ const multi=g.L.length>1, r0=g.L[0], n=multi? g.k : r0.i.Instrumento, [c1,c2]=insCol(n,i);
           const tasas=multi? g.L.map(r=>+r.i.TasaAnual).filter(Boolean) : [];
           const tag= multi? `${g.L.length} inversiones${tasas.length? " · "+tasas.map(t=>t+"%").join(" / "):""}` : `${esc(r0.i.Tipo)}${+r0.i.TasaAnual? " · "+r0.i.TasaAnual+"%":""}`;
@@ -1630,12 +1639,21 @@ function renderSub(){
             <span class="grow" style="flex:1;min-width:0"><div class="iv-name">${esc(n)}</div><div><span class="iv-tag" style="margin-left:0">${tag}</span> <span class="iv-hint">Opciones <i>⌄</i></span></div></span>
             <span><div class="iv-sal">${mx2(g.t)}</div><div class="iv-pct">${T? (g.t/T*100).toFixed(1):0}% del total</div></span></div>
           <div class="iv-track"><i style="width:${T? Math.max(1,g.t/T*100):0}%"></i></div>
-          <div class="iv-more">${multi? g.L.map(r=>`<div class="iv-sub"><div class="iv-subh"><span><b>${esc(r.i.Instrumento)}</b>${+r.i.TasaAnual? ` <span class="iv-tag">${r.i.TasaAnual}%</span>`:""}</span><b>${mx2(r.saldo)}</b></div>
-              <div class="iv-track" style="height:5px"><i style="width:${g.t? Math.max(1,r.saldo/g.t*100):0}%"></i></div>${more(r)}</div>`).join("") : more(r0)}</div></div>`; }).join(""); })()}
+          <div class="iv-more">${multi? g.L.map(r=>{ const fo=r.foto;
+              return `<div class="iv-sub"><div class="iv-subh" data-subtog><span><b>${esc(r.i.Instrumento)}</b>${+r.i.TasaAnual? ` <span class="iv-tag">${r.i.TasaAnual}%</span>`:""}</span><b>${mx2(r.saldo)}</b></div>
+              <div class="iv-track" style="height:5px"><i style="width:${g.t? Math.max(1,r.saldo/g.t*100):0}%"></i></div>
+              <div class="between small"><span class="muted">${fo? "🏦 Saldo real "+sDate(fo.Fecha)+": "+mx2(fo.Saldo) : "Sin saldo real capturado"}</span><span class="iv-hint" data-subtog>Opciones <i>⌄</i></span></div>
+              <div class="iv-submore">${more(r)}</div></div>`; }).join("") : more(r0)}</div></div>`; }).join(""); })()}
       <button class="btn" id="insNueva" style="border:1.5px dashed var(--primary);background:var(--primary-soft);color:var(--primary);font-weight:800">➕ Agregar inversión</button>
       ${cero.length? `<div class="card"><h2>Sin saldo</h2><div class="iv-zero">${cero.map(r=>`<button class="chip" data-iv="Aportación" data-n="${esc(r.i.Instrumento)}">⬆️ ${esc(r.i.Instrumento)}</button>`).join("")}</div><div class="small muted" style="margin-top:6px">Toca uno para registrar una aportación, o ⚙️ para editarlo o borrarlo.</div><div class="iv-zero" style="margin-top:4px">${cero.map(r=>`<button class="chip" data-insed="${esc(r.i.Instrumento)}">⚙️ ${esc(r.i.Instrumento)}</button>`).join("")}</div></div>`:""}`;
     $$("[data-insact]",el).forEach(b=>b.onclick=e=>{ e.stopPropagation(); insAcciones(b.dataset.insact); });
     $$("[data-insed]",el).forEach(b=>b.onclick=e=>{ e.stopPropagation(); insForm(b.dataset.insed); });
+    $$("[data-subtog]",el).forEach(b=>b.onclick=e=>{ e.stopPropagation(); const sb=b.closest(".iv-sub"), o=!sb.classList.contains("open"); $$(".iv-sub.open",sb.parentElement).forEach(x=>x.classList.remove("open")); if(o) sb.classList.add("open"); });
+    $$("[data-insdel]",el).forEach(b=>b.onclick=e=>{ e.stopPropagation(); const n=b.dataset.insdel, sal=(saldosInversion()[n]||{}).saldo||0;
+      if(Math.abs(sal)>=1) return toast(n+" todavía tiene "+mx2(sal)+". Primero registra el retiro o pásalo a otra inversión.");
+      if(!b.dataset.ok){ b.dataset.ok="1"; b.textContent="¿Seguro? Toca otra vez"; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.ok; b.textContent="🗑️ Eliminar"; } },4000); return; }
+      b.disabled=true; b.textContent="Eliminando…";
+      api("deleteInstrumento",n).then(r=>recargarSilencioso(r==="archivada"? n+" archivada (su historial se conserva)" : n+" eliminada")).catch(er=>{ b.disabled=false; b.textContent="🗑️ Eliminar"; toast("No se pudo: "+(er.message||er)); }); });
     $("#insNueva",el).onclick=()=>insForm(null);
     $$(".iv-card",el).forEach(cd=>cd.onclick=e=>{ if(e.target.closest(".iv-more")) return; const o=!cd.classList.contains("open"); $$(".iv-card.open",el).forEach(x=>x.classList.remove("open")); if(o) cd.classList.add("open"); });
     $$("[data-iv]",el).forEach(b=>b.onclick=()=>openForm({Tipo:"Inversión",Instrumento:b.dataset.n,MovInversion:b.dataset.iv},{ins:b.dataset.n}));
@@ -2857,7 +2875,8 @@ function submit(again){
     if(o.Fuente===NOMINA && !$("#fRepW").classList.contains("hide") && $("#fRepOn").checked && (parseFloat($("#fRepA").value)||0)>o.Monto) return e.textContent="El ahorro no puede ser mayor a la nómina.";
     { const pr=pend(); repGuardar(o,pr); setPend(pr); }
     if(F.edit && F.edit.Instrumento && !String(o.CuentaDestino).startsWith(INV_PRE)){ o.Instrumento=""; const pq=pend(); quitarAutoInv(F.edit.ID,pq); setPend(pq); }
-    if(String(o.CuentaDestino).startsWith(INV_PRE)){ if(F.edit){ const ins=o.CuentaDestino.slice(INV_PRE.length); if(F.edit.Instrumento===ins&&!F.edit.CuentaDestino){ o.CuentaDestino=""; o.Instrumento=ins; } else return e.textContent="Para mandar un ingreso ya guardado a inversión, registra una Inversión (Aportación)."; } else { const ap=aplicarDestInv(o); if(ap){ S.movs.push(ap); const pp=pend(); pp.push({op:"save",o:ap}); setPend(pp); } } }
+    if(o.CuentaDestino && !String(o.CuentaDestino).startsWith(INV_PRE)) o.Instrumento="";
+    if(String(o.CuentaDestino).startsWith(INV_PRE)){ if(F.edit){ const ins=o.CuentaDestino.slice(INV_PRE.length); o.CuentaDestino=""; o.Instrumento=ins; } else { const ap=aplicarDestInv(o); if(ap){ S.movs.push(ap); const pp=pend(); pp.push({op:"save",o:ap}); setPend(pp); } } }
     if(sepX){ S.movs.push(sepX); const pp=pend(); pp.push({op:"save",o:sepX}); setPend(pp); setTimeout(()=>toast("Separado: "+mx2(sepX.Monto)+" a "+sepX.Fuente),1600); } }
   else if(t==="Pago tarjeta"||t==="Transferencia"){ o.Cuenta=v("#fCta"); o.CuentaDestino=v("#fDst"); if(!o.Cuenta||!o.CuentaDestino) return e.textContent="Elige origen y destino."; if(o.Cuenta===o.CuentaDestino&&t!=="Pago tarjeta") return e.textContent="Origen y destino deben ser distintos."; if(!o.Descripcion) o.Descripcion=t+" "+o.CuentaDestino; }
   else if(t==="Inversión"){ o.MovInversion=v("#fInvM"); o.Instrumento=v("#fIns"); if(!o.Instrumento) return e.textContent="Elige el instrumento."; if(o.MovInversion!=="Rendimiento"){ o.Cuenta=v("#fCta"); if(!o.Cuenta) return e.textContent="Elige la cuenta."; } if(!o.Descripcion) o.Descripcion=o.MovInversion+" "+o.Instrumento; }
@@ -2929,7 +2948,7 @@ function insForm(nombre){
   $("[data-x]",box).onclick=cerrar; box.onclick=e=>{ if(e.target===box) cerrar(); };
   if($("#inS",box)) moneyInput($("#inS",box));
   try{ ddEnhance($("#inT",box)); ddEnhance($("#inG",box)); }catch(e){}
-  const recargar=msg=>{ cerrar(); toast(msg); load(); };
+  const recargar=msg=>{ cerrar(); toast(msg+" · actualizando…"); recargarSilencioso(msg); };
   f.onsubmit=ev=>{ ev.preventDefault(); err.textContent="";
     const n=$("#inN",box).value.trim(); if(!n){ err.textContent="Escribe el nombre."; return; }
     if(!ed && S.ins.some(i=>norm(i.Instrumento)===norm(n))){ err.textContent="Ya tienes una inversión con ese nombre."; return; }
