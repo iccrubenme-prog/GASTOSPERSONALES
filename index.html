@@ -552,6 +552,13 @@ details.mas .f{margin-top:6px}
 /* Navegador de periodo y segmentos */
 .nav{border-radius:16px}
 .seg{border-radius:14px}
+
+.mvals{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;text-align:center;font-size:8.6px;line-height:1.15;margin-top:4px}
+.mvals span{display:flex;flex-direction:column}
+.mvals .dim,.mcol.dim{opacity:.3}
+.mcol{background:none;border:0;padding:0;cursor:pointer;border-radius:6px 6px 0 0}
+.mcol.sel{box-shadow:0 0 0 2px var(--primary);background:var(--primary-soft)}
+.mlab span.on{color:var(--primary);font-weight:800}
 </style>
 </head>
 <body>
@@ -1108,8 +1115,10 @@ function rInicio(){
         return `<button class="card priv" id="goAhorro" style="text-align:left;gap:8px"><div class="ini-h"><span class="ic g">🐷</span><h2>Ahorro ${c.Anio}</h2><span class="small muted">Ver detalle ›</span></div>
           <div class="ini-ah"><div class="r"><span class="ic y">🏆</span><span class="t">Acumulado del año</span><b class="mid">${mx(ay.total)}</b></div>
           <div class="r"><span class="ic b">🎯</span><span class="t">Nueva meta por catorcena (${mc.rest} restantes)</span><b>${mx(mc.nuevo)}</b></div>
+          ${(()=>{ const IY=ingresoAnio(c.Anio); return IY? `<div class="r"><span class="ic b">📊</span><span class="t">Ahorrado de tus ingresos</span><b>${(ay.total/IY*100).toFixed(1)}%</b></div>`:""; })()}
+          ${(()=>{ const g=gastoMaxCat(c.Anio); return g? `<div class="r"><span class="ic y">🧮</span><span class="t">Puedes gastar por catorcena (${g.rest} restantes)</span><b>${mx(g.per)}</b></div>`:""; })()}
           <div class="r"><span class="ic g">💰</span><span class="t">Total de dinero</span><b>${mx(tot.T)}</b></div></div>
-          ${M.total? `<div class="track"><div class="fill" style="width:${Math.min(100,ay.total/M.total*100)}%"></div></div><div class="between small muted"><span>Meta ${mx(M.total)}</span><span>${ay.total>=M.total? "🎉 ¡Meta cumplida!" : "Faltan "+mx(M.total-ay.total)}</span></div>`:""}
+          ${M.total? `<div class="track"><div class="fill" style="width:${Math.min(100,ay.total/M.total*100)}%"></div></div><div class="between small muted"><span>Meta ${mx(M.total)}</span><span>${metaTxt(ay.total,M.total)}</span></div>`:""}
 </button>`; })()}`;
   } else hero=`<div class="card ini-hero">${hola}</div>`;
   const acc=[["ingresos","💼","Ingresos"],["cuentas","💳","Tarjetas"],["arqueo","💵","Arqueo"],["inv","📈","Inversión"],["vales","🧺","Vales"],["ahorro","🐷","Ahorros"],["msi","📆","A meses"],["pres","🎯","Presupuesto"]];
@@ -1352,6 +1361,7 @@ function anCat(){
      ${x.GT? `<div class="between small muted"><span>Gastado con dinero del Tenate (fuera del presupuesto)</span><span>${mx(x.GT)}</span></div>`:""}
      <button class="btn sm" id="anIngLink" style="align-self:flex-start">Ver todos los ingresos de esta catorcena ›</button>
      ${x.valesG? `<div class="between small muted"><span>Gastado con vales (fuera del presupuesto)</span><span>${mx(x.valesG)}</span></div>`:""}</div>
+   ${cmpCatorcena(c)}
    <button class="btn" id="planBtn">Editar plan de esta catorcena</button>
    <div class="card"><h2>Por categoría</h2><div class="small muted">Toca una categoría para ver el detalle.</div>${x.gas.length? barsHTML(group(x.gas,"Categoria"),x.G,null,setDrill("cat",x.gas,"Catorcena "+(+c.Num))) : '<div class="empty">Sin gastos</div>'}</div>
    <div class="card"><h2>En qué se fue más</h2>${x.gas.length? barsHTML(top,x.G,null,setDrillCampo("catd",x.gas,"Catorcena "+(+c.Num),"Descripcion")) : '<div class="empty">Sin gastos</div>'}</div>`;
@@ -1366,31 +1376,55 @@ function anMes(){
   const top = group(gas, m=>m.Descripcion||"—").slice(0,8);
   $("#anBody").innerHTML = `
    <div class="kpis"><div class="kpi"><div class="l">Ingresos</div><div class="v pos priv">${mx(I)}</div></div><div class="kpi"><div class="l">Gastos</div><div class="v neg">${mx(G)}</div></div><div class="kpi"><div class="l">vs mes ant.</div><div class="v ${G>prev?"neg":"pos"}">${prev? (G>=prev?"+":"")+Math.round((G-prev)/prev*100)+"%":"—"}</div></div></div>${notaVales(mes)}
+   ${cmpMes(ym)}
    <div class="card"><h2>Por categoría</h2><div class="small muted">La línea marca el presupuesto del mes. Toca una categoría para ver el detalle.</div>${gas.length? barsHTML(group(gas,"Categoria"),G,bud,setDrill("mes",gas,mLabel(ym))) : '<div class="empty">Sin gastos</div>'}</div>
    <div class="card"><h2>¿Con qué se pagó?</h2>${gas.length? barsHTML(porTipo,G,null,setDrillFn("mesp",gas,mLabel(ym),medioPago)) : '<div class="empty">Sin gastos</div>'}</div>
    <div class="card"><h2>En qué se fue más</h2>${gas.length? barsHTML(top,G,null,setDrillCampo("mesd",gas,mLabel(ym),"Descripcion")) : '<div class="empty">Sin gastos</div>'}</div>`;
 }
 function anAnio(){
-  const y=S.anAnio, ys=String(y), yp=String(y-1);
-  const lastM = ys===S.hoy.slice(0,4) ? +S.hoy.slice(5,7) : 12;
-  const cur=S.movs.filter(m=>m.Fecha.startsWith(ys)), prv=S.movs.filter(m=>m.Fecha.startsWith(yp) && +m.Fecha.slice(5,7)<=lastM);
-  const mi=Array(12).fill(0), mg=Array(12).fill(0);
-  cur.forEach(m=>{ const k=+m.Fecha.slice(5,7)-1; if(m.Tipo==="Ingreso") mi[k]+=m.Monto; else if(esGastoEf(m)) mg[k]+=m.Monto; });
+  const y=S.anAnio, ys=String(y), yp=String(y-1), esAct= ys===S.hoy.slice(0,4);
+  const lastM = esAct ? +S.hoy.slice(5,7) : 12, hoyD=+S.hoy.slice(8,10);
+  if(S.anSelY!==ys){ S.anSelY=ys; S.anSelMes=null; }
+  const sel=S.anSelMes, mesF=m=>+m.Fecha.slice(5,7);
+  const lim = esAct? yp+S.hoy.slice(4) : yp+"-12-31";
+  const curAll=S.movs.filter(m=>m.Fecha.startsWith(ys)), prvAll=S.movs.filter(m=>m.Fecha.startsWith(yp)&&m.Fecha<=lim), prvFull=S.movs.filter(m=>m.Fecha.startsWith(yp));
+  const esIng=m=>m.Tipo==="Ingreso"&&m.Fuente!==VALES;
+  const mi=Array(12).fill(0), mg=Array(12).fill(0), pi=Array(12).fill(0), pg=Array(12).fill(0);
+  curAll.forEach(m=>{ const k=mesF(m)-1; if(esIng(m)) mi[k]+=m.Monto; else if(esGastoEf(m)) mg[k]+=m.Monto; });
+  prvFull.forEach(m=>{ const k=mesF(m)-1; if(esAct && k===lastM-1 && +m.Fecha.slice(8,10)>hoyD) return; if(esIng(m)) pi[k]+=m.Monto; else if(esGastoEf(m)) pg[k]+=m.Monto; });
   const max=Math.max(1,...mi,...mg);
-  const gc=group(cur.filter(esGastoEf),"Categoria"), gp=Object.fromEntries(group(prv.filter(esGastoEf),"Categoria"));
-  const gasY=cur.filter(esGastoEf), G=sum(gasY), GP=sum(prv.filter(esGastoEf)), I=sum(cur.filter(m=>m.Tipo==="Ingreso"));
+  const cur= sel? curAll.filter(m=>mesF(m)===sel) : curAll;
+  const prv= sel? prvFull.filter(m=>mesF(m)===sel && !(esAct&&sel===lastM&&+m.Fecha.slice(8,10)>hoyD)) : prvAll;
+  const etq= sel? MES[sel-1]+" "+ys : "Año "+ys, etqP= sel? MES[sel-1]+" "+yp : (esAct? "ene–"+MES[lastM-1]+" "+yp : yp);
+  const gasY=cur.filter(esGastoEf), G=sum(gasY), GP=sum(prv.filter(esGastoEf)), I=sum(cur.filter(esIng)), IP=sum(prv.filter(esIng));
+  const gc=group(gasY,"Categoria"), gp=Object.fromEntries(group(prv.filter(esGastoEf),"Categoria"));
+  const vp=(c,p,b)=>{ if(!p) return ""; const d=(c-p)/Math.abs(p), ok= b==="sube"? d>=0 : d<=0; return `<div class="small ${ok?"pos":"neg"}" style="font-weight:700">${d>=0?"▲":"▼"} ${Math.abs(Math.round(d*100))}% vs ${sel? yp : etqP}</div>`; };
+  const modo=S.anCmp||"G", serie={I:[mi,pi],G:[mg,pg],A:[mi.map((v,i)=>v-mg[i]),pi.map((v,i)=>v-pg[i])]}[modo], bueno= modo==="G"? "baja" : "sube";
+  const meses=[...Array(lastM).keys()];
   $("#anBody").innerHTML = `
-   <div class="kpis"><div class="kpi"><div class="l">Ingresos</div><div class="v pos priv">${mx(I)}</div></div><div class="kpi"><div class="l">Gastos</div><div class="v neg">${mx(G)}</div></div><div class="kpi"><div class="l">Ahorro</div><div class="v priv">${I? Math.round((I-G)/I*100)+"%":"—"}</div></div></div>${notaVales(cur)}
-   <div class="card priv"><h2>Mes a mes</h2><div class="months">${mi.map((v,i)=>`<div class="mcol"><span style="height:${v/max*100}%;background:var(--pos)"></span><span style="height:${mg[i]/max*100}%;background:var(--neg)"></span></div>`).join("")}</div>
-     <div class="mlab">${MES.map(m=>`<span>${m}</span>`).join("")}</div><div class="legend"><span><i style="background:var(--pos)"></i>Ingresos</span><span><i style="background:var(--neg)"></i>Gastos</span></div></div>
-   <div class="card"><h2>Categorías vs ${yp}</h2><div class="small muted">${lastM<12? "Comparado contra ene–"+MES[lastM-1]+" de "+yp : "Año completo"}</div>
-     <div class="tbl"><table><thead><tr><th>Categoría</th><th class="n">${ys}</th><th class="n">${yp}</th><th class="n">Var.</th></tr></thead><tbody>
+   ${sel? `<div class="card hero" style="padding:12px 14px;gap:6px"><div class="between"><b>📅 Filtrado: ${MES[sel-1]} ${ys}</b><button class="ini-chip" id="anQuitar" style="border:0;color:#fff;cursor:pointer">✕ Ver todo el año</button></div><div class="small muted">Todas las tarjetas de abajo muestran solo este mes, comparado con ${MES[sel-1]} ${yp}.</div></div>`:""}
+   <div class="kpis"><div class="kpi"><div class="l">💰 Ingresos <span class="muted">(sin vales)</span></div><div class="v pos priv">${mx(I)}</div>${vp(I,IP,"sube")}</div><div class="kpi"><div class="l">🛒 Gastos</div><div class="v neg">${mx(G)}</div>${vp(G,GP,"baja")}</div><div class="kpi"><div class="l">🐷 Ahorro</div><div class="v priv">${I? Math.round((I-G)/I*100)+"%":"—"}</div><div class="small muted priv">${mx(I-G)}</div></div></div>${notaVales(cur)}
+   <div class="card priv"><div class="between"><h2>📊 Mes a mes</h2><span class="small muted">Toca un mes para filtrar</span></div>
+     <div class="mvals">${mi.map((v,i)=>`<span class="${sel&&sel!==i+1?"dim":""}"><b class="pos">${v?kfm(v):""}</b><b class="neg">${mg[i]?kfm(mg[i]):""}</b></span>`).join("")}</div>
+     <div class="months">${mi.map((v,i)=>`<button type="button" class="mcol ${sel===i+1?"sel":sel?"dim":""}" data-mes="${i+1}" aria-label="${MES[i]}: ingresos ${mx(v)}, gastos ${mx(mg[i])}"><span style="height:${v/max*100}%;background:linear-gradient(180deg,#4cc38a,#1d7a4c)"></span><span style="height:${mg[i]/max*100}%;background:linear-gradient(180deg,#f2766b,#b3362e)"></span></button>`).join("")}</div>
+     <div class="mlab">${MES.map((m,i)=>`<span class="${sel===i+1?"on":""}">${m}</span>`).join("")}</div><div class="legend"><span><i style="background:var(--pos)"></i>Ingresos</span><span><i style="background:var(--neg)"></i>Gastos</span><span class="muted">· montos en miles (k)</span></div></div>
+   <div class="card priv"><div class="between"><h2>⚖️ Comparativo ${ys} vs ${yp}</h2></div>
+     <div class="seg" id="anCmpSeg" style="margin:2px 0 4px">${[["I","Ingresos"],["G","Gastos"],["A","Ahorro"]].map(([k,l])=>`<button data-cm="${k}" class="${modo===k?"on":""}">${l}</button>`).join("")}</div>
+     <div class="tbl"><table class="compacta" style="font-size:12px"><thead><tr><th>Mes</th><th class="n">${ys}</th><th class="n">${yp}</th><th class="n">Dif.</th><th class="n">Var.</th></tr></thead><tbody>
+     ${meses.map(i=>`<tr data-mes="${i+1}" style="cursor:pointer${sel===i+1?";outline:2px solid var(--primary);outline-offset:-2px":""}"><td>${MES[i]}${esAct&&i===lastM-1? ` <span class="muted small">al ${hoyD}</span>`:""}</td><td class="n">${nmx(serie[0][i])}</td><td class="n muted">${nmx(serie[1][i])}</td>${varTxt(serie[0][i],serie[1][i],bueno)}</tr>`).join("")}
+     ${(()=>{ const c=meses.reduce((a,i)=>a+serie[0][i],0), p=meses.reduce((a,i)=>a+serie[1][i],0); return `<tr><td>${esAct?"Acumulado":"Total"}</td><td class="n">${nmx(c)}</td><td class="n">${nmx(p)}</td>${varTxt(c,p,bueno)}</tr>`; })()}
+     </tbody></table></div><div class="small muted">${esAct? `El mes en curso se compara contra los mismos días de ${yp}. `:""}Toca un mes para filtrar todo el análisis.</div></div>
+   <div class="card"><h2>⚖️ Categorías vs ${sel? MES[sel-1]+" "+yp : yp}</h2><div class="small muted">${sel? "Comparado contra "+etqP : esAct? "Comparado contra ene–"+MES[lastM-1]+" "+hoyD+" de "+yp : "Año completo"}</div>
+     <div class="tbl"><table><thead><tr><th>Categoría</th><th class="n">${sel? MES[sel-1]:ys}</th><th class="n">${yp}</th><th class="n">Var.</th></tr></thead><tbody>
      ${gc.map(([k,v])=>{ const p=gp[k]||0; const d=p? (v-p)/p : null; return `<tr data-catk="${esc(k)}" style="cursor:pointer"><td>${esc(k)} <span class="muted small">›</span></td><td class="n">${mx(v)}</td><td class="n muted">${mx(p)}</td><td class="n ${d>0?"neg":"pos"}">${d==null?"—":(d>0?"+":"")+Math.round(d*100)+"%"}</td></tr>`; }).join("")}
      <tr><td><b>Total</b></td><td class="n"><b>${mx(G)}</b></td><td class="n muted">${mx(GP)}</td><td class="n ${G>GP?"neg":"pos"}">${GP?(G>GP?"+":"")+Math.round((G-GP)/GP*100)+"%":"—"}</td></tr></tbody></table></div></div>
-   <div class="card"><h2>Por categoría</h2><div class="small muted">Toca una categoría para ver el detalle.</div>${gasY.length? barsHTML(gc,G,null,setDrill("anio",gasY,"Año "+ys)) : '<div class="empty">Sin gastos</div>'}</div>
-   <div class="card"><h2>¿Con qué se pagó?</h2>${gasY.length? barsHTML(group(gasY,medioPago),G,null,setDrillFn("aniop",gasY,"Año "+ys,medioPago)) : '<div class="empty">Sin gastos</div>'}</div>
-   <div class="card"><h2>En qué se fue más</h2>${gasY.length? barsHTML(group(gasY,m=>m.Descripcion||"—").slice(0,10),G,null,setDrillCampo("aniod",gasY,"Año "+ys,"Descripcion")) : '<div class="empty">Sin gastos</div>'}</div>`;
-  $$("#anBody tr[data-catk]").forEach(tr=>tr.onclick=()=>abrirZoom(tr.dataset.catk,"Año "+ys,gasY.filter(m=>m.Categoria===tr.dataset.catk),"Categoria"));
+   <div class="card"><h2>Por categoría</h2><div class="small muted">${esc(etq)} · toca una categoría para ver el detalle.</div>${gasY.length? barsHTML(gc,G,null,setDrill("anio",gasY,etq)) : '<div class="empty">Sin gastos</div>'}</div>
+   <div class="card"><h2>¿Con qué se pagó?</h2>${gasY.length? barsHTML(group(gasY,medioPago),G,null,setDrillFn("aniop",gasY,etq,medioPago)) : '<div class="empty">Sin gastos</div>'}</div>
+   <div class="card"><h2>En qué se fue más</h2>${gasY.length? barsHTML(group(gasY,m=>m.Descripcion||"—").slice(0,10),G,null,setDrillCampo("aniod",gasY,etq,"Descripcion")) : '<div class="empty">Sin gastos</div>'}</div>`;
+  $$("#anBody tr[data-catk]").forEach(tr=>tr.onclick=()=>abrirZoom(tr.dataset.catk,etq,gasY.filter(m=>m.Categoria===tr.dataset.catk),"Categoria"));
+  $$("#anBody [data-mes]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.mes; S.anSelMes= S.anSelMes===k? null : k; anAnio(); });
+  $$("#anCmpSeg [data-cm]").forEach(b=>b.onclick=()=>{ S.anCmp=b.dataset.cm; anAnio(); });
+  const q=$("#anQuitar"); if(q) q.onclick=()=>{ S.anSelMes=null; anAnio(); };
 }
 function anIng(){
   const ys=String(S.anAnio), ing=S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fecha.startsWith(ys)), I=sum(ing);
@@ -1408,6 +1442,9 @@ document.addEventListener("click",e=>{ const tr=e.target.closest("tr[data-cat]")
 function anAutos(){
   const ys=String(S.anAnio);
   const autos=S.movs.filter(m=>m.Tipo==="Gasto"&&S.autoCats.has(m.Categoria));
+  // tu celda J35: gasto de autos ÷ (nómina + prestaciones del año)
+  const ING=sum(S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fecha.startsWith(ys)&&(m.Fuente===NOMINA||esPrest(m.Fuente)))), TA=sum(autos.filter(m=>m.Fecha.startsWith(ys)));
+  const pI=v=>ING? (v/ING*100).toFixed(1)+"%" : "—";
   const html=[...S.vehs,""].map(v=>{
     const all=autos.filter(m=>(m.Vehiculo||"")===v), y=all.filter(m=>m.Fecha.startsWith(ys)), T=sum(y);
     if(v==="" && !y.length) return "";
@@ -1415,12 +1452,14 @@ function anAutos(){
     for(let i=1;i<g.length;i++){ const d=g[i].Km-g[i-1].Km; if(d>0&&d<2500) r.push(d/g[i].Litros); }
     const kml=r.length? r.slice(-6).reduce((a,b)=>a+b,0)/Math.min(6,r.length) : null;
     return `<div class="card"><div class="between"><h2>${esc(v||"Sin vehículo asignado")}</h2><span class="mid">${mx(T)}</span></div>
-      <div class="small muted">${y.length} gastos en ${ys}${kml? " · "+kml.toFixed(1)+" km/l":""}</div>
+      <div class="small muted">${y.length} gastos en ${ys}${kml? " · "+kml.toFixed(1)+" km/l":""} · <b style="color:var(--ink)">${pI(T)} de tu ingreso</b></div>
       ${y.length? barsHTML(group(y,"Subcategoria"),T) : '<div class="empty">Sin gastos en '+ys+'</div>'}
       <div class="list">${all.slice(0,4).map(itemHTML).join("")}</div>
       ${v? `<button class="btn sm" data-veh="${esc(v)}">+ Gasto de ${esc(v)}</button>`:""}</div>`;
   }).join("");
-  $("#anBody").innerHTML = html;
+  $("#anBody").innerHTML = `<div class="card hero priv"><div class="small muted">🚗 Gasto en autos ${ys}</div><div class="big">${mx(TA)}</div>
+      <div class="between small"><span class="muted">Representa de tu ingreso (nómina + prestaciones ${mx(ING)})</span><b style="font-size:18px">${pI(TA)}</b></div>
+      <div class="track"><div class="fill" style="width:${ING? Math.min(100,TA/ING*100):0}%"></div></div></div>` + html;
   bindItems($("#anBody"));
   $$("[data-veh]").forEach(b=>b.onclick=()=>openForm({Tipo:"Gasto",Categoria:"Autos",Vehiculo:b.dataset.veh},{veh:b.dataset.veh}));
 }
@@ -1449,7 +1488,8 @@ function renderSub(){
         <div class="between small"><span>Ahorro de catorcenas</span><b>${mx(ay.AC)}</b></div>
         <div class="between small"><span>Fondo: prestaciones ${mx(ay.PR)} − gastos ${mx(ay.GF)}${ay.AP? " − colchón "+mx(ay.AP):""}</span><b>${mx(ay.fondo)}</b></div>
         <div class="between small"><span>Ingresos extra (${esc(group(ay.ext,"Fuente").map(([k])=>k).join(", ")||"ninguno")})${ay.GT? " − gastos con dinero del Tenate "+mx(ay.GT):""}</span><b>${mx(ay.EX-ay.GT)}</b></div>
-        ${M.total? `<div class="track"><div class="fill" style="width:${Math.min(100,ay.total/M.total*100)}%"></div></div><div class="between small muted"><span>Meta total ${mx(M.total)}</span><span>${ay.total>=M.total? "¡Meta cumplida!" : "Faltan "+mx(M.total-ay.total)}</span></div>`:""}</div>
+        ${M.total? `<div class="track"><div class="fill" style="width:${Math.min(100,ay.total/M.total*100)}%"></div></div><div class="between small muted"><span>Meta total ${mx(M.total)}</span><span>${metaTxt(ay.total,M.total)}</span></div>`:""}
+        ${(()=>{ const IY=TODO? sum(S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fuente!==VALES)) : ingresoAnio(y); return IY? `<div class="between small" style="border-top:1px solid rgb(255 255 255 / .2);padding-top:6px"><span>📊 Ahorraste de tus ingresos (${mx(IY)} sin vales)</span><b style="font-size:16px">${(ay.total/IY*100).toFixed(1)}%</b></div>`:""; })()}</div>
       ${(()=>{ const si=saldosInversion(), L=Object.values(si), ef=L.filter(r=>r.i.Tipo==="Efectivo"), iv=L.filter(r=>r.i.Tipo!=="Efectivo");
         const E=ef.reduce((a,r)=>a+r.saldo,0), I=iv.reduce((a,r)=>a+r.saldo,0), pi=S.cta[AHORRO]? (saldosCuentas()[AHORRO]||0) : 0, fd=ahorrosAnio(yHoy).fondo;
         const row=(e,t,s,v)=>`<div class="between"><span>${e} <b>${t}</b>${s?`<div class="small muted">${s}</div>`:""}</span><b>${mx2(v)}</b></div>`;
@@ -1464,10 +1504,16 @@ function renderSub(){
         <div class="between"><span class="muted">Meta ${y} (${mx(M.base)} × ${M.n})</span><b>${mx(M.meta)}</b></div>
         <div class="between"><span class="muted">Llevas en ${cs.length} catorcenas</span><b>${mx(mc.acum)}</b></div>
         <div class="between"><span class="muted">Meta a la fecha</span><span>${mx(mc.aFecha)} <b class="${mc.dif<0?"neg":"pos"}">${mc.dif>=0?"+":""}${mx(mc.dif)}</b></span></div>
-        <div class="between"><span class="muted">Falta para la meta anual</span><b>${mx(Math.max(0,mc.falta))}</b></div>
+        <div class="between"><span class="muted">${mc.falta<=0? "Arriba de la meta anual" : "Falta para la meta anual"}</span><b class="${mc.falta<=0?"pos":""}">${mc.falta<=0? "+"+mx(-mc.falta)+" (+"+(-mc.falta/M.meta*100).toFixed(1)+"%)" : mx(mc.falta)}</b></div>
         <div class="between" style="border-top:1px solid var(--line);padding-top:8px"><span><b>Nuevo ahorro por catorcena</b><div class="small muted">${mc.rest} catorcenas restantes</div></span><b class="mid">${mx(mc.nuevo)}</b></div>
         <div class="track"><div class="fill" style="width:${Math.min(100,mc.acum/M.meta*100)}%"></div></div>
         ${ahorroChart(serie)}</div>`:""}
+      ${(()=>{ const g=TODO? null : gastoMaxCat(y); if(!g) return "";
+        return `<div class="card priv"><h2>🧮 ¿Cuánto puedes gastar por catorcena?</h2><div class="small muted">Para cerrar ${y} con al menos el ingreso de ${g.yp} y cumplir tu meta total de ${mx(g.meta)}.</div>
+          <div class="between"><span class="muted">Ingreso de ${g.yp} en las catorcenas ${g.desde}–26</span><b>${mx(g.base)}</b></div>
+          <div class="between"><span class="muted">${g.falta>0? "− Falta para la meta" : "+ Superávit sobre la meta"}</span><b class="${g.falta>0?"neg":"pos"}">${g.falta>0?"−":"+"}${mx(Math.abs(g.falta))}</b></div>
+          <div class="between"><span class="muted">= Disponible para gastar</span><b>${mx(g.disp)}</b></div>
+          <div class="between" style="border-top:1px solid var(--line);padding-top:8px"><span><b>Por catorcena</b><div class="small muted">÷ ${g.rest} catorcena${g.rest!==1?"s":""} restante${g.rest!==1?"s":""}</div></span><b class="mid">${mx(g.per)}</b></div></div>`; })()}
       <div class="card priv"><div class="between"><h2>Total de dinero</h2><b class="mid">${mx(tot.T)}</b></div>
         ${barsHTML(tot.porTipo, tot.T)}<button class="btn sm" data-goto="inv" style="align-self:flex-start">Ver inversiones</button></div>
       <div class="card priv"><div class="between"><h2>Fondo ${y}</h2><b>${mx(ay.fondo)}</b></div>
@@ -2453,6 +2499,55 @@ function moneyInput(el){
   el.addEventListener("focus",()=>{ setTimeout(()=>{ try{ if(el.selectionStart!==el.selectionEnd) return; const n=d.get.call(el).length; el.setSelectionRange(n,n); }catch(e){} },0); });
 }
 ["#fMonto","#fTenA","#fTenP","#fTenR","#fSepM","#fRepA","#fRepP"].forEach(s=>moneyInput($(s)));
+/* ================= Comparativos vs año anterior ================= */
+const addD=(f,n)=>{ const d=new Date(f+"T12:00"); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); };
+const kfm=v=>{ const a=Math.abs(v); return (v<0?"−":"")+(a>=1e6? (a/1e6).toFixed(1)+"M" : a>=1e3? Math.round(a/1e3)+"k" : Math.round(a)); };
+function enRango(a,b){ return S.movs.filter(m=>m.Fecha>=a&&m.Fecha<=b); }
+function statsP(rows,d){ const I=sum(rows.filter(m=>m.Tipo==="Ingreso"&&m.Fuente!==VALES)), G=sum(rows.filter(esGastoEf)); return {I,G,A:I-G,D:d? G/d:0}; }
+function varTxt(c,p,bueno){ const d=c-p, pc=p? d/Math.abs(p) : null, ok= bueno==="sube"? d>=0 : d<=0;
+  return `<td class="n ${Math.abs(d)<0.5?"muted":ok?"pos":"neg"}">${d>=0?"+":"−"}${nmx(Math.abs(d))}</td><td class="n ${Math.abs(d)<0.5?"muted":ok?"pos":"neg"}">${pc==null?"—":(pc>=0?"▲ ":"▼ ")+Math.abs(Math.round(pc*100))+"%"}</td>`; }
+function cmpHTML(tit, C, P, labC, labP, nota){
+  const fila=(e,t,c,p,b)=>`<tr><td>${e} ${t}</td><td class="n">${nmx(c)}</td><td class="n muted">${nmx(p)}</td>${varTxt(c,p,b)}</tr>`;
+  return `<div class="card priv"><h2>⚖️ ${tit}</h2>${nota? `<div class="small muted">${nota}</div>`:""}
+    <div class="tbl"><table class="compacta" style="font-size:12px"><thead><tr><th>Concepto</th><th class="n">${esc(labC)}</th><th class="n">${esc(labP)}</th><th class="n">Dif.</th><th class="n">Var.</th></tr></thead><tbody>
+    ${fila("💰","Ingresos",C.I,P.I,"sube")}${fila("🛒","Gastos",C.G,P.G,"baja")}${fila("🐷","Ahorro",C.A,P.A,"sube")}${fila("📅","Gasto/día",C.D,P.D,"baja")}
+    <tr><td colspan="5" class="small muted" style="font-weight:500;border-top:0">Ingresos sin vales · gastos sin vales · ahorro = ingreso − gasto</td></tr></tbody></table></div></div>`;
+}
+function cmpCatorcena(c){
+  const p=S.d.catorcenas.find(k=>+k.Anio===+c.Anio-1 && +k.Num===+c.Num); if(!p) return "";
+  const enCurso=c.Inicio<=S.hoy&&S.hoy<=c.Fin, n= enCurso? daysBetween(c.Inicio,S.hoy)+1 : daysBetween(c.Inicio,c.Fin)+1;
+  const fC= enCurso? S.hoy : c.Fin, fP= enCurso? addD(p.Inicio,n-1) : p.Fin;
+  return cmpHTML(`Catorcena ${+c.Num} vs ${+p.Anio}`, statsP(enRango(c.Inicio,fC),n), statsP(enRango(p.Inicio,fP),n), String(c.Anio), String(p.Anio),
+    enCurso? `Comparado ${n===1? "con el primer día" : "con los primeros "+n+" días"} de la catorcena ${+p.Num} de ${p.Anio} (${sDate(p.Inicio)}–${sDate(fP)}).` : `Contra la catorcena ${+p.Num} de ${p.Anio} (${sDate(p.Inicio)}–${sDate(p.Fin)}).`);
+}
+function cmpMes(ym){
+  const yp=(+ym.slice(0,4)-1)+ym.slice(4), act=ym===S.hoy.slice(0,7), dd= act? +S.hoy.slice(8,10) : +finMes(ym).slice(8,10);
+  const fC= act? S.hoy : finMes(ym), fP= act? yp+"-"+pad(Math.min(dd,+finMes(yp).slice(8,10))) : finMes(yp);
+  return cmpHTML(`${MES[+ym.slice(5)-1]} ${ym.slice(0,4)} vs ${yp.slice(0,4)}`, statsP(enRango(ym+"-01",fC),dd), statsP(enRango(yp+"-01",fP),dd), ym.slice(0,4), yp.slice(0,4),
+    act? `Mes en curso: comparado del 1 al ${dd} de ${MES[+ym.slice(5)-1]} de ${yp.slice(0,4)}.` : "");
+}
+/* ¿Cuánto puedes gastar por catorcena? (tu celda C38): (ingreso del año anterior en las catorcenas que faltan − lo que falta para la meta) ÷ catorcenas que faltan */
+function gastoMaxCat(y){
+  y=String(y); const M=metaAnio(y), meta=M.total||M.meta; if(!meta) return null;
+  const hc=catorcenaActual(S.hoy); if(!hc||String(hc.Anio)!==y) return null;
+  const cerr= catRes(hc).N>0? +hc.Num : +hc.Num-1, rest=M.n-cerr; if(rest<=0) return null;
+  const prevs=S.d.catorcenas.filter(k=>String(k.Anio)===String(+y-1) && +k.Num>cerr);
+  const base=prevs.reduce((s,k)=>{ const r=catRes(k); return s+r.N+r.PR; },0);
+  const ah=ahorrosAnio(y).total, falta=meta-ah, disp=base-falta;
+  return {rest, base, falta, disp, per:disp/rest, cerr, meta, ah, yp:+y-1, desde:cerr+1};
+}
+function ingresoAnio(y){ return sum(S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fuente!==VALES&&m.Fecha.startsWith(String(y)))); }
+function metaTxt(ah,meta){ if(!meta) return ""; const d=ah-meta; return d>=0? `🎉 ¡Meta cumplida! +${mx(d)} (+${(d/meta*100).toFixed(1)}%) arriba` : `Faltan ${mx(-d)} (${(-d/meta*100).toFixed(1)}%)`; }
+function numInput(el,dec){
+  if(!el||el._num) return; el._num=true; el.type="text"; el.setAttribute("inputmode",dec?"decimal":"numeric"); el.setAttribute("autocomplete","off"); el.removeAttribute("step"); el.removeAttribute("min");
+  const d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value");
+  const fmt=raw=>{ let s=String(raw==null?"":raw).replace(dec? /[^\d.]/g : /[^\d]/g,""); if(dec){ const i=s.indexOf("."); if(i>=0) s=s.slice(0,i+1)+s.slice(i+1).replace(/\./g,"").slice(0,dec); }
+    if(s==="") return ""; let [a,b]=s.split("."); a=(a.replace(/^0+(?=\d)/,"")||"0").replace(/\B(?=(\d{3})+(?!\d))/g,","); return a+(b!==undefined?"."+b:""); };
+  Object.defineProperty(el,"value",{configurable:true, get(){ return d.get.call(this).replace(/[^\d.]/g,""); }, set(v){ d.set.call(this, v===""||v==null? "" : fmt(String(v))); }});
+  el.addEventListener("input",()=>{ const raw=d.get.call(el), f=fmt(raw); if(f!==raw){ const fe=raw.length-(el.selectionEnd??raw.length); d.set.call(el,f); const p=Math.max(0,f.length-fe); try{ el.setSelectionRange(p,p); }catch(e){} } }, true);
+}
+numInput($("#fKm"),0); numInput($("#fLt"),2);
+
 function esParteNom(m){ return m.Fuente===NOMINA && (/Repartido \d+\/\d+/.test(m.Nota||"") || (!!m.Instrumento && !m.CuentaDestino)); }
 function esInvDirecto(m){ return !!m.Instrumento && !m.CuentaDestino; }
 function igNom(R){
