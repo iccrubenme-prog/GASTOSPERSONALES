@@ -611,6 +611,10 @@ details.mas .f{margin-top:6px}
 #bloq .bq-t{font-size:16px}
 #bloq .bq-s{font-size:12px;color:#dfe3ff}
 @media (prefers-reduced-motion:reduce){#bloq .bq-b{animation:none}}
+/* filtros fijos al desplazarse */
+.filt{position:sticky;top:-14px;z-index:6;margin:-14px -14px 0;padding:14px 14px 10px;background:var(--bg);display:flex;flex-direction:column;gap:10px;transition:box-shadow .2s}
+main.scrolled .filt{box-shadow:0 6px 12px -8px rgb(16 24 64 / .25)}
+main.scrolled .filt .search{padding-top:9px;padding-bottom:9px}
 </style>
 </head>
 <body>
@@ -619,15 +623,15 @@ details.mas .f{margin-top:6px}
   <main id="scr">
     <section class="page on" id="p-inicio"></section>
     <section class="page" id="p-movs">
-      <div class="nav"><button id="mvPrev" aria-label="Mes anterior">‹</button><b id="mvMes"></b><button id="mvNext" aria-label="Mes siguiente">›</button></div>
+      <div class="filt"><div class="nav"><button id="mvPrev" aria-label="Mes anterior">‹</button><b id="mvMes"></b><button id="mvNext" aria-label="Mes siguiente">›</button></div>
       <input class="search" id="mvQ" type="search" placeholder="Buscar en todo el historial…" aria-label="Buscar">
-      <div class="chips" id="mvChips"></div>
+      <div class="chips" id="mvChips"></div></div>
       <div class="small muted" id="mvSum"></div>
       <div class="card" style="padding:4px 12px"><div class="list" id="mvList"></div></div>
     </section>
     <section class="page" id="p-anal">
-      <div class="seg" id="anSeg"><button data-a="cat" class="on">Catorcena</button><button data-a="tend">Tendencia</button><button data-a="mes">Mes</button><button data-a="anio">Año</button><button data-a="autos">Autos</button></div>
-      <div class="nav"><button id="anPrev" aria-label="Anterior">‹</button><b id="anPer"></b><button id="anNext" aria-label="Siguiente">›</button></div>
+      <div class="filt"><div class="seg" id="anSeg"><button data-a="cat" class="on">Catorcena</button><button data-a="tend">Tendencia</button><button data-a="mes">Mes</button><button data-a="anio">Año</button><button data-a="autos">Autos</button></div>
+      <div class="nav"><button id="anPrev" aria-label="Anterior">‹</button><b id="anPer"></b><button id="anNext" aria-label="Siguiente">›</button></div></div>
       <div id="anBody" style="display:flex;flex-direction:column;gap:12px"></div>
     </section>
     <section class="page" id="p-mas">
@@ -1471,10 +1475,9 @@ function anCat(){
      <button class="btn sm" id="anIngLink" style="align-self:flex-start">Ver todos los ingresos de esta catorcena ›</button>
      ${x.valesG? `<div class="between small muted"><span>Gastado con vales (fuera del presupuesto)</span><span>${mx(x.valesG)}</span></div>`:""}</div>
    ${cmpCatorcena(c)}
-   <button class="btn" id="planBtn">Editar plan de esta catorcena</button>
    <div class="card"><h2>Por categoría</h2><div class="small muted">Toca una categoría para ver el detalle.</div>${x.gas.length? barsHTML(group(x.gas,"Categoria"),x.G,null,setDrill("cat",x.gas,"Catorcena "+(+c.Num))) : '<div class="empty">Sin gastos</div>'}</div>
    <div class="card"><h2>En qué se fue más</h2>${x.gas.length? barsHTML(top,x.G,null,setDrillCampo("catd",x.gas,"Catorcena "+(+c.Num),"Descripcion")) : '<div class="empty">Sin gastos</div>'}</div>`;
-  $("#planBtn").onclick=()=>planForm(c, ()=>rAnal());
+
   $("#anIngLink").onclick=()=>{ S.ig={per:"cat",ref:c.Inicio,tipo:"Todos",a:"",b:""}; openSub("ingresos"); };
 }
 function anMes(){
@@ -1512,14 +1515,16 @@ function anAnio(){
   const meses=[...Array(lastM).keys()];
   $("#anBody").innerHTML = `
    ${sel? `<div class="card hero" style="padding:12px 14px;gap:6px"><div class="between"><b>📅 Filtrado: ${MES[sel-1]} ${ys}</b><button class="ini-chip" id="anQuitar" style="border:0;color:#fff;cursor:pointer">✕ Ver todo el año</button></div><div class="small muted">Todas las tarjetas de abajo muestran solo este mes, comparado con ${MES[sel-1]} ${yp}.</div></div>`:""}
-   <div class="kpis"><div class="kpi"><div class="l">💰 Ingresos <span class="muted">(sin vales)</span></div><div class="v pos priv">${mx(I)}</div>${vp(I,IP,"sube")}</div><div class="kpi"><div class="l">🛒 Gastos</div><div class="v neg">${mx(G)}</div>${vp(G,GP,"baja")}</div><div class="kpi"><div class="l">🐷 Ahorro</div><div class="v priv">${I? Math.round((I-G)/I*100)+"%":"—"}</div><div class="small muted priv">${mx(I-G)}</div></div></div>${notaVales(cur)}
+   <div class="kpis"><div class="kpi"><div class="l">💰 Ingresos <span class="muted">(sin vales)</span></div><div class="v pos priv">${mx(I)}</div>${vp(I,IP,"sube")}</div><div class="kpi"><div class="l">🛒 Gastos</div><div class="v neg">${mx(G)}</div>${vp(G,GP,"baja")}</div>${(()=>{ if(sel) return `<div class="kpi"><div class="l">⚖️ Ingreso − gasto</div><div class="v priv">${I? Math.round((I-G)/I*100)+"%":"—"}</div><div class="small muted priv">${mx(I-G)}</div></div>`;
+      const AH=ahorrosAnio(ys).total, sob=(I-G)-AH;
+      return `<div class="kpi"><div class="l">🐷 Ahorro</div><div class="v priv">${I? (AH/I*100).toFixed(1)+"%":"—"}</div><div class="small muted priv">${mx(AH)}</div>${Math.abs(sob)>=1? `<div class="small muted priv" style="margin-top:2px">${sob>0? "+ "+mx(sob)+" de presupuesto sin gastar" : "− "+mx(-sob)+" gastado de más vs presupuesto"}</div>`:""}</div>`; })()}</div>${notaVales(cur)}
    <div class="card priv"><div class="between"><h2>📊 Mes a mes</h2><span class="small muted">Toca un mes para filtrar</span></div>
      <div class="mvals">${mi.map((v,i)=>`<span class="${sel&&sel!==i+1?"dim":""}"><b class="pos">${v?kfm(v):""}</b><b class="neg">${mg[i]?kfm(mg[i]):""}</b></span>`).join("")}</div>
      <div class="months">${mi.map((v,i)=>`<button type="button" class="mcol ${sel===i+1?"sel":sel?"dim":""}" data-mes="${i+1}" aria-label="${MES[i]}: ingresos ${mx(v)}, gastos ${mx(mg[i])}"><span style="height:${v/max*100}%;background:linear-gradient(180deg,#4cc38a,#1d7a4c)"></span><span style="height:${mg[i]/max*100}%;background:linear-gradient(180deg,#f2766b,#b3362e)"></span></button>`).join("")}</div>
      <div class="mlab">${MES.map((m,i)=>`<span class="${sel===i+1?"on":""}">${m}</span>`).join("")}</div><div class="legend"><span><i style="background:var(--pos)"></i>Ingresos</span><span><i style="background:var(--neg)"></i>Gastos</span><span class="muted">· montos en miles (k)</span></div></div>
    ${sel? "" : proyeccionHTML(ys)}
    <div class="card priv"><div class="between"><h2>⚖️ Comparativo ${ys} vs ${yp}</h2></div>
-     <div class="seg" id="anCmpSeg" style="margin:2px 0 4px">${[["I","Ingresos"],["G","Gastos"],["A","Ahorro"]].map(([k,l])=>`<button data-cm="${k}" class="${modo===k?"on":""}">${l}</button>`).join("")}</div>
+     <div class="seg" id="anCmpSeg" style="margin:2px 0 4px">${[["I","Ingresos"],["G","Gastos"],["A","Ingreso − gasto"]].map(([k,l])=>`<button data-cm="${k}" class="${modo===k?"on":""}">${l}</button>`).join("")}</div>
      <div class="tbl"><table class="compacta" style="font-size:12px"><thead><tr><th>Mes</th><th class="n">${ys}</th><th class="n">${yp}</th><th class="n">Dif.</th><th class="n">Var.</th></tr></thead><tbody>
      ${meses.map(i=>`<tr data-mes="${i+1}" style="cursor:pointer${sel===i+1?";outline:2px solid var(--primary);outline-offset:-2px":""}"><td>${MES[i]}${esAct&&i===lastM-1? ` <span class="muted small">al ${hoyD}</span>`:""}</td><td class="n">${nmx(serie[0][i])}</td><td class="n muted">${nmx(serie[1][i])}</td>${varTxt(serie[0][i],serie[1][i],bueno)}</tr>`).join("")}
      ${(()=>{ const c=meses.reduce((a,i)=>a+serie[0][i],0), p=meses.reduce((a,i)=>a+serie[1][i],0); return `<tr><td>${esAct?"Acumulado":"Total"}</td><td class="n">${nmx(c)}</td><td class="n">${nmx(p)}</td>${varTxt(c,p,bueno)}</tr>`; })()}
@@ -1592,8 +1597,8 @@ function renderSub(){
     let acum=0; const serie=cs.map(k=>{ acum+=ahorroCat(k)||0; return {n:+k.Num, a:acum, m:M.base*(+k.Num)}; });
     const gf=[...ay.gfHist, ...ay.apoyos, ...ay.gfApp.map(m=>({Fecha:m.Fecha, Monto:m.Monto, Descripcion:m.Descripcion}))].sort((a,b)=>a.Fecha<b.Fecha?-1:1);
     const fondoL=[...ay.prest.map(m=>({Fecha:m.Fecha,Monto:+m.Monto,Descripcion:m.Descripcion||m.Fuente,sub:m.Fuente,ent:true})), ...gf.map(g=>({Fecha:g.Fecha,Monto:+g.Monto,Descripcion:g.Descripcion,sub:g.cat? "catorcena "+g.cat:"",ent:false}))].sort((a,b)=>a.Fecha<b.Fecha?-1:a.Fecha>b.Fecha?1:(a.ent===b.ent?0:a.ent?-1:1));
-    el.innerHTML = `<div class="seg" id="ahModo"><button data-am="anio" class="${TODO?"":"on"}">Por año</button><button data-am="todo" class="${TODO?"on":""}">Todo el acumulado</button></div>
-      ${TODO? "" : `<div class="nav"><button id="ahPrev" aria-label="Año anterior">‹</button><b>${y}</b><button id="ahNext" aria-label="Año siguiente">›</button></div>`}
+    el.innerHTML = `<div class="filt"><div class="seg" id="ahModo"><button data-am="anio" class="${TODO?"":"on"}">Por año</button><button data-am="todo" class="${TODO?"on":""}">Todo el acumulado</button></div>
+      ${TODO? "" : `<div class="nav"><button id="ahPrev" aria-label="Año anterior">‹</button><b>${y}</b><button id="ahNext" aria-label="Año siguiente">›</button></div>`}</div>
       <div class="card hero priv"><div class="small muted">Ahorro acumulado ${y}</div><div class="big">${mx(ay.total)}</div>
         <div class="between small"><span>Ahorro de catorcenas</span><b>${mx(ay.AC)}</b></div>
         <div class="between small"><span>Fondo: prestaciones ${mx(ay.PR)} − gastos ${mx(ay.GF)}${ay.AP? " − colchón "+mx(ay.AP):""}</span><b>${mx(ay.fondo)}</b></div>
@@ -1795,7 +1800,7 @@ function renderSub(){
     const ym=S.anMes, bud=presupuesto(ym), gas=inMonth(ym).filter(esGastoEf), real=Object.fromEntries(group(gas,"Categoria"));
     const cats=[...new Set([...Object.keys(S.cats),...Object.keys(real)])].sort((a,b)=>(real[b]||0)-(real[a]||0));
     const TB=Object.values(bud).reduce((a,v)=>a+v,0), TR=sum(gas);
-    el.innerHTML = `<div class="nav"><button id="prPrev" aria-label="Mes anterior">‹</button><b>${mLabel(ym)}</b><button id="prNext" aria-label="Mes siguiente">›</button></div>
+    el.innerHTML = `<div class="filt"><div class="nav"><button id="prPrev" aria-label="Mes anterior">‹</button><b>${mLabel(ym)}</b><button id="prNext" aria-label="Mes siguiente">›</button></div></div>
       <div class="card hero"><div class="small muted">🎯 Gastado en ${mLabel(ym)}</div><div class="big priv">${mx(TR)}</div><div class="between small"><span class="muted priv">de ${mx(TB)} de presupuesto</span><b>${TB? Math.round(TR/TB*100):0}%</b></div><div class="track"><div class="fill ${TR>TB?"over":TR>TB*.85?"warn":""}" style="width:${TB?Math.min(100,TR/TB*100):0}%"></div></div>
         <label class="small muted"><input type="checkbox" id="prMes"> Cambiar solo ${mLabel(ym)} (si no, cambia el monto base de todos los meses)</label></div>
       <div class="card">${cats.map(c=>{ const b=bud[c]||0, r=real[c]||0, p=b?r/b:0;
@@ -2353,7 +2358,7 @@ function renderCtaDet(el){
       <div class="small" style="opacity:.85;margin-top:8px">Gastaste con ${esc(n)}</div>
       <div class="big">${mx2(T)}</div>
       <div class="small" style="opacity:.85">${g.length} ${g.length===1?"compra":"compras"}${g.length? " · promedio "+mx(T/g.length):""}</div></div>
-    <div class="chips" style="overflow-x:auto;flex-wrap:nowrap">${pers.map(([k,l])=>`<button class="chip ${S.ctaPer===k?"on":""}" data-per="${k}">${l}</button>`).join("")}</div>
+    <div class="filt"><div class="chips" style="overflow-x:auto;flex-wrap:nowrap">${pers.map(([k,l])=>`<button class="chip ${S.ctaPer===k?"on":""}" data-per="${k}">${l}</button>`).join("")}</div></div>
     ${g.length? `<div class="card"><h2>¿En qué se fue?</h2>${barsHTML(porCat,T,null,setDrill("cd-cat",g,n+" · "+lab))}</div>
       <div class="card"><h2>Conceptos que más pesan</h2>${barsHTML(porDesc,T)}</div>` : `<div class="card"><div class="empty">No hay gastos con ${esc(n)} en este periodo.</div></div>`}
     ${ent.length||sal.length? `<div class="card"><h2>${t==="Crédito"||t==="Departamental"?"Pagos a la tarjeta":"Entradas y salidas"}</h2>${[...ent,...sal].sort((x,y)=>x.Fecha<y.Fecha?1:-1).map(m=>itemHTML(m,true)).join("")}</div>`:""}
@@ -2437,10 +2442,10 @@ function renderIngresos(el){
     return `<button class="ig-row" data-id="${esc(m.ID)}">${igIcoSpan(gr)}<span class="grow"><div class="t">${esc(m.Descripcion||m.Fuente)}${esTenate(m.Fuente)?`<span class="ig-tag">${esc(tenLabel(m))}</span>`:""}</div><div class="s">${esc(det)}</div></span><span class="amt pos priv">+${mx2(m.Monto)}</span></button>`; }).join("");
   const cajaS=(saldosCuentas()[CAJA_T]||0);
   el.innerHTML=`
-    <div class="seg" id="igPer">${per.map(([k,l])=>`<button data-p="${k}" class="${g.per===k?"on":""}">${l}</button>`).join("")}</div>
+    <div class="filt"><div class="seg" id="igPer">${per.map(([k,l])=>`<button data-p="${k}" class="${g.per===k?"on":""}">${l}</button>`).join("")}</div>
     ${["cat","mes","anio"].includes(g.per)? `<div class="nav"><button id="igPrev" aria-label="Anterior">‹</button><b>${esc(lab)}</b><button id="igNext" aria-label="Siguiente">›</button></div>`:""}
     ${g.per==="rango"? `<div class="ig-rg"><div class="f"><label for="igA">Desde</label><input type="date" id="igA" value="${a}"></div><div class="f"><label for="igB">Hasta</label><input type="date" id="igB" value="${b}"></div></div>`:""}
-    <div class="ig-f">${grupos.map(x=>`<button class="chip ${g.tipo===x?"on":""}" data-g="${esc(x)}">${x==="Todos"?"✨":igIco(x)} ${esc(x)}</button>`).join("")}</div>
+    <div class="ig-f">${grupos.map(x=>`<button class="chip ${g.tipo===x?"on":""}" data-g="${esc(x)}">${x==="Todos"?"✨":igIco(x)} ${esc(x)}</button>`).join("")}</div></div>
     <div class="card hero priv"><div class="small muted">${esc(g.tipo==="Todos"?"Ingresos":g.tipo)} · ${esc(lab)}</div><div class="big">${mx2(T)}</div>
       <div class="small muted">${R.length} ${R.length===1?"ingreso":"ingresos"}${cmp? " · "+cmp:""}</div></div>
     ${g.tipo==="Todos"&&R.length? `<div class="card priv"><h2>¿De dónde vino?</h2>${barsHTML(group(R,m=>igGrupo(m.Fuente)),T,null,setDrillFn("ig-g",R,"Ingresos · "+lab,m=>igGrupo(m.Fuente)))}</div>
@@ -2668,8 +2673,8 @@ function cmpHTML(tit, C, P, labC, labP, nota){
   const fila=(e,t,c,p,b)=>`<tr><td>${e} ${t}</td><td class="n">${nmx(c)}</td><td class="n muted">${nmx(p)}</td>${varTxt(c,p,b)}</tr>`;
   return `<div class="card priv"><h2>⚖️ ${tit}</h2>${nota? `<div class="small muted">${nota}</div>`:""}
     <div class="tbl"><table class="compacta" style="font-size:12px"><thead><tr><th>Concepto</th><th class="n">${esc(labC)}</th><th class="n">${esc(labP)}</th><th class="n">Dif.</th><th class="n">Var.</th></tr></thead><tbody>
-    ${fila("💰","Ingresos",C.I,P.I,"sube")}${fila("🛒","Gastos",C.G,P.G,"baja")}${fila("🐷","Ahorro",C.A,P.A,"sube")}${fila("📅","Gasto/día",C.D,P.D,"baja")}
-    <tr><td colspan="5" class="small muted" style="font-weight:500;border-top:0">Ingresos sin vales · gastos sin vales · ahorro = ingreso − gasto</td></tr></tbody></table></div></div>`;
+    ${fila("💰","Ingresos",C.I,P.I,"sube")}${fila("🛒","Gastos",C.G,P.G,"baja")}${fila("⚖️","Ingreso − gasto",C.A,P.A,"sube")}${fila("📅","Gasto/día",C.D,P.D,"baja")}
+    <tr><td colspan="5" class="small muted" style="font-weight:500;border-top:0">Ingresos y gastos sin vales. Ingreso − gasto incluye lo que aún no gastas del presupuesto; tu ahorro oficial está en Ahorros.</td></tr></tbody></table></div></div>`;
 }
 function cmpCatorcena(c){
   const p=S.d.catorcenas.find(k=>+k.Anio===+c.Anio-1 && +k.Num===+c.Num); if(!p) return "";
@@ -3269,7 +3274,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.13-30";
+const APP_BUILD="2026.11.14-33";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
@@ -3284,6 +3289,8 @@ function checarVersion(auto){
 checarVersion(true);
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") checarVersion(false); });
 setInterval(()=>checarVersion(false),30*60*1000);
+
+(()=>{ const m=document.querySelector("main"); if(!m) return; let t=false; m.addEventListener("scroll",()=>{ if(t) return; t=true; requestAnimationFrame(()=>{ m.classList.toggle("scrolled", m.scrollTop>6); t=false; }); },{passive:true}); })();
 </script>
 </body>
 </html>
