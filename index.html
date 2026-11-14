@@ -3121,7 +3121,7 @@ function renderCuadre(el){
   const ua=(S.d.arqueos||[]).slice().sort((a,b)=>(a.Fecha+(a.Hora||""))<(b.Fecha+(b.Hora||""))?1:-1)[0];
   const hoyOk=r=>r.foto&&r.foto.Fecha===S.hoy, nOk=ins.filter(hoyOk).length;
   const arqOk=ua&&ua.Fecha===S.hoy;
-  el.innerHTML=`<div class="card hero"><div class="small muted">⚖️ Cuadre guiado</div><div class="big">${nOk+(arqOk?1:0)} de ${ins.length+1}</div><div class="small muted">Compara lo que dice la app con lo que ves en tus apps del banco. Si algo no cuadra, aquí mismo registras lo que falta.</div></div>
+  el.innerHTML=`<div class="card hero"><div class="small muted">⚖️ Cuadre guiado</div><div class="big">${nOk+(arqOk?1:0)} de ${ins.length+1} <span style="font-size:15px;font-weight:600">cuadrados hoy</span></div><div class="small muted">Cuentan tus ${ins.length} inversiones (con saldo real capturado hoy) y tu efectivo (con arqueo de hoy). Las tarjetas solo se comparan.</div></div>
     <div class="card"><div class="cq-step"><span class="cq-n ${nOk===ins.length?"ok":""}">1</span><h2 style="margin:0">Inversiones</h2></div>
       ${ins.map(r=>{ const n=r.i.Instrumento; return `<div class="cq-item" data-cq="${esc(n)}"><div class="between"><b>${esc(n)}${hoyOk(r)?" ✓":""}</b><span class="small muted priv">App: ${mx2(r.saldo)}</span></div>
         <div class="cq-in"><input class="search" data-cqv inputmode="decimal" placeholder="Saldo que ves hoy en ${esc(n)}"><button class="btn sm primary" data-cqs>Guardar</button></div><div class="cq-dif" data-cqd></div></div>`; }).join("")}</div>
