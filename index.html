@@ -1775,6 +1775,7 @@ function renderSub(){
         <div class="vl-kpis"><div><small>⬆️ Depositado en ${MN}</small><b>${mx2(depMes)}</b></div><div><small>⬇️ Gastado en ${MN}</small><b>${mx2(gasMes)}</b></div></div>
         <div class="small muted">Saldo = depósitos − gastos pagados con vales. No se mezcla con tus gastos.</div></div>
       <div class="vl-acts"><button class="a1" id="vDep"><span>⬆️</span>Registrar depósito</button><button class="a2" id="vGas"><span>🛒</span>Gasto con vales</button></div>
+      <button class="btn" id="vDet" style="font-weight:800">📋 Ver desglose ›</button>
       <div class="card priv"><h2>📅 Últimos 12 meses <span class="small muted">(pesos)</span></h2><div class="tbl"><table class="vl-tbl"><thead><tr><th>Mes</th><th>Depósito</th><th>Gasto</th><th>Dif.</th><th>Saldo</th></tr></thead><tbody>
         ${filas.map(x=>`<tr class="${x.ym===ymH?"act":""}"><td>${MES[+x.ym.slice(5)-1]}<small>${x.ym.slice(2,4)}</small></td><td class="pos">${nmx(x.d)}</td><td class="neg">${nmx(x.g)}</td><td><span class="pill ${x.dif<0?"neg":"pos"}">${x.dif>0?"+":""}${nmx(x.dif)}</span></td><td class="sal">${nmx(x.saldo)}</td></tr>`).join("")}
         </tbody><tfoot><tr><td>Total</td><td class="pos">${nmx(TD)}</td><td class="neg">${nmx(TG)}</td><td><span class="pill ${TD-TG<0?"neg":"pos"}">${TD-TG>0?"+":""}${nmx(TD-TG)}</span></td><td></td></tr></tfoot></table></div>
@@ -1782,6 +1783,7 @@ function renderSub(){
       ${(()=>{ const desde=addMonth(S.hoy.slice(0,7),-5)+"-01"; const tk=(S.d.tickets||[]).filter(t=>t.Fecha>=desde); if(!tk.length) return `<div class="card"><h2>🧾 Artículos comprados con vales</h2><div class="empty">Escanea tus tickets al registrar un gasto con vales y aquí verás qué compras más.</div></div>`;
         const T=tk.reduce((s,t)=>s+(+t.Monto||0),0); const porArt=group(tk.map(t=>({Monto:+t.Monto, A:String(t.Articulo).toUpperCase()})),"A").slice(0,12); const porT=group(tk.map(t=>({Monto:+t.Monto,T:t.Tienda||"—"})),"T");
         return `<div class="card"><h2>🧾 Artículos comprados con vales <span class="small muted">(6 meses)</span></h2>${barsHTML(porArt,T)}</div><div class="card"><h2>🏪 Por tienda</h2>${barsHTML(porT,T)}</div>`; })()}`;
+    $("#vDet").onclick=()=>{ const vc=(S.d.cuentas.find(k=>k.Tipo==="Vales")||{}).Cuenta||VALES; S.ctaDet=vc; S.ctaPer=S.ctaPer||"cat"; openSub("ctadet"); };
     $("#vDep").onclick=()=>openForm({Tipo:"Ingreso",Fuente:"Vales de despensa",CuentaDestino:"Vales de despensa"},{dst:"Vales de despensa",fuente:"Vales de despensa"});
     $("#vGas").onclick=()=>openForm({Tipo:"Gasto",Categoria:"Súper y despensa",Subcategoria:"Despensa (vales)",Cuenta:"Vales de despensa"},{cta:"Vales de despensa"});
   }
@@ -2240,7 +2242,7 @@ function perRango(p){
   return { cat: c? [c.Inicio,c.Fin,catLabel(c)]:[h,h,"Hoy"], catAnt: cp? [cp.Inicio,cp.Fin,catLabel(cp)]:null,
            mes:[ym+"-01",fin(ym),"Este mes"], mesAnt:[pm+"-01",fin(pm),"Mes anterior"], anio:[y+"-01-01",y+"-12-31","Año "+y] }[p];
 }
-function gastosCuenta(n,a,b){ return S.movs.filter(m=>m.Tipo==="Gasto"&&m.Cuenta===n&&m.Fecha>=a&&m.Fecha<=b); }
+function gastosCuenta(n,a,b){ const esV=(S.cta[n]||{}).Tipo==="Vales"; return S.movs.filter(m=>m.Tipo==="Gasto"&&(m.Cuenta===n||(esV&&pagoVales(m)))&&m.Fecha>=a&&m.Fecha<=b); }
 /* ================= Arqueo de efectivo ================= */
 const DENOM=[1000,500,200,100,50,20,10,5,2,1,0.5,0.2,0.1];
 const BILL_COL={1000:["#8e44ad","#5b2c83"],500:["#2e78c7","#1b4f8f"],200:["#2f9e5b","#1c6b3c"],100:["#d1495b","#962c3a"],50:["#c2408f","#86275f"],20:["#2a9fb0","#1a6b77"]};
@@ -2334,7 +2336,7 @@ function renderCtaDet(el){
   const n=S.ctaDet, c=S.cta[n]||{}, t=c.Tipo||"", [c1,c2]=cpCol(n,0);
   S.ctaPer=S.ctaPer||"cat"; const R=perRango(S.ctaPer)||perRango("cat"), [a,b,lab]=R;
   const g=gastosCuenta(n,a,b).sort((x,y)=>x.Fecha<y.Fecha?1:-1), T=sum(g);
-  const ent=S.movs.filter(m=>m.Fecha>=a&&m.Fecha<=b&&((m.Tipo==="Pago tarjeta"||m.Tipo==="Transferencia"||m.Tipo==="Ingreso")&&m.CuentaDestino===n));
+  const ent=S.movs.filter(m=>m.Fecha>=a&&m.Fecha<=b&&((m.Tipo==="Pago tarjeta"||m.Tipo==="Transferencia"||m.Tipo==="Ingreso")&&(m.CuentaDestino===n||(t==="Vales"&&m.Tipo==="Ingreso"&&m.Fuente===VALES))));
   const sal=S.movs.filter(m=>m.Fecha>=a&&m.Fecha<=b&&(m.Tipo==="Pago tarjeta"||m.Tipo==="Transferencia")&&m.Cuenta===n);
   const porCat=group(g,"Categoria"), porDesc=group(g,m=>m.Descripcion||m.Subcategoria||"Sin concepto").slice(0,8);
   const pers=[["cat","Catorcena"],["catAnt","Catorcena anterior"],["mes","Este mes"],["mesAnt","Mes anterior"],["anio","Este año"]].filter(([k])=>perRango(k));
@@ -3259,7 +3261,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.13-28";
+const APP_BUILD="2026.11.13-29";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
