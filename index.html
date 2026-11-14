@@ -872,15 +872,19 @@ const TIPS=["Toca + para registrar un gasto en segundos.","Escanea tus tickets d
 let spT=null, spP=0, spTipT=null, spTipI=0;
 function spSet(p,msg){ spP=Math.max(spP,p); const f=$("#spFill"); if(f) f.style.width=spP+"%"; if(msg) $("#splashMsg").textContent=msg; }
 function spStart(){
+  if(typeof spDoneT!=="undefined") spDoneT.forEach(clearTimeout);
   const s=$("#splash"); s.classList.remove("hide","out","listo"); spP=0; spSet(6,"Conectando con tu hoja de Google…");
   clearInterval(spT); spT=setInterval(()=>{ if(spP<82) spSet(spP+Math.max(1,(82-spP)*0.08), spP>35? "Leyendo tus movimientos…" : null); },300);
   const tip=$("#spTip"); clearInterval(spTipT); spTipI=Math.floor(Math.random()*TIPS.length); tip.textContent=TIPS[spTipI];
   spTipT=setInterval(()=>{ tip.style.opacity=0; setTimeout(()=>{ spTipI=(spTipI+1)%TIPS.length; tip.textContent=TIPS[spTipI]; tip.style.opacity=.7; },400); },3200);
 }
 function spStop(){ clearInterval(spT); clearInterval(spTipT); }
+let spDoneT=[];
 function spDone(){
   spStop(); spSet(100,"¡Listo!");
-  const s=$("#splash"); setTimeout(()=>{ s.classList.add("out"); setTimeout(()=>{ s.classList.add("hide"); s.classList.remove("out"); },460); },250);
+  const s=$("#splash"); spDoneT.forEach(clearTimeout);
+  // siempre termina oculta: evita que la portada se quede a medio desvanecer encima de la app (bloqueando el scroll)
+  spDoneT=[setTimeout(()=>s.classList.add("out"),250), setTimeout(()=>{ s.classList.add("hide"); s.classList.remove("out"); },720)];
 }
 /* ================= carga ================= */
 function recargarSilencioso(msg){
@@ -2248,7 +2252,9 @@ const DENOM=[1000,500,200,100,50,20,10,5,2,1,0.5,0.2,0.1];
 const BILL_COL={1000:["#8e44ad","#5b2c83"],500:["#2e78c7","#1b4f8f"],200:["#2f9e5b","#1c6b3c"],100:["#d1495b","#962c3a"],50:["#c2408f","#86275f"],20:["#2a9fb0","#1a6b77"]};
 const denTxt=d=> d>=20? "$"+d.toLocaleString("es-MX") : d>=1? "$"+d : (Math.round(d*100))+"¢";
 function arqParse(t){ const o={}; String(t||"").split(/[,;]/).forEach(p=>{ const [d,c]=p.split(":"); if(d&&c) o[+d]=+c||0; }); return o; }
-function arqUltimo(){ const L=(S.d.arqueos||[]).slice().sort((a,b)=>(a.Fecha+(a.Hora||""))<(b.Fecha+(b.Hora||""))?-1:1); return L[L.length-1]||null; }
+const arqHora=h=>{ const m=String(h||"").match(/(\d{1,2}):(\d{2})/); return m&&!/^1899/.test(String(h))? pad(m[1])+":"+m[2] : (m&&/T\d/.test(String(h))? "" : (m? pad(m[1])+":"+m[2] : "")); };
+function arqOrden(){ return (S.d.arqueos||[]).map((a,i)=>({a,i})).sort((x,y)=>{ const k=z=>z.a.Fecha+" "+(arqHora(z.a.Hora)||"00:00"); return k(x)<k(y)?-1:k(x)>k(y)?1:x.i-y.i; }).map(z=>z.a); }
+function arqUltimo(){ const L=arqOrden(); return L[L.length-1]||null; }
 function arqBorrador(){
   let d=store("fc_arq"); if(d&&d.c) return d;
   const u=arqUltimo(); return u? {c:arqParse(u.Detalle), otro:+u.OtroDinero||0} : {c:{}, otro:0};
@@ -2263,7 +2269,7 @@ function renderArqueo(el){
   const ef=Object.entries(saldosCuentas()).filter(([n])=>{ const k=S.cta[n]; return k&&k.Tipo==="Efectivo"; }).reduce((a,[,v])=>a+v,0);
   const calc=()=>{ const bil=DENOM.filter(d=>d>=20).reduce((a,d)=>a+d*(+D.c[d]||0),0), mon=DENOM.filter(d=>d<20).reduce((a,d)=>a+d*(+D.c[d]||0),0);
     const piezas=DENOM.reduce((a,d)=>a+(+D.c[d]||0),0); return {bil, mon, piezas, tot:bil+mon+(+D.otro||0), q:x? x.queda : 0}; };
-  const hist=(S.d.arqueos||[]).slice().sort((a,b)=>(a.Fecha+(a.Hora||""))<(b.Fecha+(b.Hora||""))?1:-1).slice(0,8);
+  const histAll=arqOrden(), hist=histAll.slice().reverse().slice(0,8);
   const fila=d=>`<div class="aq-row ${+D.c[d]?"on":""}" data-row="${d}">${denIcon(d)}
       <span class="aq-step"><button data-am="${d}" aria-label="Quitar ${denTxt(d)}">−</button><input inputmode="numeric" data-ad="${d}" value="${+D.c[d]||""}" placeholder="0" aria-label="Cantidad de ${denTxt(d)}"><button data-ap="${d}" aria-label="Agregar ${denTxt(d)}">+</button></span>
       <b class="aq-t priv" data-at="${d}"></b></div>`;
@@ -2272,17 +2278,19 @@ function renderArqueo(el){
       <div class="small muted">💵 Total en tu cartera</div>
       <div class="aq-big" id="aqTot"></div>
       <div class="aq-chips" id="aqChips"></div>
-      <div class="small muted">${u? "Último arqueo guardado: "+sDate(u.Fecha)+(u.Hora? " · "+esc(u.Hora):"") : "Aún no guardas ningún arqueo"} · toca un billete o moneda para sumar uno</div></div>
+      <div class="small muted">${u? "Último arqueo guardado: "+sDate(u.Fecha)+(arqHora(u.Hora)? " · "+esc(arqHora(u.Hora)):"") : "Aún no guardas ningún arqueo"} · toca un billete o moneda para sumar uno</div></div>
     <div class="card"><div class="aq-h"><h2>💸 Billetes</h2><span class="aq-sub priv" id="aqBil"></span></div><div class="aq-list">${DENOM.filter(d=>d>=20).map(fila).join("")}</div></div>
     <div class="card"><div class="aq-h"><h2>🪙 Monedas</h2><span class="aq-sub priv" id="aqMon"></span></div><div class="aq-list">${DENOM.filter(d=>d<20).map(fila).join("")}</div></div>
     <div class="card"><div class="aq-otro"><span class="oi">💳</span><span class="grow"><b>Otro dinero</b><div class="small muted">Opcional, ej. Klar débito</div></span><input id="arqOtro" class="money" value="${+D.otro||""}"></div></div>
     <div class="card priv" id="arqCuadre"></div>
     <div style="display:flex;gap:8px"><button class="btn" id="arqLimpiar">↺ Ceros</button><button class="btn primary grow" id="arqGuardar">💾 Guardar arqueo</button></div>
-    ${hist.length? `<div class="card"><h2>🗂️ Arqueos anteriores</h2>${hist.map(h=>`<div class="between small" style="padding:4px 0"><span>${sDate(h.Fecha)} ${String(h.Fecha).slice(0,4)}${h.Hora? " · "+esc(h.Hora):""}</span><span class="priv">${mx2(+h.Contado)} · <b class="${+h.Diferencia<0?"neg":"pos"}">${+h.Diferencia>=0?"+":""}${mx2(+h.Diferencia)}</b></span></div>`).join("")}</div>`:""}`;
+    ${hist.length? `<div class="card"><h2>🗂️ Arqueos anteriores</h2><div class="small muted" style="margin-top:-4px">Contado · vs catorcena · cambio contra el arqueo anterior</div>${hist.map(h=>{ const i=histAll.indexOf(h), prev=i>0? histAll[i-1] : null, dv=prev? (+h.Contado)-(+prev.Contado) : null, hr=arqHora(h.Hora);
+      return `<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div class="between small"><b>${sDate(h.Fecha)} ${String(h.Fecha).slice(0,4)}${hr? " · "+esc(hr):""}</b><span class="priv"><b>${mx2(+h.Contado)}</b> · <span class="${+h.Diferencia<0?"neg":"pos"}" style="font-weight:700">${+h.Diferencia>=0?"+":""}${mx2(+h.Diferencia)}</span></span></div>
+        <div class="small muted priv" style="text-align:right">${dv==null? "Primer arqueo" : Math.abs(dv)<0.005? "= Igual que el anterior" : (dv<0? "↓ Salieron " : "↑ Entraron ")+mx2(Math.abs(dv))+" desde el "+sDate(prev.Fecha)}</div></div>`; }).join("")}</div>`:""}`;
   const pinta=bump=>{ const k=calc(), dif=k.tot-k.q, ok=Math.abs(dif)<0.01;
     const t=$("#aqTot",el); t.textContent=mx2(k.tot); if(bump){ t.classList.add("bump"); setTimeout(()=>t.classList.remove("bump"),180); }
     $("#aqBil",el).textContent=mx2(k.bil); $("#aqMon",el).textContent=mx2(k.mon);
-    $("#aqChips",el).innerHTML=`<span class="aq-chip">Queda catorcena ${mx2(k.q)}</span><span class="aq-chip ${dif<0?"bad":"ok"}">${ok? "✓ Cuadra" : dif>0? "👛 Extra "+mx2(dif) : "⚠️ Faltan "+mx2(-dif)}</span>`;
+    $("#aqChips",el).innerHTML=`<span class="aq-chip">Queda catorcena ${mx2(k.q)}</span><span class="aq-chip ${dif<0?"bad":"ok"}">${ok? "✓ Cuadra" : dif>0? "👛 Extra "+mx2(dif) : "⚠️ Faltan "+mx2(-dif)}</span>${(()=>{ const u=arqUltimo(); if(!u) return ""; const dv=k.tot-(+u.Contado); return `<span class="aq-chip">${Math.abs(dv)<0.005? "= Igual al último arqueo" : (dv<0?"↓ ":"↑ ")+mx2(Math.abs(dv))+" vs último arqueo"}</span>`; })()}`;
     DENOM.forEach(d=>{ const n=+D.c[d]||0, tt=$(`[data-at="${d}"]`,el); if(tt) tt.textContent=mx2(d*n); const r=$(`[data-row="${d}"]`,el); if(r) r.classList.toggle("on",n>0); });
     const mxv=Math.max(k.tot,k.q,1), pq=Math.max(0,Math.min(k.tot,k.q))/mxv*100, pe=Math.max(0,dif)/mxv*100, pf=Math.max(0,-dif)/mxv*100;
     $("#arqCuadre",el).innerHTML=`<h2>⚖️ ¿Cuadra con tu catorcena?</h2><div class="aq-cmp">
@@ -3261,13 +3269,13 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.13-29";
+const APP_BUILD="2026.11.13-30";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
   return fetch("./index.html?v="+Date.now(),{cache:"no-store"}).then(r=>r.ok? r.text():"").then(t=>{
     const m=t.match(/APP_BUILD="([^"]+)"/); if(!m||m[1]===APP_BUILD) return false;
-    const enEntrar=!$("#splash").classList.contains("hide");
+    const sp=$("#splash"), rb=$("#reentrar"), enEntrar=!sp.classList.contains("hide")&&!sp.classList.contains("out")&&!!rb&&!rb.classList.contains("hide");
     if(auto||enEntrar){ try{ navigator.serviceWorker&&navigator.serviceWorker.getRegistration().then(r=>r&&r.update()); }catch(e){} setTimeout(()=>location.reload(),150); return true; }
     if(!verAviso){ verAviso=true; toastAct("Hay una versión nueva de la app","Actualizar",()=>location.reload(),15000); }
     return true;
