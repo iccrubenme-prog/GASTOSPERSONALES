@@ -622,6 +622,8 @@ main.scrolled .filt .search{padding-top:9px;padding-bottom:9px}
 .rt-d{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}.rt-d:last-child{border-bottom:0}
 .rt-n{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff;flex:none}
 .rt-n.neg{background:var(--neg)}.rt-n.pos{background:var(--pos)}
+.rt-info{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:14px;background:var(--bg);font-size:13px}
+.tbl table.nolast tr:last-child td{font-weight:inherit!important;border-top:0!important;border-bottom:0}
 </style>
 </head>
 <body>
@@ -2446,6 +2448,17 @@ function renderIngresos(el){
     : vista==="mes"
     ? `<div class="card priv"><h2>Por mes</h2>${igTabla(R,m=>m.Fecha.slice(0,7),k=>esc(mLabel(k)),cols)}</div><div class="card priv"><h2>Por catorcena</h2>${igTabla(R,m=>{ const c=catDe(m.Fecha); return c? c.Inicio : "0000"; },k=>{ const c=S.d.catorcenas.find(x=>x.Inicio===k); return c? `<b>${+c.Num}</b> <span class="muted" style="font-size:10.5px">${dm2(c.Inicio)}–${dm2(c.Fin)}/${c.Fin.slice(2,4)}</span>` : "Sin catorcena"; },cols)}</div>`
     : "";
+  const promAnio=(()=>{ if(!["anio","todo"].includes(g.per)) return "";
+    const fil=all.filter(m=>g.tipo==="Todos"||igGrupo(m.Fuente)===g.tipo), cy=S.hoy.slice(0,4), ys=[...new Set(fil.map(m=>m.Fecha.slice(0,4)))].sort();
+    if(!ys.length) return "";
+    const rows=ys.map(y=>{ const T=sum(fil.filter(m=>m.Fecha.startsWith(y)&&m.Fecha<=S.hoy)), act=y===cy;
+      const nm= act? +S.hoy.slice(5,7) : 12, nc=S.d.catorcenas.filter(k=>String(k.Anio)===y&&(!act||k.Inicio<=S.hoy)).length||26;
+      return {y,T,nm,nc,pm:T/nm,pc:T/nc,act}; });
+    const vv=(c,p)=>{ if(!p) return '<div class="small muted">—</div>'; const d=(c-p)/p*100; return `<div class="small ${d>=0?"pos":"neg"}" style="font-weight:700">${d>=0?"▲":"▼"} ${Math.abs(d).toFixed(1)}%</div>`; };
+    return `<div class="card priv"><h2>📊 Comparativo por año: promedios</h2><div class="small muted">${g.tipo==="Todos"? "Todos los ingresos" : esc(g.tipo)}. *${cy} va en curso: se promedia con los meses y catorcenas que van (${rows.find(r=>r.act)? rows.find(r=>r.act).nm+" meses, "+rows.find(r=>r.act).nc+" catorcenas" : ""}).</div>
+      <div class="tbl"><table class="compacta nolast" style="font-size:12.5px"><thead><tr><th>Año</th><th class="n">Total</th><th class="n">Prom. mes</th><th class="n">Prom. catorcena</th></tr></thead><tbody>
+      ${rows.slice().reverse().map(r=>{ const i=rows.indexOf(r), p=i>0? rows[i-1] : null; return `<tr><td><b>${r.y}${r.act?"*":""}</b></td><td class="n">${nmx(r.T)}</td><td class="n"><b>${nmx(r.pm)}</b>${vv(r.pm,p&&p.pm)}</td><td class="n"><b>${nmx(r.pc)}</b>${vv(r.pc,p&&p.pc)}</td></tr>`; }).join("")}
+      </tbody></table></div><div class="small muted">▲▼ = contra el promedio del año anterior.</div></div>`; })();
   const filas=R.slice(0,300).map(m=>{ const gr=igGrupo(m.Fuente), c=catDe(m.Fecha);
     const det=[sDate(m.Fecha)+" "+m.Fecha.slice(2,4), c? "Cat. "+(+c.Num):"", gr==="Prestaciones"||!IG_ICO[gr]? m.Fuente : gr, "→ "+destLabel(m)].filter(Boolean).join(" · ");
     return `<button class="ig-row" data-id="${esc(m.ID)}">${igIcoSpan(gr)}<span class="grow"><div class="t">${esc(m.Descripcion||m.Fuente)}${esTenate(m.Fuente)?`<span class="ig-tag">${esc(tenLabel(m))}</span>`:""}</div><div class="s">${esc(det)}</div></span><span class="amt pos priv">+${mx2(m.Monto)}</span></button>`; }).join("");
@@ -2465,6 +2478,7 @@ function renderIngresos(el){
       <div class="small muted">Toca un ingreso en el Detalle para ajustar cuánto fue de ruta, app o propinas.</div>
       <div class="small muted">Lo del Tenate suma a tus ingresos y a tu ahorro, pero no entra al presupuesto de la catorcena.</div></div>`:""}
     ${distribHTML(R,g.per)}
+    ${promAnio}
     ${tabla}
     <div class="card"><div class="between"><h2>Detalle</h2><span class="small muted">${R.length>300? "Mostrando 300 de "+R.length : R.length+" registros"}</span></div>${filas||'<div class="empty">No hay ingresos con este filtro.</div>'}</div>
     <div class="actions"><button class="btn" id="igTen">🚚 Ingreso El Tenate</button><button class="btn primary" id="igAdd">＋ Registrar ingreso</button></div>`;
@@ -3283,7 +3297,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.14-35";
+const APP_BUILD="2026.11.14-36";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
@@ -3339,6 +3353,9 @@ function rentRender(){
     <div class="seg" id="rtNivel"><button data-n="cat" class="${R.nivel==="cat"?"on":""}">Categorías</button><button data-n="sub" class="${R.nivel==="sub"?"on":""}">Subcategorías</button></div>
     ${(R.a===cy||R.b===cy)? `<label class="small muted"><input type="checkbox" id="rtYtd" ${R.ytd?"checked":""}> Comparar a la misma fecha (recomendado mientras ${cy} no termina)</label>`:""}
     <div class="rt-res ${dM==null?"":dM>=0?"ok":"bad"}"><span style="font-size:26px">${dM==null?"➖":dM>=0?"📈":"📉"}</span><span style="flex:1"><div class="small muted">Margen ${lab(R.b)} → ${lab(R.a)}</div><b style="font-size:17px">${pct(B.M)} → ${pct(A.M)}</b></span><b class="${dM==null?"":dM>=0?"pos":"neg"}" style="font-size:18px">${dM==null?"—":pp(dM)}</b></div>
+    ${(()=>{ const vr=(a,b,bueno)=>{ const d=a-b, p=b? d/b*100 : null, ok= bueno==="sube"? d>=0 : d<=0; return `<b class="${ok?"pos":"neg"}">${d>=0?"+":"−"}${mx(Math.abs(d))}${p==null?"":" ("+(p>=0?"+":"−")+Math.abs(p).toFixed(1)+"%)"}</b>`; };
+      return `<div class="rt-info"><div>💰 <b>Ingresos</b> ${mx(B.I)} → ${mx(A.I)} · ${vr(A.I,B.I,"sube")}</div><div>🛒 <b>Gastos</b> ${mx(B.G)} → ${mx(A.G)} · ${vr(A.G,B.G,"baja")}</div>
+        <div class="small muted">${A.I-B.I>=0 && (A.G-B.G)/(B.G||1) > (A.I-B.I)/(B.I||1)? "Tus gastos crecieron más rápido que tus ingresos." : (A.I-B.I)/(B.I||1) > (A.G-B.G)/(B.G||1)? "Tus ingresos crecieron más rápido que tus gastos." : "Ingresos y gastos se movieron parecido."}</div></div>`; })()}
     ${drv(baja,"🔻 Los 3 gastos que más bajaron tu margen","neg")}
     ${drv(sube,"🔺 Los 3 gastos que más subieron tu margen","pos")}
     <div class="small muted">Cada gasto se mide como % de tu ingreso: si creció más que tus ingresos, bajó tu margen. La suma de todos los aportes da el cambio total del margen.</div>`;
