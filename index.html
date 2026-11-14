@@ -624,6 +624,7 @@ main.scrolled .filt .search{padding-top:9px;padding-bottom:9px}
 .rt-n.neg{background:var(--neg)}.rt-n.pos{background:var(--pos)}
 .rt-info{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:14px;background:var(--bg);font-size:13px}
 .tbl table.nolast tr:last-child td{font-weight:inherit!important;border-top:0!important;border-bottom:0}
+.rt-v{font-size:10.5px;font-weight:700;white-space:nowrap;margin-top:1px}
 </style>
 </head>
 <body>
@@ -3297,7 +3298,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.14-36";
+const APP_BUILD="2026.11.14-37";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
@@ -3323,6 +3324,8 @@ function rentDatos(y,hasta){
   const I=sum(R.filter(m=>m.Tipo==="Ingreso"&&m.Fuente!==VALES)), g=R.filter(esGastoEf);
   return {y:+y, I, G:sum(g), gas:g, M: I? (I-sum(g))/I : null};
 }
+function rtVar(c,p,bueno){ if(!p) return ""; const d=c-p, pc=d/p*100, ok= bueno==="sube"? d>=0 : d<=0;
+  return `<div class="rt-v ${ok?"pos":"neg"}">${d>=0?"▲":"▼"} ${kfm(Math.abs(d))} · ${Math.abs(pc).toFixed(0)}%</div>`; }
 function rentRender(){
   const box=$("#rentBox"); if(!box) return;
   const cy=+S.hoy.slice(0,4), hoyMD=S.hoy.slice(4), ys=[...new Set(S.movs.map(m=>+m.Fecha.slice(0,4)))].filter(y=>y<=cy).sort((a,b)=>a-b);
@@ -3345,10 +3348,10 @@ function rentRender(){
     <div class="small muted">Margen = (ingresos − gastos) ÷ ingresos, sin vales.</div>
     <div class="tbl"><table class="compacta" style="font-size:12px"><thead><tr><th>Año</th><th class="n">Ingresos</th><th class="n">Gastos</th><th class="n">Margen</th><th class="n">Var.</th></tr></thead><tbody>
       ${filas.map((d,i)=>{ const p=i>0? (d.y===cy? rentDatos(cy-1,hoyMD) : filas[i-1]) : null, v= p&&p.M!=null&&d.M!=null? (d.M-p.M)*100 : null;
-        return `<tr data-ry="${d.y}" style="cursor:pointer${d.y===R.a?";outline:2px solid var(--primary);outline-offset:-2px":""}"><td>${d.y}${d.y===cy? ' <span class="muted small">al '+sDate(S.hoy)+'</span>':""}</td><td class="n">${nmx(d.I)}</td><td class="n">${nmx(d.G)}</td>
+        return `<tr data-ry="${d.y}" style="cursor:pointer${d.y===R.a?";outline:2px solid var(--primary);outline-offset:-2px":""}"><td>${d.y}${d.y===cy? ' <span class="muted small">al '+sDate(S.hoy)+'</span>':""}</td><td class="n">${nmx(d.I)}${rtVar(d.I,p&&p.I,"sube")}</td><td class="n">${nmx(d.G)}${rtVar(d.G,p&&p.G,"baja")}</td>
         <td class="n"><b>${pct(d.M)}</b><div class="rt-bar"><i style="width:${Math.max(0,(d.M||0)/mx_*100)}%"></i></div></td><td class="n ${v==null?"muted":v>=0?"pos":"neg"}">${v==null?"—":pp(v)}</td></tr>`; }).join("")}
     </tbody></table></div>
-    <div class="small muted">Toca un año para analizarlo contra el anterior. ${cy} se compara contra ${cy-1} a la misma fecha.</div>
+    <div class="small muted">▲▼ debajo de cada monto: cuánto cambió contra el año anterior ($ en miles · %). Verde = te favorece, rojo = no. ${cy} se compara contra ${cy-1} a la misma fecha. Toca un año para analizarlo.</div>
     <div class="rt-sel"><label class="small muted">Comparar</label><select id="rtA" class="rt-s">${ys.map(y=>`<option ${y===R.a?"selected":""}>${y}</option>`).join("")}</select><span class="small muted">vs</span><select id="rtB" class="rt-s">${ys.map(y=>`<option ${y===R.b?"selected":""}>${y}</option>`).join("")}</select></div>
     <div class="seg" id="rtNivel"><button data-n="cat" class="${R.nivel==="cat"?"on":""}">Categorías</button><button data-n="sub" class="${R.nivel==="sub"?"on":""}">Subcategorías</button></div>
     ${(R.a===cy||R.b===cy)? `<label class="small muted"><input type="checkbox" id="rtYtd" ${R.ytd?"checked":""}> Comparar a la misma fecha (recomendado mientras ${cy} no termina)</label>`:""}
