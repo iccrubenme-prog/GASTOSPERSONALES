@@ -3298,7 +3298,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.14-37";
+const APP_BUILD="2026.11.14-38";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
@@ -3343,7 +3343,7 @@ function rentRender(){
   const pct=v=>v==null? "—" : (v*100).toFixed(1)+"%", pp=v=>(v>=0?"+":"−")+Math.abs(v).toFixed(1)+" pp";
   const lab=y=> String(y)+(corte? " ("+(y===cy? "al "+sDate(S.hoy) : "ene–"+sDate(String(y)+hoyMD))+")" : "");
   const mx_=Math.max(...filas.map(d=>d.M||0),0.01);
-  const drv=(L,t,cls)=>`<div class="f"><label>${t}</label>${L.length? L.map((x,i)=>`<div class="rt-d"><span class="rt-n ${cls}">${i+1}</span><span style="flex:1;min-width:0"><b>${esc(x.k)}</b><div class="small muted">${mx(x.vb)} → ${mx(x.va)} · de ${x.rb.toFixed(1)}% a ${x.ra.toFixed(1)}% del ingreso</div></span><b class="${cls}" style="white-space:nowrap">${pp(x.pp)}</b></div>`).join("") : '<div class="small muted">Ninguno.</div>'}</div>`;
+  const drv=(L,t,cls)=>`<div class="f"><label>${t}</label>${L.length? L.map((x,i)=>`<div class="rt-d"><span class="rt-n ${cls}">${i+1}</span><span style="flex:1;min-width:0"><b>${esc(x.k)}</b><div class="small muted">${mx(x.vb)} → ${mx(x.va)} · de ${x.rb.toFixed(1)}% a ${x.ra.toFixed(1)}% del ingreso</div>${(()=>{ const d=x.va-x.vb, p=x.vb? d/x.vb*100 : null; return `<div class="rt-v ${d<=0?"pos":"neg"}" style="font-size:12px">${d>=0?"▲ +":"▼ −"}${mx(Math.abs(d))}${p==null? " (nuevo)" : " ("+(p>=0?"+":"−")+Math.abs(p).toFixed(1)+"%)"}</div>`; })()}</span><b class="${cls}" style="white-space:nowrap">${pp(x.pp)}</b></div>`).join("") : '<div class="small muted">Ninguno.</div>'}</div>`;
   box.innerHTML=`<h2>📊 Rentabilidad: margen de ahorro por año</h2>
     <div class="small muted">Margen = (ingresos − gastos) ÷ ingresos, sin vales.</div>
     <div class="tbl"><table class="compacta" style="font-size:12px"><thead><tr><th>Año</th><th class="n">Ingresos</th><th class="n">Gastos</th><th class="n">Margen</th><th class="n">Var.</th></tr></thead><tbody>
@@ -3358,7 +3358,12 @@ function rentRender(){
     <div class="rt-res ${dM==null?"":dM>=0?"ok":"bad"}"><span style="font-size:26px">${dM==null?"➖":dM>=0?"📈":"📉"}</span><span style="flex:1"><div class="small muted">Margen ${lab(R.b)} → ${lab(R.a)}</div><b style="font-size:17px">${pct(B.M)} → ${pct(A.M)}</b></span><b class="${dM==null?"":dM>=0?"pos":"neg"}" style="font-size:18px">${dM==null?"—":pp(dM)}</b></div>
     ${(()=>{ const vr=(a,b,bueno)=>{ const d=a-b, p=b? d/b*100 : null, ok= bueno==="sube"? d>=0 : d<=0; return `<b class="${ok?"pos":"neg"}">${d>=0?"+":"−"}${mx(Math.abs(d))}${p==null?"":" ("+(p>=0?"+":"−")+Math.abs(p).toFixed(1)+"%)"}</b>`; };
       return `<div class="rt-info"><div>💰 <b>Ingresos</b> ${mx(B.I)} → ${mx(A.I)} · ${vr(A.I,B.I,"sube")}</div><div>🛒 <b>Gastos</b> ${mx(B.G)} → ${mx(A.G)} · ${vr(A.G,B.G,"baja")}</div>
-        <div class="small muted">${A.I-B.I>=0 && (A.G-B.G)/(B.G||1) > (A.I-B.I)/(B.I||1)? "Tus gastos crecieron más rápido que tus ingresos." : (A.I-B.I)/(B.I||1) > (A.G-B.G)/(B.G||1)? "Tus ingresos crecieron más rápido que tus gastos." : "Ingresos y gastos se movieron parecido."}</div></div>`; })()}
+        <div>🐷 <b>Ahorro</b> (ingreso − gasto) ${mx(B.I-B.G)} → ${mx(A.I-A.G)} · ${vr(A.I-A.G,B.I-B.G,"sube")}</div>
+        <div class="small muted">${(()=>{ const vi=B.I? (A.I-B.I)/B.I : 0, vg=B.G? (A.G-B.G)/B.G : 0;
+          if(vi<0&&vg>0) return "Bajaron tus ingresos y subieron tus gastos: por eso cayó el margen.";
+          if(vi>0&&vg<0) return "Subieron tus ingresos y bajaron tus gastos: por eso mejoró el margen.";
+          if(Math.abs(vi-vg)<0.01) return "Ingresos y gastos se movieron parecido.";
+          return vi>vg? "Tus ingresos crecieron más rápido que tus gastos." : "Tus gastos crecieron más rápido que tus ingresos."; })()}</div></div>`; })()}
     ${drv(baja,"🔻 Los 3 gastos que más bajaron tu margen","neg")}
     ${drv(sube,"🔺 Los 3 gastos que más subieron tu margen","pos")}
     <div class="small muted">Cada gasto se mide como % de tu ingreso: si creció más que tus ingresos, bajó tu margen. La suma de todos los aportes da el cambio total del margen.</div>`;
