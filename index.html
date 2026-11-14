@@ -615,6 +615,13 @@ details.mas .f{margin-top:6px}
 .filt{position:sticky;top:-14px;z-index:6;margin:-14px -14px 0;padding:14px 14px 10px;background:var(--bg);display:flex;flex-direction:column;gap:10px;transition:box-shadow .2s}
 main.scrolled .filt{box-shadow:0 6px 12px -8px rgb(16 24 64 / .25)}
 main.scrolled .filt .search{padding-top:9px;padding-bottom:9px}
+.rt-bar{height:4px;border-radius:99px;background:var(--line);margin-top:3px;overflow:hidden}.rt-bar i{display:block;height:100%;background:linear-gradient(90deg,#6f7de0,#2f3a8f)}
+.rt-sel{display:flex;align-items:center;gap:8px}.rt-s{flex:1;min-width:0;appearance:none;-webkit-appearance:none;border:1px solid var(--line);background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%232f3a8f' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 12px center;border-radius:12px;padding:10px 32px 10px 14px;font:inherit;font-weight:800;color:var(--ink)}
+.rt-res{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:var(--bg)}
+.rt-res.ok{background:color-mix(in srgb,var(--pos) 12%,transparent)}.rt-res.bad{background:color-mix(in srgb,var(--neg) 10%,transparent)}
+.rt-d{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}.rt-d:last-child{border-bottom:0}
+.rt-n{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff;flex:none}
+.rt-n.neg{background:var(--neg)}.rt-n.pos{background:var(--pos)}
 </style>
 </head>
 <body>
@@ -1389,6 +1396,7 @@ function anTend(){
      <div id="tInfo" class="small" style="min-height:36px"></div>
      <div id="tChart" style="position:relative;touch-action:pan-y"></div>
    </div>
+   <div class="card priv" id="rentBox" style="gap:10px"></div>
    <div class="card" style="gap:10px"><div class="between"><h2>Filtros</h2><button class="btn sm" id="tfClear">Limpiar</button></div>
      <div class="f"><label>Comparaciones rápidas</label><div class="chips">
        <button class="chip" data-pre="mes">${esc(MESL[cm-1])} de cada año</button>
@@ -1405,6 +1413,7 @@ function anTend(){
      <div class="small muted">Ingreso = todo lo que entró (nómina, prestaciones, extras y vales). Ahorro = ingreso − gasto. Los filtros de mes y número de catorcena también aplican cuando ves un año completo: suman solo esos periodos.</div>
    </div>`;
   const redo=()=>{ S.trendSel=null; anTend(); };
+  rentRender();
   $$("[data-ty]").forEach(b=>b.onclick=()=>{ S.trend[b.dataset.ty]=b.dataset.tl; redo(); });
   $$("[data-all]").forEach(b=>b.onclick=()=>{ years.forEach(y=>S.trend[y]=b.dataset.all); redo(); });
   $$("[data-ser]").forEach(b=>b.onclick=()=>{ const k=b.dataset.ser; S.series[k]=!S.series[k]; if(!S.series.I&&!S.series.A&&!S.series.G) S.series[k]=true; redo(); });
@@ -1665,8 +1674,8 @@ function renderSub(){
     const libreHoy = qHoy==null? null : Math.min(liq, qHoy), apartT = libreHoy==null? 0 : Math.max(0, liq-Math.max(0,libreHoy));
     const fs=act.map(c=>c.FechaSaldo).filter(Boolean).sort()[0];
     let i=0;
-    el.innerHTML = `<div class="seg" id="ctPer">${[["cat","Catorcena"],["mes","Mes"],["mesAnt","Mes anterior"],["anio","Año"]].map(([k2,l])=>`<button data-p="${k2}" class="${F2.per===k2?"on":""}">${l}</button>`).join("")}</div>
-      <div class="ig-f" style="margin:8px 0">${["Todas",...grupos.filter(g=>act.some(c=>g[1].includes(c.Tipo))).map(g=>g[0])].map(g=>{ const G=grupos.find(x=>x[0]===g); return `<button class="chip ${F2.tipo===g?"on":""}" data-ct="${esc(g)}">${G? G[2] : "✨ Todas"}</button>`; }).join("")}</div>
+    el.innerHTML = `<div class="filt"><div class="seg" id="ctPer">${[["cat","Catorcena"],["mes","Mes"],["mesAnt","Mes anterior"],["anio","Año"]].map(([k2,l])=>`<button data-p="${k2}" class="${F2.per===k2?"on":""}">${l}</button>`).join("")}</div>
+      <div class="ig-f" style="margin:0">${["Todas",...grupos.filter(g=>act.some(c=>g[1].includes(c.Tipo))).map(g=>g[0])].map(g=>{ const G=grupos.find(x=>x[0]===g); return `<button class="chip ${F2.tipo===g?"on":""}" data-ct="${esc(g)}">${G? G[2] : "✨ Todas"}</button>`; }).join("")}</div></div>
       <div class="card"><h2>Resumen hoy</h2>
         <div class="acc-k"><div><small>Debes en tarjetas</small><b class="${deudaT>0?"neg":""}">${mx2(deudaT)}</b></div><div><small>Crédito disponible</small><b>${limT? mx2(Math.max(0,limT-deudaT)) : "—"}</b></div>
           <div class="priv"><small>Débito y efectivo</small><b>${mx2(liq)}</b>${libreHoy!=null&&apartT>0? `<div class="small muted">Libre ${mx2(libreHoy)} · para tarjetas ${mx2(apartT)}</div>`:""}</div><div class="priv"><small>Vales</small><b>${mx2(valesSaldo())}</b></div></div>
@@ -3274,7 +3283,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.14-33";
+const APP_BUILD="2026.11.14-35";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
@@ -3291,6 +3300,54 @@ document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==
 setInterval(()=>checarVersion(false),30*60*1000);
 
 (()=>{ const m=document.querySelector("main"); if(!m) return; let t=false; m.addEventListener("scroll",()=>{ if(t) return; t=true; requestAnimationFrame(()=>{ m.classList.toggle("scrolled", m.scrollTop>6); t=false; }); },{passive:true}); })();
+
+/* ================= Rentabilidad: margen de ahorro por año y qué lo movió ================= */
+// Margen = (ingresos − gastos) ÷ ingresos, sin vales. El cambio del margen entre dos años se reparte exactamente entre
+// categorías: aporte de cada una = −(gasto/ingreso este año − gasto/ingreso año base), en puntos porcentuales.
+function rentDatos(y,hasta){
+  const ys=String(y), lim= hasta? ys+hasta : ys+"-12-31", R=S.movs.filter(m=>m.Fecha.startsWith(ys)&&m.Fecha<=lim);
+  const I=sum(R.filter(m=>m.Tipo==="Ingreso"&&m.Fuente!==VALES)), g=R.filter(esGastoEf);
+  return {y:+y, I, G:sum(g), gas:g, M: I? (I-sum(g))/I : null};
+}
+function rentRender(){
+  const box=$("#rentBox"); if(!box) return;
+  const cy=+S.hoy.slice(0,4), hoyMD=S.hoy.slice(4), ys=[...new Set(S.movs.map(m=>+m.Fecha.slice(0,4)))].filter(y=>y<=cy).sort((a,b)=>a-b);
+  S.rent=S.rent||{a:cy, b:cy-1, nivel:"cat", ytd:true};
+  const R=S.rent; if(!ys.includes(R.a)) R.a=ys[ys.length-1]; if(!ys.includes(R.b)) R.b=ys[Math.max(0,ys.length-2)];
+  const corte= R.ytd && (R.a===cy||R.b===cy)? hoyMD : null;
+  const filas=ys.map(y=>rentDatos(y, y===cy? hoyMD : null));
+  const A=rentDatos(R.a,corte), B=rentDatos(R.b,corte);
+  const key= R.nivel==="sub"? m=>(m.Categoria||"Sin categoría")+(m.Subcategoria? " › "+m.Subcategoria : "") : m=>m.Categoria||"Sin categoría";
+  const ga={}, gb={}; A.gas.forEach(m=>{ const k=key(m); ga[k]=(ga[k]||0)+m.Monto; }); B.gas.forEach(m=>{ const k=key(m); gb[k]=(gb[k]||0)+m.Monto; });
+  const ks=[...new Set([...Object.keys(ga),...Object.keys(gb)])];
+  const ap=ks.map(k=>{ const ra=A.I? (ga[k]||0)/A.I : 0, rb=B.I? (gb[k]||0)/B.I : 0; return {k, pp:-(ra-rb)*100, va:ga[k]||0, vb:gb[k]||0, ra:ra*100, rb:rb*100}; });
+  const baja=ap.filter(x=>x.pp<0).sort((a,b)=>a.pp-b.pp).slice(0,3), sube=ap.filter(x=>x.pp>0).sort((a,b)=>b.pp-a.pp).slice(0,3);
+  const dM= A.M!=null&&B.M!=null? (A.M-B.M)*100 : null;
+  const pct=v=>v==null? "—" : (v*100).toFixed(1)+"%", pp=v=>(v>=0?"+":"−")+Math.abs(v).toFixed(1)+" pp";
+  const lab=y=> String(y)+(corte? " ("+(y===cy? "al "+sDate(S.hoy) : "ene–"+sDate(String(y)+hoyMD))+")" : "");
+  const mx_=Math.max(...filas.map(d=>d.M||0),0.01);
+  const drv=(L,t,cls)=>`<div class="f"><label>${t}</label>${L.length? L.map((x,i)=>`<div class="rt-d"><span class="rt-n ${cls}">${i+1}</span><span style="flex:1;min-width:0"><b>${esc(x.k)}</b><div class="small muted">${mx(x.vb)} → ${mx(x.va)} · de ${x.rb.toFixed(1)}% a ${x.ra.toFixed(1)}% del ingreso</div></span><b class="${cls}" style="white-space:nowrap">${pp(x.pp)}</b></div>`).join("") : '<div class="small muted">Ninguno.</div>'}</div>`;
+  box.innerHTML=`<h2>📊 Rentabilidad: margen de ahorro por año</h2>
+    <div class="small muted">Margen = (ingresos − gastos) ÷ ingresos, sin vales.</div>
+    <div class="tbl"><table class="compacta" style="font-size:12px"><thead><tr><th>Año</th><th class="n">Ingresos</th><th class="n">Gastos</th><th class="n">Margen</th><th class="n">Var.</th></tr></thead><tbody>
+      ${filas.map((d,i)=>{ const p=i>0? (d.y===cy? rentDatos(cy-1,hoyMD) : filas[i-1]) : null, v= p&&p.M!=null&&d.M!=null? (d.M-p.M)*100 : null;
+        return `<tr data-ry="${d.y}" style="cursor:pointer${d.y===R.a?";outline:2px solid var(--primary);outline-offset:-2px":""}"><td>${d.y}${d.y===cy? ' <span class="muted small">al '+sDate(S.hoy)+'</span>':""}</td><td class="n">${nmx(d.I)}</td><td class="n">${nmx(d.G)}</td>
+        <td class="n"><b>${pct(d.M)}</b><div class="rt-bar"><i style="width:${Math.max(0,(d.M||0)/mx_*100)}%"></i></div></td><td class="n ${v==null?"muted":v>=0?"pos":"neg"}">${v==null?"—":pp(v)}</td></tr>`; }).join("")}
+    </tbody></table></div>
+    <div class="small muted">Toca un año para analizarlo contra el anterior. ${cy} se compara contra ${cy-1} a la misma fecha.</div>
+    <div class="rt-sel"><label class="small muted">Comparar</label><select id="rtA" class="rt-s">${ys.map(y=>`<option ${y===R.a?"selected":""}>${y}</option>`).join("")}</select><span class="small muted">vs</span><select id="rtB" class="rt-s">${ys.map(y=>`<option ${y===R.b?"selected":""}>${y}</option>`).join("")}</select></div>
+    <div class="seg" id="rtNivel"><button data-n="cat" class="${R.nivel==="cat"?"on":""}">Categorías</button><button data-n="sub" class="${R.nivel==="sub"?"on":""}">Subcategorías</button></div>
+    ${(R.a===cy||R.b===cy)? `<label class="small muted"><input type="checkbox" id="rtYtd" ${R.ytd?"checked":""}> Comparar a la misma fecha (recomendado mientras ${cy} no termina)</label>`:""}
+    <div class="rt-res ${dM==null?"":dM>=0?"ok":"bad"}"><span style="font-size:26px">${dM==null?"➖":dM>=0?"📈":"📉"}</span><span style="flex:1"><div class="small muted">Margen ${lab(R.b)} → ${lab(R.a)}</div><b style="font-size:17px">${pct(B.M)} → ${pct(A.M)}</b></span><b class="${dM==null?"":dM>=0?"pos":"neg"}" style="font-size:18px">${dM==null?"—":pp(dM)}</b></div>
+    ${drv(baja,"🔻 Los 3 gastos que más bajaron tu margen","neg")}
+    ${drv(sube,"🔺 Los 3 gastos que más subieron tu margen","pos")}
+    <div class="small muted">Cada gasto se mide como % de tu ingreso: si creció más que tus ingresos, bajó tu margen. La suma de todos los aportes da el cambio total del margen.</div>`;
+  const re=()=>rentRender();
+  $("#rtA").onchange=e=>{ R.a=+e.target.value; re(); }; $("#rtB").onchange=e=>{ R.b=+e.target.value; re(); };
+  $$("#rtNivel [data-n]").forEach(b=>b.onclick=()=>{ R.nivel=b.dataset.n; re(); });
+  const yt=$("#rtYtd"); if(yt) yt.onchange=()=>{ R.ytd=yt.checked; re(); };
+  $$("#rentBox [data-ry]").forEach(tr=>tr.onclick=()=>{ const y=+tr.dataset.ry, i=ys.indexOf(y); R.a=y; R.b= i>0? ys[i-1] : y; re(); });
+}
 </script>
 </body>
 </html>
