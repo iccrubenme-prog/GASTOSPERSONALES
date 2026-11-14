@@ -592,9 +592,25 @@ details.mas .f{margin-top:6px}
 .mas-h{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 4px -4px}
 #toast.act{pointer-events:auto;display:flex;align-items:center;gap:12px}
 #toast .tb{background:none;border:0;color:#9fb0ff;font-weight:800;font-size:14px;padding:2px 4px;cursor:pointer}
-#syncPill{position:fixed;top:calc(env(safe-area-inset-top) + 70px);left:50%;transform:translateX(-50%);background:var(--surface);color:var(--primary);border:1px solid var(--line);box-shadow:0 4px 14px rgb(16 24 64 / .12);border-radius:99px;padding:5px 12px;font-size:12px;font-weight:700;z-index:25;display:none}
-#syncPill.on{display:block}
+#syncPill{position:fixed;top:calc(env(safe-area-inset-top) + 74px);left:0;right:0;margin:0 auto;width:max-content;max-width:calc(100% - 24px);border:1.5px solid rgb(255 255 255 / .28);background:linear-gradient(150deg,#243082 0%,#2f3a8f 45%,#4a58c9 100%);color:#fff;box-shadow:0 8px 24px rgb(16 24 64 / .35);border-radius:18px;padding:8px 14px 8px 10px;z-index:25;display:none;align-items:center;gap:10px;min-width:250px;animation:spIn .35s cubic-bezier(.2,.9,.3,1.2) both}
+#syncPill.on{display:flex}
+#syncPill .sq-arc{transition:stroke-dashoffset .25s ease}
+#syncPill span{flex:1;display:flex;flex-direction:column;line-height:1.2}
+#syncPill .sq-t{font-size:13px}#syncPill small{font-size:11px;color:#dfe3ff}
+#syncPill .sq-p{font-size:12px;color:#9fe3c0}
+#syncPill .bq-b{transform-box:fill-box;transform-origin:bottom;animation:spGrow 1.1s ease-in-out infinite alternate}
+#syncPill .b2{animation-delay:.2s}#syncPill .b3{animation-delay:.4s}
 @media print{ body *{visibility:hidden} #printArea, #printArea *{visibility:visible} #printArea{position:absolute;inset:0;padding:24px;background:#fff;color:#000} }
+#bloq{position:fixed;inset:0;z-index:90;background:rgb(8 10 20 / .5);display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+#bloq.on{display:flex}
+#bloq .bq-c{background:linear-gradient(150deg,#243082 0%,#2f3a8f 45%,#4a58c9 100%);color:#fff;border-radius:24px;padding:26px 30px 22px;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 14px 40px rgb(16 24 64 / .45);min-width:240px;text-align:center;animation:spIn .35s cubic-bezier(.2,.9,.3,1.2) both}
+#bloq .bq-arc{transition:stroke-dashoffset .25s ease}
+#bloq .bq-b{transform-box:fill-box;transform-origin:bottom;animation:spGrow 1.1s ease-in-out infinite alternate}
+#bloq .b2{animation-delay:.2s}#bloq .b3{animation-delay:.4s}
+#bloq .bq-pct{font-size:13px;color:#9fe3c0;margin-top:2px}
+#bloq .bq-t{font-size:16px}
+#bloq .bq-s{font-size:12px;color:#dfe3ff}
+@media (prefers-reduced-motion:reduce){#bloq .bq-b{animation:none}}
 </style>
 </head>
 <body>
@@ -770,7 +786,32 @@ const uid = () => ("M"+Date.now().toString(36)+Math.random().toString(36).slice(
 function store(k,v){ try{ if(v===undefined) return JSON.parse(localStorage.getItem(k)||"null"); localStorage.setItem(k,JSON.stringify(v)); }catch(e){ return null; } }
 let toastT; function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("on"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on"),2600); }
 const API_URL = "https://script.google.com/macros/s/AKfycbwGIeHfWXEUl7U7PtOCsCBfqeAPuGp2Dvm7jEDhtK8vN2y29mITmKA7ss8lU7M7iolwYg/exec";
+/* Bloqueo con indicador mientras se guarda algo directo en la hoja (inversiones, saldos reales, arqueo, respaldo):
+   evita tocar otras cosas antes de que la hoja confirme. Los gastos/ingresos no lo necesitan: van a una cola que se reintenta sola. */
+const BLOQ={saveInstrumento:"Guardando inversión…", deleteInstrumento:"Eliminando inversión…", addSaldoInversion:"Guardando saldo real…", saveArqueo:"Guardando arqueo…", respaldarAhora:"Guardando respaldo en tu Drive…"};
+let bloqN=0, bloqP=0, bloqT=null;
+const BQ_C=2*Math.PI*54;
+function bloqPinta(){ const o=$("#bloq"); if(!o) return; $(".bq-arc",o).style.strokeDashoffset=BQ_C*(1-bloqP); $(".bq-pct",o).textContent=Math.round(bloqP*100)+"%"; }
+function bloquear(msg){ bloqN++; let o=$("#bloq");
+  if(!o){ o=document.createElement("div"); o.id="bloq"; o.setAttribute("role","status"); o.setAttribute("aria-live","polite");
+    o.innerHTML=`<div class="bq-c"><svg class="bq-logo" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+      <defs><linearGradient id="bqg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9fe3c0"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs>
+      <circle cx="60" cy="60" r="54" fill="none" stroke="rgb(255 255 255 / .14)" stroke-width="6"/>
+      <circle class="bq-arc" cx="60" cy="60" r="54" fill="none" stroke="url(#bqg)" stroke-width="6" stroke-linecap="round" stroke-dasharray="${BQ_C}" stroke-dashoffset="${BQ_C}" transform="rotate(-90 60 60)"/>
+      <circle cx="60" cy="60" r="40" fill="rgb(255 255 255 / .1)"/>
+      <rect class="bq-b b1" x="38" y="58" width="10" height="22" rx="3" fill="#fff"/><rect class="bq-b b2" x="55" y="46" width="10" height="34" rx="3" fill="#fff"/><rect class="bq-b b3" x="72" y="36" width="10" height="44" rx="3" fill="#9fe3c0"/>
+      <path d="M36 52 L52 42 L66 46 L86 28" fill="none" stroke="#ffd36e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="86" cy="28" r="4" fill="#ffd36e"/></svg>
+      <b class="bq-pct">0%</b><b class="bq-t"></b><span class="bq-s">No cierres la app</span></div>`;
+    document.body.appendChild(o); }
+  $(".bq-t",o).textContent=msg||"Guardando…";
+  if(!o.classList.contains("on")){ bloqP=0; bloqPinta(); o.classList.add("on"); clearInterval(bloqT); bloqT=setInterval(()=>{ bloqP+= (0.92-bloqP)*0.07; bloqPinta(); },120); }
+}
+function desbloquear(){ bloqN=Math.max(0,bloqN-1); setTimeout(()=>{ if(bloqN) return; const o=$("#bloq"); if(!o||!o.classList.contains("on")) return; clearInterval(bloqT); bloqP=1; bloqPinta(); setTimeout(()=>{ if(!bloqN) o.classList.remove("on"); },380); },180); }
 function api(fn, ...args){
+  if(BLOQ[fn] && !args.__nb){ bloquear(BLOQ[fn]); return apiRaw(fn, ...args).finally(desbloquear); }
+  return apiRaw(fn, ...args);
+}
+function apiRaw(fn, ...args){
   // GET: es la forma que Apps Script acepta sin problemas desde otra página (POST falla por CORS)
   const q = new URLSearchParams({action:fn, args:JSON.stringify(args), clave:getClave(), t:Date.now()});
   return fetch(API_URL+"?"+q.toString(), {redirect:"follow"})
@@ -943,7 +984,7 @@ function pantallaEntrar(msg){
   spStop(); $("#splash").classList.remove("hide"); $("#splash").classList.add("listo"); $("#splashMsg").textContent=msg||"";
   $("#claveForm").classList.add("hide");
   let r=$("#reentrar"); if(!r){ r=document.createElement("button"); r.id="reentrar"; r.className="btn"; r.style.cssText="background:#fff;color:#2f3a8f;width:260px"; r.textContent="Entrar"; $("#splash").appendChild(r); }
-  r.classList.remove("hide"); r.onclick=()=>{ r.classList.add("hide"); $("#splash").classList.remove("listo"); load(); };
+  r.classList.remove("hide"); r.onclick=()=>{ r.classList.add("hide"); $("#splash").classList.remove("listo"); checarVersion(true).then(nueva=>{ if(!nueva) load(); }); };
 }
 $("#salir").onclick=()=>{
   const b=$("#salir");
@@ -1704,7 +1745,7 @@ function renderSub(){
       if(Math.abs(sal)>=1) return toast(n+" todavía tiene "+mx2(sal)+". Primero registra el retiro o pásalo a otra inversión.");
       if(!b.dataset.ok){ b.dataset.ok="1"; b.textContent="¿Seguro? Toca otra vez"; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.ok; b.textContent="🗑️ Eliminar"; } },4000); return; }
       b.disabled=true; b.textContent="Eliminando…";
-      api("deleteInstrumento",n).then(r=>recargarSilencioso(r==="archivada"? n+" archivada (su historial se conserva)" : n+" eliminada")).catch(er=>{ b.disabled=false; b.textContent="🗑️ Eliminar"; toast("No se pudo: "+(er.message||er)); }); });
+      api("deleteInstrumento",n).then(r=>{ bloquear("Actualizando tus inversiones…"); return recargarSilencioso(r==="archivada"? n+" archivada (su historial se conserva)" : n+" eliminada").finally(desbloquear); }).catch(er=>{ b.disabled=false; b.textContent="🗑️ Eliminar"; toast("No se pudo: "+(er.message||er)); }); });
     $("#insNueva",el).onclick=()=>insForm(null);
     $$(".iv-card",el).forEach(cd=>cd.onclick=e=>{ if(e.target.closest(".iv-more")) return; const o=!cd.classList.contains("open"); $$(".iv-card.open",el).forEach(x=>x.classList.remove("open")); if(o) cd.classList.add("open"); });
     $$("[data-iv]",el).forEach(b=>b.onclick=()=>openForm({Tipo:"Inversión",Instrumento:b.dataset.n,MovInversion:b.dataset.iv},{ins:b.dataset.n}));
@@ -3015,7 +3056,7 @@ function insForm(nombre){
   $("[data-x]",box).onclick=cerrar; box.onclick=e=>{ if(e.target===box) cerrar(); };
   if($("#inS",box)) moneyInput($("#inS",box));
   try{ ddEnhance($("#inT",box)); ddEnhance($("#inG",box)); }catch(e){}
-  const recargar=msg=>{ cerrar(); toast(msg+" · actualizando…"); recargarSilencioso(msg); };
+  const recargar=msg=>{ cerrar(); bloquear("Actualizando tus inversiones…"); recargarSilencioso(msg).finally(desbloquear); };
   f.onsubmit=ev=>{ ev.preventDefault(); err.textContent="";
     const n=$("#inN",box).value.trim(); if(!n){ err.textContent="Escribe el nombre."; return; }
     if((!ed || n!==nombre) && S.d.instrumentos.some(i=>i.Instrumento!==nombre && norm(i.Instrumento)===norm(n))){ err.textContent="Ya tienes una inversión con ese nombre."; return; }
@@ -3203,7 +3244,36 @@ function proyeccionHTML(y){
 }
 
 /* ---------- Apertura rápida: muestra lo guardado y actualiza por detrás ---------- */
-function syncPill(on,txt){ let p=$("#syncPill"); if(!p){ p=document.createElement("div"); p.id="syncPill"; document.body.appendChild(p); } p.textContent=txt||"⟳ Actualizando…"; p.classList.toggle("on",!!on); }
+// Aviso al abrir: mismo logo y anillo que el indicador de guardado, en chico y sin bloquear (ves tus datos guardados mientras llegan los nuevos)
+let syncP=0, syncT=null; const SP_C=2*Math.PI*54;
+function syncPill(on,txt){ let p=$("#syncPill");
+  if(!p){ p=document.createElement("div"); p.id="syncPill"; p.setAttribute("role","status");
+    p.innerHTML=`<svg viewBox="0 0 120 120" width="34" height="34" aria-hidden="true"><defs><linearGradient id="spq" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9fe3c0"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs>
+      <circle cx="60" cy="60" r="54" fill="none" stroke="rgb(255 255 255 / .18)" stroke-width="10"/><circle class="sq-arc" cx="60" cy="60" r="54" fill="none" stroke="url(#spq)" stroke-width="10" stroke-linecap="round" stroke-dasharray="${SP_C}" stroke-dashoffset="${SP_C}" transform="rotate(-90 60 60)"/>
+      <rect class="bq-b b1" x="36" y="58" width="12" height="24" rx="3" fill="#fff"/><rect class="bq-b b2" x="54" y="44" width="12" height="38" rx="3" fill="#fff"/><rect class="bq-b b3" x="72" y="32" width="12" height="50" rx="3" fill="#9fe3c0"/></svg>
+      <span><b class="sq-t">Actualizando tus datos…</b><small class="sq-s">Mientras, ves lo último guardado</small></span><b class="sq-p">0%</b>`;
+    document.body.appendChild(p); }
+  const pinta=()=>{ $(".sq-arc",p).style.strokeDashoffset=SP_C*(1-syncP); $(".sq-p",p).textContent=Math.round(syncP*100)+"%"; };
+  if(on){ if(txt) $(".sq-t",p).textContent=txt; if(!p.classList.contains("on")){ syncP=0; pinta(); p.classList.add("on"); clearInterval(syncT); syncT=setInterval(()=>{ syncP+=(0.92-syncP)*0.07; pinta(); },120); } }
+  else if(p.classList.contains("on")){ clearInterval(syncT); syncP=1; pinta(); $(".sq-t",p).textContent="Datos al día ✓"; $(".sq-s",p).textContent="Todo actualizado"; setTimeout(()=>{ p.classList.remove("on"); $(".sq-t",p).textContent="Actualizando tus datos…"; $(".sq-s",p).textContent="Mientras, ves lo último guardado"; },900); }
+}
+
+/* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
+const APP_BUILD="2026.11.13-28";
+let verAviso=false;
+function checarVersion(auto){
+  if(location.protocol==="file:") return Promise.resolve(false);
+  return fetch("./index.html?v="+Date.now(),{cache:"no-store"}).then(r=>r.ok? r.text():"").then(t=>{
+    const m=t.match(/APP_BUILD="([^"]+)"/); if(!m||m[1]===APP_BUILD) return false;
+    const enEntrar=!$("#splash").classList.contains("hide");
+    if(auto||enEntrar){ try{ navigator.serviceWorker&&navigator.serviceWorker.getRegistration().then(r=>r&&r.update()); }catch(e){} setTimeout(()=>location.reload(),150); return true; }
+    if(!verAviso){ verAviso=true; toastAct("Hay una versión nueva de la app","Actualizar",()=>location.reload(),15000); }
+    return true;
+  }).catch(()=>false);
+}
+checarVersion(true);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") checarVersion(false); });
+setInterval(()=>checarVersion(false),30*60*1000);
 </script>
 </body>
 </html>
