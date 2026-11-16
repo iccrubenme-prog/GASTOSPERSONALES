@@ -625,6 +625,8 @@ main.scrolled .filt .search{padding-top:9px;padding-bottom:9px}
 .rt-info{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:14px;background:var(--bg);font-size:13px}
 .tbl table.nolast tr:last-child td{font-weight:inherit!important;border-top:0!important;border-bottom:0}
 .rt-v{font-size:10.5px;font-weight:700;white-space:nowrap;margin-top:1px}
+.msi-c{padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}.msi-c:last-child{border-bottom:0}
+.msi-d{display:none;flex-direction:column;gap:4px;padding:6px 10px;margin-top:6px;border-radius:12px;background:var(--bg)}.msi-c.open .msi-d{display:flex}
 </style>
 </head>
 <body>
@@ -1172,13 +1174,23 @@ function saldosCuentas(){
   for(const m of S.movs){ for(const [k,v] of effects(m)){ const c=S.cta[k]; if(!c) continue; if(c.FechaSaldo && m.Fecha<=c.FechaSaldo) continue; b[k]+=v; } }
   return b;
 }
+// Compras a meses: una mensualidad cuenta como pagada cuando registras un pago a esa tarjeta en su mes (desde la compra).
+// Fechas de cada mensualidad: mes siguiente a la compra, mismo día.
+function msiFechas(x){ const meses=+x.Meses||1, b=String(x.PrimerPago||"").slice(0,10); if(!b) return [];
+  const [y,m,d]=b.split("-").map(Number); return Array.from({length:meses},(_,i)=>{ const dt=new Date(y,m-1+i,1), last=new Date(dt.getFullYear(),dt.getMonth()+1,0).getDate(); return dt.getFullYear()+"-"+pad(dt.getMonth()+1)+"-"+pad(Math.min(d,last)); }); }
 function msiEstado(x){
-  const meses=+x.Meses||1, men=+x.Mensualidad||0;
-  if(!x.PrimerPago) return {restan:0,pend:0};
-  const [y1,m1,d1]=x.PrimerPago.split("-").map(Number), [y2,m2,d2]=S.hoy.split("-").map(Number);
-  let pagados=(y2-y1)*12+(m2-m1)+(d2>=d1?1:0); pagados=Math.max(0,Math.min(meses,pagados));
-  return {restan:meses-pagados, pend:(meses-pagados)*men, pagados};
+  const meses=+x.Meses||1, men=+x.Mensualidad||0, F=msiFechas(x); if(!F.length) return {restan:0,pend:0,pagados:0,fechas:[]};
+  const compra=String(x.FechaCompra||"").slice(0,10)||F[0];
+  // meses (distintos) con al menos un pago registrado a esa tarjeta después de la compra
+  const mp=new Set(S.movs.filter(m=>m.Tipo==="Pago tarjeta"&&m.CuentaDestino===x.Cuenta&&m.Fecha>compra).map(m=>m.Fecha.slice(0,7)));
+  const viejo= F[F.length-1] < S.hoy && !mp.size;   // compras antiguas sin pagos capturados en la app: se dan por pagadas según su fecha
+  // cada mes con pago (a partir del mes del primer pago) cubre una mensualidad, en orden
+  const disp=viejo? F.filter(fe=>fe<=S.hoy).length : [...mp].filter(k=>k>=F[0].slice(0,7)).length;
+  const pagados=Math.min(meses,disp), est=F.map((_,i)=>i<pagados);
+  const venc=F.filter((fe,i)=>!est[i]&&fe<S.hoy).length, prox=F.find((fe,i)=>!est[i])||null;
+  return {restan:meses-pagados, pend:(meses-pagados)*men, pagados, fechas:F.map((fe,i)=>({fe,ok:est[i]})), venc, prox};
 }
+function msiActivas(){ return (S.d.msi||[]).map(x=>Object.assign({},x,msiEstado(x))).filter(x=>x.restan>0); }
 function saldosInversion(){
   const out={};
   for(const i of S.ins){
@@ -1230,6 +1242,11 @@ function rInicio(){
       <div class="ini-k"><span class="ic r">🛒</span><span class="l">Gastado</span><span class="v neg">${mx(x.G)}</span></div>
       <div class="ini-k"><span class="ic b">🐷</span><span class="l">Ahorro apartado</span><span class="v priv">${x.A==null? "—" : mx(x.A)}</span></div></div>
       ${rapido}
+      ${(()=>{ const A=msiActivas(); if(!A.length) return ""; const T=A.reduce((s,x)=>s+x.pend,0), M=A.reduce((s,x)=>s+(+x.Mensualidad||0),0), V=A.reduce((s,x)=>s+x.venc,0);
+        const px=A.map(x=>x.prox).filter(Boolean).sort()[0];
+        return `<button class="card priv" data-acc="msi" style="text-align:left;gap:8px"><div class="ini-h"><span class="ic b">📆</span><h2>Compras a meses</h2><span class="small muted">Ver desglose ›</span></div>
+          <div class="ini-kp" style="grid-template-columns:1fr 1fr"><div class="ini-k"><span class="l">Debes a meses</span><span class="v">${mx(T)}</span></div><div class="ini-k"><span class="l">Pagas al mes</span><span class="v">${mx(M)}</span></div></div>
+          <div class="small ${V?"neg":"muted"}">${A.length} compra${A.length>1?"s":""}${px? " · próximo pago "+sDate(px):""}${V? " · ⚠️ "+V+" mensualidad"+(V>1?"es":"")+" sin pago registrado":""}</div></button>`; })()}
       ${avisosHTML()}
       ${ritmoIni(c)}
       ${(()=>{ const mc=metaCat(c), ay=ahorrosAnio(c.Anio), tot=totalDinero(), M=mc.M;
@@ -1714,12 +1731,17 @@ function renderSub(){
   if(k==="revision") renderRevision(el);
   if(k==="ingresos") renderIngresos(el);
   if(k==="msi"){
-    const act=S.d.msi.map(x=>Object.assign({},x,msiEstado(x))).filter(x=>x.restan>0).sort((a,b)=>b.pend-a.pend);
+    const act=msiActivas().sort((a,b)=>b.pend-a.pend);
     const porC=group(act.map(x=>({Monto:x.pend,Cuenta:x.Cuenta})),"Cuenta"), T=act.reduce((s,x)=>s+x.pend,0);
     el.innerHTML = `<div class="card hero"><div class="small muted">Saldo por pagar a meses</div><div class="big">${mx(T)}</div><div class="small muted">${act.length} compras activas · ${mx(act.reduce((s,x)=>s+(+x.Mensualidad||0),0))} al mes</div></div>
       ${porC.length? `<div class="card"><h2>Por tienda o tarjeta</h2>${barsHTML(porC,T)}</div>`:""}
-      <div class="card"><h2>Compras activas</h2>${act.map(x=>`<div class="between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span><b>${esc(x.Producto)}</b><div class="small muted">${esc(x.Cuenta)} · ${x.pagados}/${x.Meses} pagos de ${mx2(x.Mensualidad)}</div></span><span class="amt">${mx(x.pend)}</span></div>`).join("") || '<div class="empty">No hay compras a meses pendientes.</div>'}</div>
+      <div class="card"><h2>Compras activas</h2>${act.map((x,i)=>`<div class="msi-c" data-msi="${i}"><div class="between"><span style="min-width:0"><b>${esc(x.Producto)}</b><div class="small muted">${esc(x.Cuenta)} · ${x.pagados} de ${x.Meses} pagos de ${mx2(x.Mensualidad)}</div></span><span style="text-align:right"><b class="amt">${mx2(x.pend)}</b><div class="small muted">por pagar</div></span></div>
+          <div class="track" style="margin:6px 0 4px"><div class="fill" style="width:${x.pagados/x.Meses*100}%"></div></div>
+          <div class="between small"><span class="${x.venc?"neg":"muted"}">${x.venc? "⚠️ "+x.venc+" mensualidad"+(x.venc>1?"es":"")+" sin pago registrado" : x.prox? "Próximo pago: "+sDate(x.prox)+" "+x.prox.slice(0,4) : ""}</span><span class="iv-hint">Ver pagos ⌄</span></div>
+          <div class="msi-d">${x.fechas.map((p,k)=>`<div class="between small"><span>${p.ok?"✅":p.fe<S.hoy?"⚠️":"⏳"} Pago ${k+1} · ${sDate(p.fe)} ${p.fe.slice(0,4)}</span><span class="${p.ok?"muted":""}" style="${p.ok?"text-decoration:line-through":""}">${mx2(+x.Mensualidad)}</span></div>`).join("")}</div></div>`).join("") || '<div class="empty">No hay compras a meses pendientes.</div>'}</div>
+      <p class="small muted">Cada vez que registras un <b>pago a la tarjeta</b>, se descuenta una mensualidad de cada compra a meses de esa tarjeta. El gasto sigue contando completo el día que compraste.</p>
       <p class="small muted">Para registrar una compra a meses, captura el gasto con la tarjeta y elige los meses: se agrega sola a la hoja MSI.</p>`;
+    $$("[data-msi]",el).forEach(c=>c.onclick=()=>c.classList.toggle("open"));
   }
   if(k==="inv"){
     const s=saldosInversion(), all=Object.values(s).sort((a,b)=>b.saldo-a.saldo), T=all.reduce((a,r)=>a+r.saldo,0);
@@ -3032,6 +3054,10 @@ function submit(again){
   if(t==="Gasto" && F.ticket && S.cta[o.Cuenta]?.Tipo==="Vales"){ o.Ticket=F.ticket; guardarTicketLocal(o); }
   if(!F.edit && t==="Gasto" && !F.dupOk){ const dupl=S.movs.find(m=>m.Tipo==="Gasto"&&m.Fecha===o.Fecha&&Math.abs(m.Monto-o.Monto)<0.005&&norm(m.Descripcion)===norm(o.Descripcion)); if(dupl){ F.dupOk=true; return e.textContent="⚠️ Ya tienes este mismo gasto hoy ("+(o.Descripcion||"")+" "+mx2(o.Monto)+"). Si es otro, toca Guardar otra vez."; } }
   F.dupOk=false;
+  // compras a meses: se refleja al momento en "Compras a meses" (la hoja MSI se sincroniza sola al guardar)
+  try{ const me=+o.MesesMSI||0; S.d.msi=(S.d.msi||[]).filter(x=>x.MovID!==o.ID && !(F.edit && !x.MovID && x.Cuenta===F.edit.Cuenta && Math.abs(+x.Costo-F.edit.Monto)<0.01 && String(x.FechaCompra).slice(0,10)===F.edit.Fecha));
+    if(t==="Gasto"&&me>1){ const d=new Date(o.Fecha+"T12:00"), f1=new Date(d.getFullYear(),d.getMonth()+1,d.getDate()), fl=new Date(d.getFullYear(),d.getMonth()+me,d.getDate()), iso=x=>x.getFullYear()+"-"+pad(x.getMonth()+1)+"-"+pad(x.getDate());
+      S.d.msi.push({ID:"MSI-"+o.ID,MovID:o.ID,Cuenta:o.Cuenta,FechaCompra:o.Fecha,Producto:o.Descripcion||o.Subcategoria||"Compra",Costo:+o.Monto,Meses:me,Mensualidad:Math.round(o.Monto/me*100)/100,PrimerPago:iso(f1),UltimoPago:iso(fl)}); } }catch(er){}
   // guardado optimista + cola
   const i=S.movs.findIndex(m=>m.ID===o.ID); if(i>=0) S.movs[i]=o; else S.movs.push(o); sortMovs();
   if(t==="Gasto" && o.Descripcion){ const k=norm(o.Descripcion); S.mem[k]=o; S.freq[k]=(S.freq[k]||0)+1; }
@@ -3121,7 +3147,7 @@ function insForm(nombre){
 }
 
 /* ================= Mejoras: avisos, dinero, cuadre, revisión, recurrentes, deshacer ================= */
-const GS_REQ="2026.11.13";
+const GS_REQ="2026.11.15";
 function gsViejo(){ return S.d && String(S.d.gsVersion||"") < GS_REQ; }
 function toastAct(msg,label,fn,ms){ const t=$("#toast"); t.innerHTML=`<span>${esc(msg)}</span><button class="tb" type="button">${esc(label)}</button>`; t.classList.add("on","act");
   $(".tb",t).onclick=()=>{ t.classList.remove("on","act"); fn(); }; clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on","act"), ms||6000); }
@@ -3304,7 +3330,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.15-40";
+const APP_BUILD="2026.11.15-42";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
