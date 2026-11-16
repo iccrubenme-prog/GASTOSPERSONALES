@@ -2079,7 +2079,7 @@ function tipo(t, keep){
   const show = {Gasto:t==="Gasto", Ingreso:t==="Ingreso", "Inversión":t==="Inversión", veh:isAuto,
     cta: t!=="Ingreso" && !(t==="Inversión" && $("#fInvM").value==="Rendimiento"),
     dst: ["Ingreso","Pago tarjeta","Transferencia"].includes(t),
-    msi: t==="Gasto" && (ctaTipo==="Crédito"||ctaTipo==="Departamental") && !F.edit,
+    msi: t==="Gasto" && (ctaTipo==="Crédito"||ctaTipo==="Departamental"),
     vales: t==="Gasto" && ctaTipo==="Vales",
     cfondo: t==="Gasto" && !!cuenta && ctaTipo!=="Vales" && ctaTipo!=="Fondo" && cuenta!==FONDO};
   $$("#sheet [data-for]").forEach(el=>el.classList.toggle("hide", !show[el.dataset.for]));
@@ -3304,7 +3304,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.15-39";
+const APP_BUILD="2026.11.15-40";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
