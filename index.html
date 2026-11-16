@@ -1317,9 +1317,10 @@ function rMovs(){
   $("#mvSum").insertAdjacentHTML("beforeend", totalFiltro(rows));
   let html="", day="";
   const shown = rows.slice(0,S.lim);
-  const daySum = {}, dayVal = {}; shown.forEach(m=>{ if(esGastoEf(m)) daySum[m.Fecha]=(daySum[m.Fecha]||0)+m.Monto; else if(esGastoVales(m)) dayVal[m.Fecha]=(dayVal[m.Fecha]||0)+m.Monto; });
+  const daySum = {}, dayVal = {}, dayIn = {}; shown.forEach(m=>{ if(esGastoEf(m)) daySum[m.Fecha]=(daySum[m.Fecha]||0)+m.Monto; else if(esGastoVales(m)) dayVal[m.Fecha]=(dayVal[m.Fecha]||0)+m.Monto;
+    else if((m.Tipo==="Ingreso"&&m.Fuente!==VALES)||(m.Tipo==="Inversión"&&m.MovInversion==="Rendimiento")) dayIn[m.Fecha]=(dayIn[m.Fecha]||0)+m.Monto; });
   for(const m of shown){
-    if(m.Fecha!==day){ day=m.Fecha; html+=`<div class="day"><span>${dLabel(day)}${S.q?" "+day.slice(0,4):""}</span><span>${daySum[day]? "−"+mx(daySum[day]) : ""}${dayVal[day]? `<span class="muted" style="font-weight:500;margin-left:8px">🧺 −${mx(dayVal[day])} vales</span>` : ""}</span></div>`; }
+    if(m.Fecha!==day){ day=m.Fecha; html+=`<div class="day"><span>${dLabel(day)}${S.q?" "+day.slice(0,4):""}</span><span>${dayIn[day]? `<span class="pos" style="margin-right:8px">+${mx(dayIn[day])}</span>`:""}${daySum[day]? "−"+mx(daySum[day]) : ""}${dayVal[day]? `<span class="muted" style="font-weight:500;margin-left:8px">🧺 −${mx(dayVal[day])} vales</span>` : ""}</span></div>`; }
     html+=itemHTML(m);
   }
   if(rows.length>S.lim) html+=`<button class="btn sm" id="mvMore" style="margin:10px auto">Ver más (${rows.length-S.lim} restantes)</button>`;
@@ -2479,6 +2480,11 @@ function renderIngresos(el){
       <div class="small muted">Toca un ingreso en el Detalle para ajustar cuánto fue de ruta, app o propinas.</div>
       <div class="small muted">Lo del Tenate suma a tus ingresos y a tu ahorro, pero no entra al presupuesto de la catorcena.</div></div>`:""}
     ${distribHTML(R,g.per)}
+    ${(()=>{ const rd=S.movs.filter(m=>m.Tipo==="Inversión"&&m.MovInversion==="Rendimiento"&&m.Fecha>=a&&m.Fecha<=b); if(!rd.length) return "";
+      const T=sum(rd), G=group(rd,"Instrumento");
+      return `<div class="card priv"><div class="between"><h2>✨ Rendimientos de tus inversiones</h2><b class="pos">+${mx2(T)}</b></div>
+        <div class="small muted">${rd.length} rendimiento${rd.length>1?"s":""} en el periodo. Se quedan dentro de cada inversión: <b>sí suben tu Total de dinero</b>, pero no cuentan como ingreso de la catorcena ni como ahorro, para no inflar tu presupuesto ni tu meta.</div>
+        ${barsHTML(G,T)}</div>`; })()}
     ${promAnio}
     ${tabla}
     <div class="card"><div class="between"><h2>Detalle</h2><span class="small muted">${R.length>300? "Mostrando 300 de "+R.length : R.length+" registros"}</span></div>${filas||'<div class="empty">No hay ingresos con este filtro.</div>'}</div>
@@ -3298,7 +3304,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.14-38";
+const APP_BUILD="2026.11.15-39";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
