@@ -1081,11 +1081,11 @@ function metaCat(c){
   const falta=M.meta-acum, aFecha=M.base*(+c.Num);
   return {M, acum, rest, falta, nuevo: rest>0? Math.max(0,falta)/rest : 0, aFecha, dif:acum-aFecha};
 }
-function ahorrosAnio(y){
+function ahorrosAnio(y,lim){
   y=String(y);
-  const cs=S.d.catorcenas.filter(k=>String(k.Anio)===y && k.Inicio<=S.hoy).sort((a,b)=>a.Inicio<b.Inicio?-1:1);
+  const cs=S.d.catorcenas.filter(k=>String(k.Anio)===y && k.Inicio<=(lim||S.hoy)).sort((a,b)=>a.Inicio<b.Inicio?-1:1);
   const AC=cs.reduce((s,k)=>s+(ahorroCat(k)||0),0);
-  const movY=S.movs.filter(m=>m.Fecha.startsWith(y));
+  const movY=S.movs.filter(m=>m.Fecha.startsWith(y)&&(!lim||m.Fecha<=lim));
   const prest=movY.filter(m=>m.Tipo==="Ingreso"&&esPrest(m.Fuente)), PR=sum(prest);
   const gfHist=cs.filter(k=>+k.GastoFondo>0).map(k=>({Fecha:k.Inicio, Monto:+k.GastoFondo, Descripcion:k.NotaFondo||"Gasto del fondo", cat:+k.Num}));
   const gfApp=movY.filter(m=>m.Tipo==="Gasto"&&cubreFondo(m));
@@ -3352,7 +3352,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.16-44";
+const APP_BUILD="2026.11.16-46";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
@@ -3376,7 +3376,8 @@ setInterval(()=>checarVersion(false),30*60*1000);
 function rentDatos(y,hasta){
   const ys=String(y), lim= hasta? ys+hasta : ys+"-12-31", R=S.movs.filter(m=>m.Fecha.startsWith(ys)&&m.Fecha<=lim);
   const I=sum(R.filter(m=>m.Tipo==="Ingreso"&&m.Fuente!==VALES)), g=R.filter(esGastoEf);
-  return {y:+y, I, G:sum(g), gas:g, M: I? (I-sum(g))/I : null};
+  const G=sum(g), A=ahorrosAnio(ys, lim).total;
+  return {y:+y, I, G, gas:g, A, SB:I-G-A, M: I? (I-G)/I : null, MA: I? A/I : null};
 }
 function rtVar(c,p,bueno){ if(!p) return ""; const d=c-p, pc=d/p*100, ok= bueno==="sube"? d>=0 : d<=0;
   return `<div class="rt-v ${ok?"pos":"neg"}">${d>=0?"▲":"▼"} ${kfm(Math.abs(d))} · ${Math.abs(pc).toFixed(0)}%</div>`; }
@@ -3394,16 +3395,18 @@ function rentRender(){
   const ap=ks.map(k=>{ const ra=A.I? (ga[k]||0)/A.I : 0, rb=B.I? (gb[k]||0)/B.I : 0; return {k, pp:-(ra-rb)*100, va:ga[k]||0, vb:gb[k]||0, ra:ra*100, rb:rb*100}; });
   const baja=ap.filter(x=>x.pp<0).sort((a,b)=>a.pp-b.pp).slice(0,3), sube=ap.filter(x=>x.pp>0).sort((a,b)=>b.pp-a.pp).slice(0,3);
   const dM= A.M!=null&&B.M!=null? (A.M-B.M)*100 : null;
+  const sbt=v=> v>=0? "+"+mx(v)+" sin gastar" : mx(-v)+" gastado de más";
+  const ppSB= A.I&&B.I? -(A.SB/A.I-B.SB/B.I)*100 : 0;
   const pct=v=>v==null? "—" : (v*100).toFixed(1)+"%", pp=v=>(v>=0?"+":"−")+Math.abs(v).toFixed(1)+" pp";
   const lab=y=> String(y)+(corte? " ("+(y===cy? "al "+sDate(S.hoy) : "ene–"+sDate(String(y)+hoyMD))+")" : "");
   const mx_=Math.max(...filas.map(d=>d.M||0),0.01);
   const drv=(L,t,cls)=>`<div class="f"><label>${t}</label>${L.length? L.map((x,i)=>`<div class="rt-d"><span class="rt-n ${cls}">${i+1}</span><span style="flex:1;min-width:0"><b>${esc(x.k)}</b><div class="small muted">${mx(x.vb)} → ${mx(x.va)} · de ${x.rb.toFixed(1)}% a ${x.ra.toFixed(1)}% del ingreso</div>${(()=>{ const d=x.va-x.vb, p=x.vb? d/x.vb*100 : null; return `<div class="rt-v ${d<=0?"pos":"neg"}" style="font-size:12px">${d>=0?"▲ +":"▼ −"}${mx(Math.abs(d))}${p==null? " (nuevo)" : " ("+(p>=0?"+":"−")+Math.abs(p).toFixed(1)+"%)"}</div>`; })()}</span><b class="${cls}" style="white-space:nowrap">${pp(x.pp)}</b></div>`).join("") : '<div class="small muted">Ninguno.</div>'}</div>`;
   box.innerHTML=`<h2>📊 Rentabilidad: margen de ahorro por año</h2>
-    <div class="small muted">Margen = (ingresos − gastos) ÷ ingresos, sin vales.</div>
+    <div class="small muted">Margen real = (ingresos − gastos) ÷ ingresos, sin vales. Debajo verás la diferencia contra el ahorro oficial de Ahorros: presupuesto que sobró sin apartarse (+) o que se gastó de más (−).</div>
     <div class="tbl"><table class="compacta" style="font-size:12px"><thead><tr><th>Año</th><th class="n">Ingresos</th><th class="n">Gastos</th><th class="n">Margen</th><th class="n">Var.</th></tr></thead><tbody>
       ${filas.map((d,i)=>{ const p=i>0? (d.y===cy? rentDatos(cy-1,hoyMD) : filas[i-1]) : null, v= p&&p.M!=null&&d.M!=null? (d.M-p.M)*100 : null;
         return `<tr data-ry="${d.y}" style="cursor:pointer${d.y===R.a?";outline:2px solid var(--primary);outline-offset:-2px":""}"><td>${d.y}${d.y===cy? ' <span class="muted small">al '+sDate(S.hoy)+'</span>':""}</td><td class="n">${nmx(d.I)}${rtVar(d.I,p&&p.I,"sube")}</td><td class="n">${nmx(d.G)}${rtVar(d.G,p&&p.G,"baja")}</td>
-        <td class="n"><b>${pct(d.M)}</b><div class="rt-bar"><i style="width:${Math.max(0,(d.M||0)/mx_*100)}%"></i></div></td><td class="n ${v==null?"muted":v>=0?"pos":"neg"}">${v==null?"—":pp(v)}</td></tr>`; }).join("")}
+        <td class="n"><b>${pct(d.M)}</b>${Math.abs(d.SB)>=1? `<div class="small muted" style="font-size:10px;white-space:nowrap">${d.SB>0?"+"+kfm(d.SB)+" sin gastar":"−"+kfm(-d.SB)+" de más"}</div>`:""}<div class="rt-bar"><i style="width:${Math.max(0,(d.M||0)/mx_*100)}%"></i></div></td><td class="n ${v==null?"muted":v>=0?"pos":"neg"}">${v==null?"—":pp(v)}</td></tr>`; }).join("")}
     </tbody></table></div>
     <div class="small muted">▲▼ debajo de cada monto: cuánto cambió contra el año anterior ($ en miles · %). Verde = te favorece, rojo = no. ${cy} se compara contra ${cy-1} a la misma fecha. Toca un año para analizarlo.</div>
     <div class="rt-sel"><label class="small muted">Comparar</label><select id="rtA" class="rt-s">${ys.map(y=>`<option ${y===R.a?"selected":""}>${y}</option>`).join("")}</select><span class="small muted">vs</span><select id="rtB" class="rt-s">${ys.map(y=>`<option ${y===R.b?"selected":""}>${y}</option>`).join("")}</select></div>
@@ -3412,7 +3415,9 @@ function rentRender(){
     <div class="rt-res ${dM==null?"":dM>=0?"ok":"bad"}"><span style="font-size:26px">${dM==null?"➖":dM>=0?"📈":"📉"}</span><span style="flex:1"><div class="small muted">Margen ${lab(R.b)} → ${lab(R.a)}</div><b style="font-size:17px">${pct(B.M)} → ${pct(A.M)}</b></span><b class="${dM==null?"":dM>=0?"pos":"neg"}" style="font-size:18px">${dM==null?"—":pp(dM)}</b></div>
     ${(()=>{ const vr=(a,b,bueno)=>{ const d=a-b, p=b? d/b*100 : null, ok= bueno==="sube"? d>=0 : d<=0; return `<b class="${ok?"pos":"neg"}">${d>=0?"+":"−"}${mx(Math.abs(d))}${p==null?"":" ("+(p>=0?"+":"−")+Math.abs(p).toFixed(1)+"%)"}</b>`; };
       return `<div class="rt-info"><div>💰 <b>Ingresos</b> ${mx(B.I)} → ${mx(A.I)} · ${vr(A.I,B.I,"sube")}</div><div>🛒 <b>Gastos</b> ${mx(B.G)} → ${mx(A.G)} · ${vr(A.G,B.G,"baja")}</div>
-        <div>🐷 <b>Ahorro</b> (ingreso − gasto) ${mx(B.I-B.G)} → ${mx(A.I-A.G)} · ${vr(A.I-A.G,B.I-B.G,"sube")}</div>
+        <div>🐷 <b>Ahorro real</b> (ingreso − gasto) ${mx(B.I-B.G)} → ${mx(A.I-A.G)} · ${vr(A.I-A.G,B.I-B.G,"sube")}</div>
+        <div>🎯 <b>Ahorro oficial</b> (vista Ahorros) ${mx(B.A)} → ${mx(A.A)} · ${pct(B.MA)} → ${pct(A.MA)}</div>
+        <div>🧾 <b>Diferencia</b> ${sbt(B.SB)} → ${sbt(A.SB)} <span class="small muted">(real − oficial)</span></div>
         <div class="small muted">${(()=>{ const vi=B.I? (A.I-B.I)/B.I : 0, vg=B.G? (A.G-B.G)/B.G : 0;
           if(vi<0&&vg>0) return "Bajaron tus ingresos y subieron tus gastos: por eso cayó el margen.";
           if(vi>0&&vg<0) return "Subieron tus ingresos y bajaron tus gastos: por eso mejoró el margen.";
