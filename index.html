@@ -1669,11 +1669,12 @@ function renderSub(){
         <div class="track"><div class="fill" style="width:${Math.min(100,mc.acum/M.meta*100)}%"></div></div>
         ${ahorroChart(serie)}</div>`:""}
       ${(()=>{ const g=TODO? null : gastoMaxCat(y); if(!g) return "";
-        return `<div class="card priv"><h2>🧮 ¿Cuánto puedes gastar por catorcena?</h2><div class="small muted">Para cerrar ${y} con al menos el ingreso de ${g.yp} y cumplir tu meta total de ${mx(g.meta)}.</div>
+        return `<div class="card priv"><h2>🧮 ¿Cuánto puedes gastar por catorcena?</h2><div class="small muted">Suponiendo que en lo que resta de ${y} te entra lo mismo que en ${g.yp}, y apartando primero lo que te falta para tus metas de ahorro.</div>
           <div class="between"><span class="muted">Ingreso de ${g.yp} en las catorcenas ${g.desde}–26</span><b>${mx(g.base)}</b></div>
-          <div class="between"><span class="muted">${g.falta>0? "− Falta para la meta" : "+ Superávit sobre la meta"}</span><b class="${g.falta>0?"neg":"pos"}">${g.falta>0?"−":"+"}${mx(Math.abs(g.falta))}</b></div>
+          <div class="between"><span class="muted">− Ahorro que te falta apartar<div class="small">${g.faltaCat>=g.faltaTot&&g.mc? "Meta por catorcena "+mx(g.M.meta)+" · llevas "+mx(g.mc.acum) : "Meta total "+mx(g.meta)+" · llevas "+mx(g.ah)}</div></span><b class="${g.reserva>0?"neg":"pos"}" style="white-space:nowrap">${g.reserva>0? "−"+mx(g.reserva) : "$0 ✅"}</b></div>
           <div class="between"><span class="muted">= Disponible para gastar</span><b>${mx(g.disp)}</b></div>
-          <div class="between" style="border-top:1px solid var(--line);padding-top:8px"><span><b>Por catorcena</b><div class="small muted">÷ ${g.rest} catorcena${g.rest!==1?"s":""} restante${g.rest!==1?"s":""}</div></span><b class="mid">${mx(g.per)}</b></div></div>`; })()}
+          <div class="between" style="border-top:1px solid var(--line);padding-top:8px"><span><b>Por catorcena</b><div class="small muted">÷ ${g.rest} catorcena${g.rest!==1?"s":""} restante${g.rest!==1?"s":""}</div></span><b class="mid">${mx(g.per)}</b></div>
+          ${g.sup>0? `<div class="small muted">🎉 Tu meta total ya va cumplida (+${mx(g.sup)}). Ese excedente no se suma aquí para no gastarte tu ahorro.</div>`:""}</div>`; })()}
       <div class="card priv"><div class="between"><h2>Total de dinero</h2><b class="mid">${mx(tot.T)}</b></div>
         ${barsHTML(tot.porTipo, tot.T)}<button class="btn sm" data-goto="inv" style="align-self:flex-start">Ver inversiones</button></div>
       <div class="card priv"><div class="between"><h2>Fondo ${y}</h2><b>${mx(ay.fondo)}</b></div>
@@ -2768,8 +2769,11 @@ function gastoMaxCat(y){
   const cerr= catRes(hc).N>0? +hc.Num : +hc.Num-1, rest=M.n-cerr; if(rest<=0) return null;
   const prevs=S.d.catorcenas.filter(k=>String(k.Anio)===String(+y-1) && +k.Num>cerr);
   const base=prevs.reduce((s,k)=>{ const r=catRes(k); return s+r.N+r.PR; },0);
-  const ah=ahorrosAnio(y).total, falta=meta-ah, disp=base-falta;
-  return {rest, base, falta, disp, per:disp/rest, cerr, meta, ah, yp:+y-1, desde:cerr+1};
+  const ah=ahorrosAnio(y).total, faltaTot=Math.max(0,meta-ah), sup=Math.max(0,ah-meta);
+  const mc= M.meta? metaCat({Anio:y, Num:cerr}) : null, faltaCat= mc? Math.max(0,mc.falta) : 0;
+  // lo que aún debes apartar: lo mayor entre lo que falta de la meta por catorcena y lo que falta de la meta total (el ahorro de catorcena cuenta para ambas)
+  const reserva=Math.max(faltaCat,faltaTot), disp=base-reserva;
+  return {rest, base, reserva, faltaCat, faltaTot, sup, mc, disp, per:disp/rest, cerr, meta, ah, yp:+y-1, desde:cerr+1, M};
 }
 function ingresoAnio(y){ return sum(S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fuente!==VALES&&m.Fecha.startsWith(String(y)))); }
 function metaTxt(ah,meta){ if(!meta) return ""; const d=ah-meta; return d>=0? `🎉 ¡Meta cumplida! +${mx(d)} (+${(d/meta*100).toFixed(1)}%) arriba` : `Faltan ${mx(-d)} (${(-d/meta*100).toFixed(1)}%)`; }
@@ -3352,7 +3356,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.16-46";
+const APP_BUILD="2026.11.16-47";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
