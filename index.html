@@ -712,6 +712,9 @@ main.scrolled .filt .search{padding-top:9px;padding-bottom:9px}
   <div class="f"><label for="fDesc" id="fDescL">Concepto</label><input id="fDesc" list="dlDesc" autocomplete="off" placeholder="¿En qué fue? Ej. Estacionamiento plaza"><div class="hint" id="fDescH">Así lo verás en tu lista de movimientos.</div><div id="fDescSug"></div></div>
   <datalist id="dlDesc"></datalist>
   <div>
+    <div class="f" data-for="propina"><label for="fProp">🤝 ¿Cuánto fue de propina? <span style="font-weight:400">(opcional)</span></label>
+      <div style="display:flex;gap:6px;align-items:center"><input id="fProp" placeholder="$0" style="flex:1;min-width:0"><button type="button" class="chip" data-pp="10">10%</button><button type="button" class="chip" data-pp="15">15%</button><button type="button" class="chip" data-pp="all">Todo</button></div>
+      <div class="small muted" id="fPropTxt">Va incluida en el monto y cuenta en su categoría; en Análisis verás tus propinas aparte.</div></div>
     <div class="f" data-for="cfondo"><label class="chk" style="align-items:flex-start"><input type="checkbox" id="fCFondo"> <span>🛟 Este gasto lo cubre el <b>fondo de ahorro</b><div class="small muted" style="font-weight:400">Lo pagas con la tarjeta, pero el dinero sale del fondo: no cuenta en tu presupuesto y se descuenta del fondo.</div></span></label></div>
     <div class="f" data-for="msi"><label for="fMsi">Meses sin intereses</label><select id="fMsi"><option value="">De contado</option><option>3</option><option>6</option><option>9</option><option>12</option><option>13</option><option>18</option><option>24</option></select></div>
   </div>
@@ -1041,6 +1044,15 @@ function catorcenaActual(f){ return S.d.catorcenas.find(c=>c.Inicio<=f && f<=c.F
 const NOMINA="Nómina (catorcena)", VALES="Vales de despensa";
 function catList(){ return S.d.catorcenas.filter(c=>c.Inicio<=S.hoy).sort((a,b)=>a.Inicio<b.Inicio?-1:1); }
 const FONDO="Fondo de ahorro", AHORRO="Ahorro"; let CAJA_T="Caja El Tenate";
+function esComidaCat(c){ return /comida|restaur|alimento|antojo|cafe|café/i.test(String(c||"")); }
+function propinaDe(m){ return m.Tipo==="Gasto"? (+m.Propina||0) : 0; }
+function propinasHTML(rows,etq){ const L=rows.filter(m=>propinaDe(m)>0); if(!L.length) return "";
+  const P=sum(L.map(m=>({Monto:propinaDe(m)}))), parc=L.filter(m=>m.Monto-propinaDe(m)>0.005), bp=sum(parc), pp=sum(parc.map(m=>({Monto:propinaDe(m)})));
+  const G=group(L.map(m=>({Monto:propinaDe(m), K:(m.Categoria||"—")+(m.Subcategoria&&m.Subcategoria!==m.Categoria? " › "+m.Subcategoria:"")})),"K");
+  return `<div class="card priv"><div class="between"><h2>🤝 Propinas</h2><b>${mx2(P)}</b></div>
+    <div class="small muted">${esc(etq||"")} · ${L.length} gasto${L.length>1?"s":""} con propina${parc.length? " · dejas en promedio "+(pp/(bp-pp)*100).toFixed(1)+"% sobre la cuenta":""}. Ya va incluido en cada categoría.</div>
+    ${barsHTML(G,P)}
+    <div class="list">${L.slice(0,5).map(m=>`<div class="between small" style="padding:3px 0"><span>${sDate(m.Fecha)} · ${esc(m.Descripcion||"")}</span><span>${mx2(propinaDe(m))} <span class="muted">de ${mx2(m.Monto)}</span></span></div>`).join("")}</div></div>`; }
 function cubreFondo(m){ return m.Cuenta===FONDO || m.CubreFondo==="Sí"; }
 function esPrest(f){ return S.fTipo[f]==="Prestación" && f!==VALES; }
 function esExtra(f){ return S.fTipo[f]==="Extra" || (!S.fTipo[f] && f!==NOMINA && f!==VALES); }
@@ -1111,7 +1123,7 @@ function icon(m){ const t=m.Tipo; const c = t==="Gasto"?"g": t==="Ingreso"?"i": 
     : t==="Pago tarjeta"? "💳" : t==="Transferencia"? "🔁" : t==="Inversión"? (m.MovInversion==="Rendimiento"?"✨": m.MovInversion==="Retiro"?"⬇️":"📈") : "📌";
   return `<span class="ico em ${c}">${e}</span>`; }
 function itemHTML(m, conFecha){
-  const sub = m.Tipo==="Gasto" ? [m.Categoria, m.Vehiculo, m.Cuenta, m.CubreFondo==="Sí"&&m.Cuenta!==FONDO? "🛟 lo cubre el fondo":""].filter(Boolean).join(" · ")
+  const sub = m.Tipo==="Gasto" ? [m.Categoria, m.Vehiculo, m.Cuenta, +m.Propina>0? "🤝 propina "+mx(+m.Propina):"", m.CubreFondo==="Sí"&&m.Cuenta!==FONDO? "🛟 lo cubre el fondo":""].filter(Boolean).join(" · ")
     : m.Tipo==="Ingreso" ? [m.Fuente, m.CuentaDestino].filter(Boolean).join(" → ")
     : m.Tipo==="Inversión" ? [m.MovInversion, m.Instrumento].filter(Boolean).join(" · ")
     : [m.Cuenta, m.CuentaDestino].filter(Boolean).join(" → ");
@@ -1506,6 +1518,7 @@ function anCat(){
      ${x.valesG? `<div class="between small muted"><span>Gastado con vales (fuera del presupuesto)</span><span>${mx(x.valesG)}</span></div>`:""}</div>
    ${cmpCatorcena(c)}
    <div class="card"><h2>Por categoría</h2><div class="small muted">Toca una categoría para ver el detalle.</div>${x.gas.length? barsHTML(group(x.gas,"Categoria"),x.G,null,setDrill("cat",x.gas,"Catorcena "+(+c.Num))) : '<div class="empty">Sin gastos</div>'}</div>
+   ${propinasHTML(x.gas,"Catorcena "+(+c.Num))}
    <div class="card"><h2>En qué se fue más</h2>${x.gas.length? barsHTML(top,x.G,null,setDrillCampo("catd",x.gas,"Catorcena "+(+c.Num),"Descripcion")) : '<div class="empty">Sin gastos</div>'}</div>`;
 
   $("#anIngLink").onclick=()=>{ S.ig={per:"cat",ref:c.Inicio,tipo:"Todos",a:"",b:""}; openSub("ingresos"); };
@@ -1521,6 +1534,7 @@ function anMes(){
    ${cmpMes(ym)}
    <div class="card"><h2>Por categoría</h2><div class="small muted">La línea marca el presupuesto del mes. Toca una categoría para ver el detalle.</div>${gas.length? barsHTML(group(gas,"Categoria"),G,bud,setDrill("mes",gas,mLabel(ym))) : '<div class="empty">Sin gastos</div>'}</div>
    <div class="card"><h2>¿Con qué se pagó?</h2>${gas.length? barsHTML(porTipo,G,null,setDrillFn("mesp",gas,mLabel(ym),medioPago)) : '<div class="empty">Sin gastos</div>'}</div>
+   ${propinasHTML(gas,mLabel(ym))}
    <div class="card"><h2>En qué se fue más</h2>${gas.length? barsHTML(top,G,null,setDrillCampo("mesd",gas,mLabel(ym),"Descripcion")) : '<div class="empty">Sin gastos</div>'}</div>`;
 }
 function anAnio(){
@@ -1565,6 +1579,7 @@ function anAnio(){
      <tr><td><b>Total</b></td><td class="n"><b>${mx(G)}</b></td><td class="n muted">${mx(GP)}</td><td class="n ${G>GP?"neg":"pos"}">${GP?(G>GP?"+":"")+Math.round((G-GP)/GP*100)+"%":"—"}</td></tr></tbody></table></div></div>
    <div class="card"><h2>Por categoría</h2><div class="small muted">${esc(etq)} · toca una categoría para ver el detalle.</div>${gasY.length? barsHTML(gc,G,null,setDrill("anio",gasY,etq)) : '<div class="empty">Sin gastos</div>'}</div>
    <div class="card"><h2>¿Con qué se pagó?</h2>${gasY.length? barsHTML(group(gasY,medioPago),G,null,setDrillFn("aniop",gasY,etq,medioPago)) : '<div class="empty">Sin gastos</div>'}</div>
+   ${propinasHTML(gasY,etq)}
    <div class="card"><h2>En qué se fue más</h2>${gasY.length? barsHTML(group(gasY,m=>m.Descripcion||"—").slice(0,10),G,null,setDrillCampo("aniod",gasY,etq,"Descripcion")) : '<div class="empty">Sin gastos</div>'}</div>`;
   $$("#anBody tr[data-catk]").forEach(tr=>tr.onclick=()=>abrirZoom(tr.dataset.catk,etq,gasY.filter(m=>m.Categoria===tr.dataset.catk),"Categoria"));
   $$("#anBody [data-mes]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.mes; S.anSelMes= S.anSelMes===k? null : k; anAnio(); });
@@ -2078,7 +2093,7 @@ function openForm(m, lock){
   $("#fInvM").value = m.MovInversion || "Aportación";
   $("#fDesc").value = m.Descripcion || ""; $("#fSub").value = m.Subcategoria || ""; $("#fNota").value = m.Nota || "";
   $("#fMas").open = !!(m.Subcategoria||m.Nota) && !!F.edit;
-  $("#fKm").value = m.Km || ""; $("#fLt").value = m.Litros || ""; $("#fMsi").value = m.MesesMSI || ""; $("#fCFondo").checked = m.CubreFondo==="Sí";
+  $("#fKm").value = m.Km || ""; $("#fLt").value = m.Litros || ""; $("#fMsi").value = m.MesesMSI || ""; $("#fCFondo").checked = m.CubreFondo==="Sí"; $("#fProp").value = +m.Propina||"";
   F.veh = m.Vehiculo || "";
   F.cta = m.Cuenta !== undefined ? m.Cuenta : (F.t==="Gasto" ? (store("fc_lastCta")||"") : "");
   F.dst = m.CuentaDestino || "";
@@ -2103,6 +2118,7 @@ function tipo(t, keep){
     dst: ["Ingreso","Pago tarjeta","Transferencia"].includes(t),
     msi: t==="Gasto" && (ctaTipo==="Crédito"||ctaTipo==="Departamental"),
     vales: t==="Gasto" && ctaTipo==="Vales",
+    propina: t==="Gasto" && !!$("#fCat").value && ctaTipo!=="Vales",
     cfondo: t==="Gasto" && !!cuenta && ctaTipo!=="Vales" && ctaTipo!=="Fondo" && cuenta!==FONDO};
   $$("#sheet [data-for]").forEach(el=>el.classList.toggle("hide", !show[el.dataset.for]));
   if(show.vales){ $("#valesSaldo").textContent="Saldo disponible en vales: "+mx2(valesSaldo()); }
@@ -2713,7 +2729,11 @@ function moneyInput(el){
   el.addEventListener("input",()=>{ const raw=d.get.call(el), f=fmt(raw); if(f!==raw){ const fromEnd=raw.length-(el.selectionEnd??raw.length); d.set.call(el,f); const pos=Math.max(1,f.length-fromEnd); try{ el.setSelectionRange(pos,pos); }catch(e){} } }, true);
   el.addEventListener("focus",()=>{ setTimeout(()=>{ try{ if(el.selectionStart!==el.selectionEnd) return; const n=d.get.call(el).length; el.setSelectionRange(n,n); }catch(e){} },0); });
 }
-["#fMonto","#fTenA","#fTenP","#fTenR","#fSepM","#fRepA","#fRepP"].forEach(s=>moneyInput($(s)));
+["#fMonto","#fTenA","#fTenP","#fTenR","#fSepM","#fRepA","#fRepP","#fProp"].forEach(s=>moneyInput($(s)));
+$$("[data-pp]").forEach(b=>b.onclick=()=>{ const M=+$("#fMonto").value||0; if(!M) return toast("Primero escribe el monto total."); $("#fProp").value= b.dataset.pp==="all"? M : Math.round(M*(+b.dataset.pp)/(100+(+b.dataset.pp))*100)/100; $("#fProp").dispatchEvent(new Event("input")); });
+const propTxt=()=>{ const M=+$("#fMonto").value||0, P=+$("#fProp").value||0, c=$("#fCat").value||"la categoría";
+  $("#fPropTxt").textContent= P&&M&&Math.abs(M-P)<0.005? `Todo el gasto (${mx2(M)}) fue propina, por ejemplo al viene-viene o al de la gasolinera. Cuenta en ${c}.` : P&&M>P? `${c} ${mx2(M-P)} + propina ${mx2(P)} (${(P/(M-P)*100).toFixed(0)}%) = ${mx2(M)}. Todo cuenta en ${c}.` : `Va incluida en el monto y cuenta en ${c}; en Análisis verás tus propinas aparte, por categoría.`; };
+$("#fProp").addEventListener("input",propTxt); $("#fCat").addEventListener("change",propTxt);
 /* ================= Comparativos vs año anterior ================= */
 const addD=(f,n)=>{ const d=new Date(f+"T12:00"); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); };
 const kfm=v=>{ const a=Math.abs(v); return (v<0?"−":"")+(a>=1e6? (a/1e6).toFixed(1)+"M" : a>=1e3? Math.round(a/1e3)+"k" : Math.round(a)); };
@@ -3007,7 +3027,9 @@ function submit(again){
   if(!o.Fecha) return e.textContent="Falta la fecha.";
   if(!(o.Monto>0)) return e.textContent="Escribe un monto mayor a cero.";
   if(t==="Gasto"){
-    o.Categoria=v("#fCat"); o.Subcategoria=v("#fSub"); o.Cuenta=v("#fCta"); o.MesesMSI=$("#fMsi").closest("[data-for]").classList.contains("hide")?"":v("#fMsi"); o.CubreFondo= !$("#fCFondo").closest("[data-for]").classList.contains("hide") && $("#fCFondo").checked? "Sí" : "";
+    o.Categoria=v("#fCat"); o.Subcategoria=v("#fSub"); o.Cuenta=v("#fCta"); o.MesesMSI=$("#fMsi").closest("[data-for]").classList.contains("hide")?"":v("#fMsi"); o.Propina= !$("#fProp").closest("[data-for]").classList.contains("hide") && +$("#fProp").value>0? Math.round(+$("#fProp").value*100)/100 : "";
+    if(o.Propina && o.Propina>o.Monto+0.001) return e.textContent="La propina no puede ser mayor que el monto total (el monto ya la incluye).";
+    o.CubreFondo= !$("#fCFondo").closest("[data-for]").classList.contains("hide") && $("#fCFondo").checked? "Sí" : "";
     if(!o.Categoria) return e.textContent="Elige una categoría.";
     if(!o.Cuenta) return e.textContent="Indica con qué se pagó.";
     if(S.autoCats.has(o.Categoria)){ o.Vehiculo=F.veh; o.Km=v("#fKm"); o.Litros=v("#fLt"); }
@@ -3330,7 +3352,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.15-42";
+const APP_BUILD="2026.11.16-44";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
