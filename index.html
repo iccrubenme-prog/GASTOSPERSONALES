@@ -628,6 +628,11 @@ main.scrolled .filt .search{padding-top:9px;padding-bottom:9px}
 .msi-c{padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}.msi-c:last-child{border-bottom:0}
 .msi-d{display:none;flex-direction:column;gap:4px;padding:6px 10px;margin-top:6px;border-radius:12px;background:var(--bg)}.msi-c.open .msi-d{display:flex}
 .au-cons td,.au-cons th{padding-left:4px!important;padding-right:4px!important}
+.au-cons td:first-child{position:sticky;left:0;z-index:1;background:var(--surface);box-shadow:2px 0 4px -2px rgb(0 0 0 / .12)}
+.au-cons th:first-child{position:sticky;left:0;z-index:2}
+.tbl .au-cons tbody tr:nth-child(even) td:first-child{background:color-mix(in srgb,var(--primary-soft) 45%,var(--surface))}
+.tbl .au-cons tbody tr[style*="var(--bg)"] td:first-child{background:var(--bg)}
+.au-cons td:first-child{max-width:110px;white-space:normal}
 </style>
 </head>
 <body>
@@ -1614,7 +1619,7 @@ function anAutos(){
     const kml=r.length? r.slice(-6).reduce((a,b)=>a+b,0)/Math.min(6,r.length) : null;
     return `<div class="card"><div class="between"><h2>${esc(v||"Sin vehículo asignado")}</h2><span class="mid">${mx(T)}</span></div>
       <div class="small muted">${y.length} gastos en ${ys}${kml? " · "+kml.toFixed(1)+" km/l":""} · <b style="color:var(--ink)">${pI(T)} de tu ingreso</b></div>
-      ${y.length? barsHTML(group(y,"Subcategoria"),T) : '<div class="empty">Sin gastos en '+ys+'</div>'}
+      ${y.length? barsHTML(group(y,m=>m.Subcategoria||"Sin subcategoría"),T,null,setDrillFn("auV:"+v, y, (v||"Sin vehículo")+" "+ys, m=>m.Subcategoria||"Sin subcategoría")) : '<div class="empty">Sin gastos en '+ys+'</div>'}
       <div class="list">${all.slice(0,4).map(itemHTML).join("")}</div>
       ${v? `<button class="btn sm" data-veh="${esc(v)}">+ Gasto de ${esc(v)}</button>`:""}</div>`;
   }).join("");
@@ -1626,12 +1631,14 @@ function anAutos(){
       const X=C.s[s]=C.s[s]||{t:0,v:{}}; X.t+=m.Monto; X.v[v]=(X.v[v]||0)+m.Monto; });
     const cel=x=>vc.map(v=>`<td class="n">${x.v[v]? nmx(x.v[v]) : '<span class="muted">—</span>'}</td>`).join("");
     const tv={}; ay.forEach(m=>{ const v=m.Vehiculo||""; tv[v]=(tv[v]||0)+m.Monto; });
+    const pIn=v=>ING? (v/ING*100).toFixed(1)+"%" : "—";
+    setDrillCampo("auC", ay, "Autos "+ys, "Categoria"); setDrillFn("auS", ay, "Autos "+ys, m=>(m.Categoria||"Sin categoría")+" › "+(m.Subcategoria||"Sin subcategoría"));
     const rows=Object.entries(tree).sort((a,b)=>b[1].t-a[1].t).map(([c,C])=>
-      `<tr style="background:var(--bg)"><td><b>${esc(c)}</b></td>${vc.map(v=>`<td class="n"><b>${C.v[v]? nmx(C.v[v]) : "—"}</b></td>`).join("")}<td class="n"><b>${nmx(C.t)}</b></td><td class="n"><b>${(C.t/TA*100).toFixed(0)}%</b></td></tr>`+
-      Object.entries(C.s).sort((a,b)=>b[1].t-a[1].t).map(([s,X])=>`<tr><td style="padding-left:14px!important">${esc(s)}</td>${cel(X)}<td class="n">${nmx(X.t)}</td><td class="n muted">${(X.t/TA*100).toFixed(0)}%</td></tr>`).join("")).join("");
-    return `<div class="card priv"><h2>🧾 Consolidado por categoría y subcategoría</h2><div class="small muted">Todos tus autos juntos en ${ys}, con el desglose por vehículo.</div>
-      <div class="tbl"><table class="compacta au-cons" style="font-size:11px"><thead><tr><th>Concepto</th>${vc.map(v=>`<th class="n">${esc(v||"Sin auto")}</th>`).join("")}<th class="n">Total</th><th class="n">%</th></tr></thead>
-      <tbody>${rows}<tr><td><b>Total</b></td>${vc.map(v=>`<td class="n"><b>${nmx(tv[v]||0)}</b></td>`).join("")}<td class="n"><b>${nmx(TA)}</b></td><td class="n"><b>100%</b></td></tr></tbody></table></div></div>`; })();
+      `<tr style="background:var(--bg);cursor:pointer" data-drill="auC" data-k="${esc(c)}"><td><b>${esc(c)} <span class="muted">›</span></b></td>${vc.map(v=>`<td class="n"><b>${C.v[v]? nmx(C.v[v]) : "—"}</b></td>`).join("")}<td class="n"><b>${nmx(C.t)}</b></td><td class="n"><b>${(C.t/TA*100).toFixed(0)}%</b></td><td class="n"><b>${pIn(C.t)}</b></td></tr>`+
+      Object.entries(C.s).sort((a,b)=>b[1].t-a[1].t).map(([s,X])=>`<tr style="cursor:pointer" data-drill="auS" data-k="${esc(c+" › "+s)}"><td style="padding-left:12px!important">${esc(s)} <span class="muted">›</span></td>${cel(X)}<td class="n">${nmx(X.t)}</td><td class="n muted">${(X.t/TA*100).toFixed(0)}%</td><td class="n muted">${pIn(X.t)}</td></tr>`).join("")).join("");
+    return `<div class="card priv"><h2>🧾 Consolidado por categoría y subcategoría</h2><div class="small muted">Todos tus autos juntos en ${ys}, con el desglose por vehículo. % ingreso = sobre nómina + prestaciones (${mx(ING)}). Toca un renglón para ver sus movimientos · desliza ↔ para ver todas las columnas.</div>
+      <div class="tbl"><table class="compacta au-cons" style="font-size:11px"><thead><tr><th>Concepto</th>${vc.map(v=>`<th class="n">${esc(v||"Sin auto")}</th>`).join("")}<th class="n">Total</th><th class="n">% autos</th><th class="n">% ingreso</th></tr></thead>
+      <tbody>${rows}<tr><td><b>Total</b></td>${vc.map(v=>`<td class="n"><b>${nmx(tv[v]||0)}</b></td>`).join("")}<td class="n"><b>${nmx(TA)}</b></td><td class="n"><b>100%</b></td><td class="n"><b>${pIn(TA)}</b></td></tr></tbody></table></div></div>`; })();
   $("#anBody").innerHTML = `<div class="card hero priv"><div class="small muted">🚗 Gasto en autos ${ys}</div><div class="big">${mx(TA)}</div>
       <div class="between small"><span class="muted">Representa de tu ingreso (nómina + prestaciones ${mx(ING)})</span><b style="font-size:18px">${pI(TA)}</b></div>
       <div class="track"><div class="fill" style="width:${ING? Math.min(100,TA/ING*100):0}%"></div></div></div>` + cons + html;
@@ -3382,7 +3389,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.20-51";
+const APP_BUILD="2026.11.20-52";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
