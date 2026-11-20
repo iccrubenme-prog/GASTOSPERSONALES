@@ -627,6 +627,7 @@ main.scrolled .filt .search{padding-top:9px;padding-bottom:9px}
 .rt-v{font-size:10.5px;font-weight:700;white-space:nowrap;margin-top:1px}
 .msi-c{padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}.msi-c:last-child{border-bottom:0}
 .msi-d{display:none;flex-direction:column;gap:4px;padding:6px 10px;margin-top:6px;border-radius:12px;background:var(--bg)}.msi-c.open .msi-d{display:flex}
+.au-cons td,.au-cons th{padding-left:4px!important;padding-right:4px!important}
 </style>
 </head>
 <body>
@@ -1617,9 +1618,23 @@ function anAutos(){
       <div class="list">${all.slice(0,4).map(itemHTML).join("")}</div>
       ${v? `<button class="btn sm" data-veh="${esc(v)}">+ Gasto de ${esc(v)}</button>`:""}</div>`;
   }).join("");
+  // consolidado Categoría › Subcategoría con columna por vehículo
+  const ay=autos.filter(m=>m.Fecha.startsWith(ys)), vc=[...S.vehs,""].filter(v=>ay.some(m=>(m.Vehiculo||"")===v));
+  const cons=(()=>{ if(!ay.length) return "";
+    const tree={}; ay.forEach(m=>{ const c=m.Categoria||"Sin categoría", s=m.Subcategoria||"Sin subcategoría", v=m.Vehiculo||"";
+      const C=tree[c]=tree[c]||{t:0,v:{},s:{}}; C.t+=m.Monto; C.v[v]=(C.v[v]||0)+m.Monto;
+      const X=C.s[s]=C.s[s]||{t:0,v:{}}; X.t+=m.Monto; X.v[v]=(X.v[v]||0)+m.Monto; });
+    const cel=x=>vc.map(v=>`<td class="n">${x.v[v]? nmx(x.v[v]) : '<span class="muted">—</span>'}</td>`).join("");
+    const tv={}; ay.forEach(m=>{ const v=m.Vehiculo||""; tv[v]=(tv[v]||0)+m.Monto; });
+    const rows=Object.entries(tree).sort((a,b)=>b[1].t-a[1].t).map(([c,C])=>
+      `<tr style="background:var(--bg)"><td><b>${esc(c)}</b></td>${vc.map(v=>`<td class="n"><b>${C.v[v]? nmx(C.v[v]) : "—"}</b></td>`).join("")}<td class="n"><b>${nmx(C.t)}</b></td><td class="n"><b>${(C.t/TA*100).toFixed(0)}%</b></td></tr>`+
+      Object.entries(C.s).sort((a,b)=>b[1].t-a[1].t).map(([s,X])=>`<tr><td style="padding-left:14px!important">${esc(s)}</td>${cel(X)}<td class="n">${nmx(X.t)}</td><td class="n muted">${(X.t/TA*100).toFixed(0)}%</td></tr>`).join("")).join("");
+    return `<div class="card priv"><h2>🧾 Consolidado por categoría y subcategoría</h2><div class="small muted">Todos tus autos juntos en ${ys}, con el desglose por vehículo.</div>
+      <div class="tbl"><table class="compacta au-cons" style="font-size:11px"><thead><tr><th>Concepto</th>${vc.map(v=>`<th class="n">${esc(v||"Sin auto")}</th>`).join("")}<th class="n">Total</th><th class="n">%</th></tr></thead>
+      <tbody>${rows}<tr><td><b>Total</b></td>${vc.map(v=>`<td class="n"><b>${nmx(tv[v]||0)}</b></td>`).join("")}<td class="n"><b>${nmx(TA)}</b></td><td class="n"><b>100%</b></td></tr></tbody></table></div></div>`; })();
   $("#anBody").innerHTML = `<div class="card hero priv"><div class="small muted">🚗 Gasto en autos ${ys}</div><div class="big">${mx(TA)}</div>
       <div class="between small"><span class="muted">Representa de tu ingreso (nómina + prestaciones ${mx(ING)})</span><b style="font-size:18px">${pI(TA)}</b></div>
-      <div class="track"><div class="fill" style="width:${ING? Math.min(100,TA/ING*100):0}%"></div></div></div>` + html;
+      <div class="track"><div class="fill" style="width:${ING? Math.min(100,TA/ING*100):0}%"></div></div></div>` + cons + html;
   bindItems($("#anBody"));
   $$("[data-veh]").forEach(b=>b.onclick=()=>openForm({Tipo:"Gasto",Categoria:"Autos",Vehiculo:b.dataset.veh},{veh:b.dataset.veh}));
 }
@@ -1791,10 +1806,11 @@ function renderSub(){
             <span class="grow" style="flex:1;min-width:0"><div class="iv-name">${esc(n)}</div><div><span class="iv-tag" style="margin-left:0">${tag}</span> <span class="iv-hint">Opciones <i>⌄</i></span></div></span>
             <span><div class="iv-sal">${mx2(g.t)}</div><div class="iv-pct">${T? (g.t/T*100).toFixed(1):0}% del total</div></span></div>
           <div class="iv-track"><i style="width:${T? Math.max(1,g.t/T*100):0}%"></i></div>
-          <div class="iv-more">${multi? g.L.map(r=>{ const fo=r.foto;
+          <div class="iv-more">${multi? (()=>{ const rys=g.L.map(r=>sum(S.movs.filter(m=>rend(m)&&m.Instrumento===r.i.Instrumento))), RT=rys.reduce((a,b)=>a+b,0), fs=g.L.filter(r=>r.foto), FT=fs.reduce((a,r)=>a+(+r.foto.Saldo||0),0), FL=g.L.reduce((a,r)=>a+(+r.flujo||0),0);
+              return `<div class="iv-chips"><span class="iv-chip pos">✨ +${mx2(RT)} en ${y} (todo ${esc(n)})</span>${fs.length===g.L.length? `<span class="iv-chip">🏦 Saldo real total: ${mx2(FT)}</span>`:""}${FL? `<span class="iv-chip">↕️ Después: ${FL>0?"+":""}${mx2(FL)}</span>`:""}</div>`; })() : ""}${multi? g.L.map(r=>{ const fo=r.foto, ryS=sum(S.movs.filter(m=>rend(m)&&m.Instrumento===r.i.Instrumento));
               return `<div class="iv-sub"><div class="iv-subh" data-subtog><span><b>${esc(r.i.Instrumento)}</b>${+r.i.TasaAnual? ` <span class="iv-tag">${r.i.TasaAnual}%</span>`:""}</span><b>${mx2(r.saldo)}</b></div>
               <div class="iv-track" style="height:5px"><i style="width:${g.t? Math.max(1,r.saldo/g.t*100):0}%"></i></div>
-              <div class="between small"><span class="muted">${fo? "🏦 Saldo real "+sDate(fo.Fecha)+": "+mx2(fo.Saldo) : "Sin saldo real capturado"}</span><span class="iv-hint" data-subtog>Opciones <i>⌄</i></span></div>
+              <div class="between small"><span class="muted">${fo? "🏦 Saldo real "+sDate(fo.Fecha)+": "+mx2(fo.Saldo) : "Sin saldo real capturado"}${ryS? `<div class="pos" style="font-weight:700">✨ +${mx2(ryS)} en ${y}</div>`:""}</span><span class="iv-hint" data-subtog>Opciones <i>⌄</i></span></div>
               <div class="iv-submore">${more(r)}</div></div>`; }).join("") : more(r0)}</div></div>`; }).join(""); })()}
       <button class="btn" id="insNueva" style="border:1.5px dashed var(--primary);background:var(--primary-soft);color:var(--primary);font-weight:800">➕ Agregar inversión</button>
       ${cero.length? `<div class="card"><h2>Sin saldo</h2><div class="iv-zero">${cero.map(r=>`<button class="chip" data-iv="Aportación" data-n="${esc(r.i.Instrumento)}">⬆️ ${esc(r.i.Instrumento)}</button>`).join("")}</div><div class="small muted" style="margin-top:6px">Toca uno para registrar una aportación, o ⚙️ para editarlo o borrarlo.</div><div class="iv-zero" style="margin-top:4px">${cero.map(r=>`<button class="chip" data-insed="${esc(r.i.Instrumento)}">⚙️ ${esc(r.i.Instrumento)}</button>`).join("")}</div></div>`:""}`;
@@ -3356,7 +3372,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.16-47";
+const APP_BUILD="2026.11.20-49";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
