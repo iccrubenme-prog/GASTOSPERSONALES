@@ -808,7 +808,7 @@ let toastT; function toast(m){ const t=$("#toast"); t.textContent=m; t.classList
 const API_URL = "https://script.google.com/macros/s/AKfycbwGIeHfWXEUl7U7PtOCsCBfqeAPuGp2Dvm7jEDhtK8vN2y29mITmKA7ss8lU7M7iolwYg/exec";
 /* Bloqueo con indicador mientras se guarda algo directo en la hoja (inversiones, saldos reales, arqueo, respaldo):
    evita tocar otras cosas antes de que la hoja confirme. Los gastos/ingresos no lo necesitan: van a una cola que se reintenta sola. */
-const BLOQ={saveInstrumento:"Guardando inversión…", deleteInstrumento:"Eliminando inversión…", addSaldoInversion:"Guardando saldo real…", saveArqueo:"Guardando arqueo…", respaldarAhora:"Guardando respaldo en tu Drive…"};
+const BLOQ={cuadrarCuenta:"Cuadrando la cuenta…", saveInstrumento:"Guardando inversión…", deleteInstrumento:"Eliminando inversión…", addSaldoInversion:"Guardando saldo real…", saveArqueo:"Guardando arqueo…", respaldarAhora:"Guardando respaldo en tu Drive…"};
 let bloqN=0, bloqP=0, bloqT=null;
 const BQ_C=2*Math.PI*54;
 function bloqPinta(){ const o=$("#bloq"); if(!o) return; $(".bq-arc",o).style.strokeDashoffset=BQ_C*(1-bloqP); $(".bq-pct",o).textContent=Math.round(bloqP*100)+"%"; }
@@ -1737,7 +1737,7 @@ function renderSub(){
         const gp=sum(gastosCuenta(n,pa,pb)), s0=saldoDe(c), deuda=Math.max(0,-s0), lim=+c.LimiteCredito||0;
         const kpi = cr
           ? `<div><small>Deuda hoy</small><b class="${deuda>0?"neg":""}">${mx2(deuda)}</b></div><div><small>${lim? "Disponible de "+mx(lim) : "Gastado "+esc(pl.toLowerCase())}</small><b>${lim? mx2(Math.max(0,lim-deuda)) : mx(gp)}</b></div>`
-          : t==="Tenate"? `<div class="priv" style="grid-column:1/-1"><small>📈 Pendiente de invertir</small><b class="${s0>=1?"warn":"pos"}">${mx2(Math.max(0,s0))}</b><div class="small muted">${s0>=1? "Recibido − gastado − ya pasado a inversión. Pásalo a una inversión para que se refleje en su saldo." : "Todo lo recibido ya está invertido o gastado ✅"}</div></div><div class="priv"><small>Recibido ${esc(pl.toLowerCase())}</small><b class="pos">${mx(sum(S.movs.filter(m=>m.Tipo==="Ingreso"&&esTenate(m.Fuente)&&m.Fecha>=pa&&m.Fecha<=pb)))}</b></div><div><small>Gastado ${esc(pl.toLowerCase())}</small><b>${mx(gp)}</b></div>`
+          : t==="Tenate"? `<div class="priv" style="grid-column:1/-1"><small>📈 Pendiente de invertir hoy <span class="muted">(saldo, no depende del filtro)</span></small><b class="${s0>=1?"warn":"pos"}">${mx2(Math.max(0,s0))}</b><div class="small muted">${s0>=1? "Todo lo recibido − gastado − ya pasado a inversión o a efectivo. Pásalo a donde está realmente, o cuádralo en $0 si ya está contado en otro lado." : "Todo lo recibido ya está invertido o gastado ✅"}</div></div><div class="priv"><small>Recibido ${esc(pl.toLowerCase())}</small><b class="pos">${mx(sum(S.movs.filter(m=>m.Tipo==="Ingreso"&&esTenate(m.Fuente)&&m.Fecha>=pa&&m.Fecha<=pb)))}</b></div><div><small>Gastado ${esc(pl.toLowerCase())}</small><b>${mx(gp)}</b></div>`
           : ctaPres&&n===ctaPres.Cuenta&&libreHoy!=null? `<div class="priv"><small>Libre para gastar</small><b class="${libreHoy<0?"neg":""}">${mx2(libreHoy)}</b></div><div><small>Gastado ${esc(pl.toLowerCase())}</small><b>${mx(gp)}</b></div>
               <div class="priv" style="grid-column:1/-1"><div class="between small"><span class="muted">💵 Dinero en la cuenta</span><b>${mx2(s0)}</b></div>${apartT>0? `<div class="between small"><span class="muted">💳 Apartado para pagar tarjetas</span><b>${mx2(apartT)}</b></div><div class="small muted">Lo que gastaste con tarjeta de tu presupuesto y aún no pagas. Al registrar el pago desde Efectivo, sale de aquí.</div>`:""}</div>`
           : `<div class="priv"><small>${t==="Fondo"?"Disponible en el fondo":"Saldo hoy"}</small><b class="${s0<0?"neg":""}">${mx2(s0)}</b></div><div><small>Gastado ${esc(pl.toLowerCase())}</small><b>${mx(gp)}</b></div>`;
@@ -1747,10 +1747,15 @@ function renderSub(){
           <div class="acc-k">${kpi}</div>${util}
           ${cr&&lim? `<div class="small muted">Gastado ${esc(pl.toLowerCase())}: <b>${mx(gp)}</b></div>`:""}${fechas}
           ${msiPend[n]? `<div class="small warn">Meses sin intereses por pagar: ${mx(msiPend[n])}</div>`:""}
-          <div class="acc-a"><button class="btn sm" data-det="${esc(n)}">Ver desglose ›</button>${ctaPres&&n===ctaPres.Cuenta? `<button class="btn sm" data-goto="arqueo">💵 Contar efectivo</button>`:""}${cr? `<button class="btn sm" data-pagar="${esc(n)}">Registrar pago</button>`:""}${t==="Ahorro"? `<button class="btn sm" data-ainv="1">📈 Pasar a inversión</button>`:""}${t==="Tenate"&&s0>=1? `<button class="btn sm primary" data-ainv="${esc(n)}">📈 Pasar a inversión</button>`:""}</div></div>`; }).join("")}</div>`; }).join("");
+          <div class="acc-a"><button class="btn sm" data-det="${esc(n)}">Ver desglose ›</button>${ctaPres&&n===ctaPres.Cuenta? `<button class="btn sm" data-goto="arqueo">💵 Contar efectivo</button>`:""}${cr? `<button class="btn sm" data-pagar="${esc(n)}">Registrar pago</button>`:""}${t==="Ahorro"? `<button class="btn sm" data-ainv="1">📈 Pasar a inversión</button>`:""}${t==="Tenate"&&s0>=1? `<button class="btn sm primary" data-ainv="${esc(n)}">📈 Pasar a inversión o efectivo</button><button class="btn sm" data-cuad0="${esc(n)}">✅ Cuadrar en $0</button>`:""}</div></div>`; }).join("")}</div>`; }).join("");
     $$("[data-ainv]",el).forEach(x=>x.onclick=()=>moverAInversion(x.dataset.ainv==="1"? null : "CTA:"+x.dataset.ainv));
     $$("#ctPer button",el).forEach(x=>x.onclick=()=>{ F2.per=x.dataset.p; renderSub(); });
     $$("[data-ct]",el).forEach(x=>x.onclick=()=>{ F2.tipo=x.dataset.ct; renderSub(); });
+    $$("[data-cuad0]",el).forEach(x=>x.onclick=()=>{ const n=x.dataset.cuad0;
+      if(!x.dataset.ok){ x.dataset.ok="1"; x.textContent="¿Seguro? Toca otra vez"; setTimeout(()=>{ if(x.isConnected){ delete x.dataset.ok; x.textContent="✅ Cuadrar en $0"; } },4000); return; }
+      x.disabled=true; const c=S.cta[n], prev={s:c.SaldoInicial,f:c.FechaSaldo};
+      api("cuadrarCuenta",n,0,S.hoy).then(()=>{ c.SaldoInicial=0; c.FechaSaldo=S.hoy; toast(n+" cuadrada en $0. No se movió dinero de ninguna cuenta."); renderSub(); })
+        .catch(er=>{ c.SaldoInicial=prev.s; c.FechaSaldo=prev.f; x.disabled=false; x.textContent="✅ Cuadrar en $0"; toast("No se pudo: "+(er.message||er)+(gsViejo()? " · Publica el nuevo Code.gs":"")); }); });
     $$("[data-pagar]",el).forEach(x=>x.onclick=()=>openForm({Tipo:"Pago tarjeta", CuentaDestino:x.dataset.pagar},{dst:x.dataset.pagar}));
     $$("[data-det]",el).forEach(x=>x.onclick=()=>{ S.ctaDet=x.dataset.det; S.ctaPer=F2.per; openSub("ctadet"); });
     $$("[data-goto]",el).forEach(x=>x.onclick=()=>openSub(x.dataset.goto));
@@ -2927,11 +2932,11 @@ function moverAInversion(pre){
   if(S.cta[AHORRO]){ const v=saldosCuentas()[AHORRO]||0; if(v>0) ori.push({k:"CTA:"+AHORRO,l:"Cuenta Ahorro",v}); }
   if(S.cta[CAJA_T]){ const v=saldosCuentas()[CAJA_T]||0; if(v>=0.01) ori.push({k:"CTA:"+CAJA_T,l:CAJA_T,v,ic:"🚚"}); }
   if(pre&&typeof pre!=="string") pre=null;
-  const des=Object.values(si).filter(r=>r.i.Tipo!=="Efectivo").map(r=>r.i.Instrumento);
+  const desE=Object.values(si).filter(r=>r.i.Tipo==="Efectivo").map(r=>r.i.Instrumento), des=[...Object.values(si).filter(r=>r.i.Tipo!=="Efectivo").map(r=>r.i.Instrumento), ...desE];
   const st={o:(pre&&ori.find(o=>o.k===pre)? pre : ori[0]&&ori[0].k), d:des[0]};
   ddSheet("Pasar a inversión", false, ()=>`<div class="small muted" style="margin:-4px 2px 8px">Es un movimiento interno: tu ahorro total no cambia, solo cambia de lugar.</div>
     <div class="pk-g">Sale de</div><div class="chips" id="mvO" style="flex-wrap:wrap">${ori.map(o=>`<button type="button" class="chip" data-o="${esc(o.k)}">${o.ic||"💵"} ${esc(o.l)} · ${mx(o.v)}</button>`).join("")}</div>
-    <div class="pk-g">Va a</div><div class="chips" id="mvD" style="flex-wrap:wrap">${des.map(d=>`<button type="button" class="chip" data-d="${esc(d)}">📈 ${esc(d)}</button>`).join("")}</div>
+    <div class="pk-g">Va a</div><div class="chips" id="mvD" style="flex-wrap:wrap">${des.map(d=>`<button type="button" class="chip" data-d="${esc(d)}">${desE.includes(d)?"💵":"📈"} ${esc(d)}${desE.includes(d)?" (sin invertir)":""}</button>`).join("")}</div>
     <div class="f" style="margin-top:10px"><label for="mvM">Monto</label><input id="mvM" class="monto" style="font-size:22px"></div>
     <div class="small neg" id="mvE"></div>
     <button type="button" class="btn primary" data-v="go" style="width:100%;margin-top:10px">Mover</button>`, v=>{}, null);
@@ -2942,6 +2947,7 @@ function moverAInversion(pre){
     const m=Math.round((parseFloat($("#mvM",pk).value)||0)*100)/100, o=ori.find(x=>x.k===st.o);
     if(!o||!st.d) return $("#mvE",pk).textContent="Elige de dónde sale y a qué inversión va.";
     if(!(m>0)) return $("#mvE",pk).textContent="Escribe el monto.";
+    if(o.k==="INS:"+st.d) return $("#mvE",pk).textContent="El origen y el destino son el mismo.";
     if(m>o.v+0.009) return $("#mvE",pk).textContent="No puede ser más de lo que tienes ("+mx2(o.v)+").";
     const base={Categoria:"",Subcategoria:"",Fuente:"",CuentaDestino:"",Vehiculo:"",Km:"",Litros:"",MesesMSI:""}, f=S.hoy, p=pend(), L=[];
     if(o.k.startsWith("INS:")){ const ins=o.k.slice(4);
@@ -3191,7 +3197,7 @@ function insForm(nombre){
 }
 
 /* ================= Mejoras: avisos, dinero, cuadre, revisión, recurrentes, deshacer ================= */
-const GS_REQ="2026.11.15";
+const GS_REQ="2026.11.20";
 function gsViejo(){ return S.d && String(S.d.gsVersion||"") < GS_REQ; }
 function toastAct(msg,label,fn,ms){ const t=$("#toast"); t.innerHTML=`<span>${esc(msg)}</span><button class="tb" type="button">${esc(label)}</button>`; t.classList.add("on","act");
   $(".tb",t).onclick=()=>{ t.classList.remove("on","act"); fn(); }; clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on","act"), ms||6000); }
@@ -3376,7 +3382,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.20-50";
+const APP_BUILD="2026.11.20-51";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
