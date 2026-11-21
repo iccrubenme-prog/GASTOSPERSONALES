@@ -1170,7 +1170,7 @@ document.addEventListener("click", e=>{
 });
 /* ---- hojas de detalle de los KPIs de Inicio ---- */
 function hojaKPI(titulo, sub, total, cls, cuerpo){
-  const box=document.createElement("div");
+  const box=document.createElement("div"); box.className="zbox";
   box.style.cssText="position:fixed;inset:0;background:rgb(8 10 20 / .5);display:flex;align-items:flex-end;z-index:44";
   box.innerHTML=`<div class="sheet on" style="position:relative;transform:none;max-height:90%;width:100%;max-width:560px;margin:0 auto">
     <div class="grab"></div><div class="between"><span><h2 style="margin:0;font-size:18px">${esc(titulo)}</h2><div class="small muted">${esc(sub)}</div></span><button type="button" class="btn sm" data-x>Cerrar</button></div>
@@ -1178,7 +1178,7 @@ function hojaKPI(titulo, sub, total, cls, cuerpo){
   document.body.appendChild(box);
   box.querySelector("[data-x]").onclick=()=>box.remove();
   box.addEventListener("click",ev=>{ if(ev.target===box) box.remove(); });
-  $$("[data-id]",box).forEach(b=>b.onclick=()=>{ const m=S.byId[b.dataset.id]; if(m){ box.remove(); openForm(m); } });
+  $$("[data-id]",box).forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); const m=S.byId[b.dataset.id]; if(m){ cerrarZooms(); openForm(m); } });
 }
 function hojaGastadoCat(c){
   const x=catRes(c), g=[...x.gas].sort((a,b)=>a.Fecha<b.Fecha?1:-1), lab="Catorcena "+c.Num+" · "+sDate(c.Inicio)+" – "+sDate(c.Fin);
@@ -1208,21 +1208,26 @@ function abrirZoom(k, titulo, rows, campo){
   const esIng=rows.length&&rows.every(m=>m.Tipo==="Ingreso");
   const T=sum(rows), subs=group(rows, m=>m.Subcategoria||"Sin subcategoría"), desc=group(rows, m=>m.Descripcion||"—").slice(0,10);
   const meses=group(rows, m=>m.Fecha.slice(0,7)).sort((a,b)=>a[0]<b[0]?-1:1);
-  const box=document.createElement("div");
+  const zk="z"+(++zoomN), tz=k+" · "+titulo, cats=group(rows, m=>m.Categoria||"Sin categoría");
+  const dSub=setDrillFn(zk+"s", rows, tz, m=>m.Subcategoria||"Sin subcategoría"), dCat=setDrillCampo(zk+"c", rows, tz, "Categoria"), dDesc=setDrillCampo(zk+"d", rows, tz, "Descripcion");
+  const box=document.createElement("div"); box.className="zbox";
   box.style.cssText="position:fixed;inset:0;background:rgb(8 10 20 / .5);display:flex;align-items:flex-end;z-index:44";
   box.innerHTML=`<div class="sheet on" style="position:relative;transform:none;max-height:90%">
     <div class="grab"></div><div class="between"><span><h2 style="margin:0;font-size:18px">${esc(k)}</h2><div class="small muted">${esc(titulo)} · ${rows.length} ${esIng?"ingresos":"gastos"}</div></span><button type="button" class="btn sm" data-x>Cerrar</button></div>
     <div class="between"><span class="muted">Total</span><b class="mid ${esIng?"pos":"neg"} ${esIng?"priv":""}">${mx(T)}</b></div>
-    ${!esIng && campo==="Categoria" && subs.length>1? `<div class="card"><h2>Por subcategoría</h2>${barsHTML(subs,T)}</div>`:""}
+    ${!esIng && campo!=="Categoria" && cats.length>1? `<div class="card"><h2>Por categoría</h2>${barsHTML(cats,T,null,dCat)}</div>`:""}
+    ${!esIng && campo!=="Subcategoria" && subs.length>1? `<div class="card"><h2>Por subcategoría</h2>${barsHTML(subs,T,null,dSub)}</div>`:""}
     ${esIng? `${(()=>{ const G=group(rows,m=>m.Fuente===NOMINA? "Nómina" : m.Descripcion||m.Fuente); return G.length>1? `<div class="card priv"><h2>¿De qué conceptos vino?</h2>${barsHTML(G.slice(0,10),T)}</div>` : ""; })()}<div class="card priv"><h2>¿Dónde se depositó?</h2>${barsHTML(group(rows,destLabel),T)}</div>`
-      : campo!=="Descripcion"? `<div class="card"><h2>En qué se gastó más</h2>${barsHTML(desc,T)}</div>`:""}
+      : campo!=="Descripcion"&&desc.length>1? `<div class="card"><h2>En qué se gastó más</h2>${barsHTML(desc,T,null,dDesc)}</div>`:""}
     ${meses.length>1? `<div class="card"><h2>Por mes</h2>${barsHTML(meses.map(([ym,v])=>[mLabel(ym),v]),T)}</div>`:""}
     <div class="card" style="padding:4px 12px"><div class="list">${rows.slice(0,60).map(m=>itemHTML(m,true)).join("")}</div>${rows.length>60? `<div class="small muted" style="padding:8px 0">Se muestran 60 de ${rows.length}.</div>`:""}</div></div>`;
   document.body.appendChild(box);
   box.querySelector("[data-x]").onclick=()=>box.remove();
   box.addEventListener("click",ev=>{ if(ev.target===box) box.remove(); });
-  $$("[data-id]",box).forEach(b=>b.onclick=()=>{ const m=S.byId[b.dataset.id]; if(m){ box.remove(); openForm(m); } });
+  $$("[data-id]",box).forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); const m=S.byId[b.dataset.id]; if(m){ cerrarZooms(); openForm(m); } });
 }
+let zoomN=0;
+function cerrarZooms(){ $$(".zbox").forEach(b=>b.remove()); }
 function effects(m){
   const v=m.Monto, o=[];
   if(m.Tipo==="Gasto") o.push([m.Cuenta,-v]);
@@ -3450,7 +3455,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.21-55";
+const APP_BUILD="2026.11.21-56";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
