@@ -1168,6 +1168,42 @@ document.addEventListener("click", e=>{
   const rows=D.rows.filter(m=> (D.fn? D.fn(m) : (m[campo]||"—"))===k);
   abrirZoom(k, D.titulo, rows, campo);
 });
+/* ---- hojas de detalle de los KPIs de Inicio ---- */
+function hojaKPI(titulo, sub, total, cls, cuerpo){
+  const box=document.createElement("div");
+  box.style.cssText="position:fixed;inset:0;background:rgb(8 10 20 / .5);display:flex;align-items:flex-end;z-index:44";
+  box.innerHTML=`<div class="sheet on" style="position:relative;transform:none;max-height:90%;width:100%;max-width:560px;margin:0 auto">
+    <div class="grab"></div><div class="between"><span><h2 style="margin:0;font-size:18px">${esc(titulo)}</h2><div class="small muted">${esc(sub)}</div></span><button type="button" class="btn sm" data-x>Cerrar</button></div>
+    <div class="between"><span class="muted">Total</span><b class="mid ${cls} priv">${mx2(total)}</b></div>${cuerpo}</div>`;
+  document.body.appendChild(box);
+  box.querySelector("[data-x]").onclick=()=>box.remove();
+  box.addEventListener("click",ev=>{ if(ev.target===box) box.remove(); });
+  $$("[data-id]",box).forEach(b=>b.onclick=()=>{ const m=S.byId[b.dataset.id]; if(m){ box.remove(); openForm(m); } });
+}
+function hojaGastadoCat(c){
+  const x=catRes(c), g=[...x.gas].sort((a,b)=>a.Fecha<b.Fecha?1:-1), lab="Catorcena "+c.Num+" · "+sDate(c.Inicio)+" – "+sDate(c.Fin);
+  const li=(l,v,n)=>v? `<div class="between"><span class="muted">${l}${n?` <span class="small">${n}</span>`:""}</span><b class="priv">${mx2(v)}</b></div>`:"";
+  hojaKPI("🛒 Gastado", lab+" · "+g.length+" gastos", x.G, "neg", `
+    <div class="card priv"><h2>¿De dónde salió?</h2>
+      ${li("💰 Del presupuesto",x.Gord)}${li("🛟 Lo cubrió el fondo de ahorro",x.GF)}${li("🚚 Con dinero de El Tenate",x.GT)}
+      <div class="small muted">Del presupuesto llevas ${mx(x.Gord)} de ${mx(x.P)}${x.queda>=0? " · quedan "+mx(x.queda) : " · te pasaste "+mx(-x.queda)}.${x.valesG? " Los gastos con vales ("+mx(x.valesG)+") van aparte.":""}</div></div>
+    ${g.length? `<div class="card"><h2>Por categoría</h2>${barsHTML(group(g,m=>m.Categoria||"Sin categoría"),x.G,null,setDrill("ini-gc",g,lab))}</div>
+      <div class="card"><h2>¿Con qué pagaste?</h2>${barsHTML(group(g,medioPago),x.G,null,setDrillFn("ini-gm",g,lab,medioPago))}</div>
+      <div class="card" style="padding:4px 12px"><div class="list">${g.slice(0,80).map(m=>itemHTML(m,true)).join("")}</div>${g.length>80?`<div class="small muted" style="padding:8px 0">Se muestran 80 de ${g.length}.</div>`:""}</div>` : `<div class="card"><div class="empty">Sin gastos en esta catorcena.</div></div>`}`);
+}
+function hojaAhorroCat(c){
+  const x=catRes(c), A=x.A||0, real=ahorroRealCat(c), lab="Catorcena "+c.Num+" · "+sDate(c.Inicio)+" – "+sDate(c.Fin);
+  const L=S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fuente===NOMINA&&m.Fecha>=c.Inicio&&m.Fecha<=c.Fin&&esInvDirecto(m)).sort((a,b)=>a.Fecha<b.Fecha?1:-1);
+  const M=metaAnio(c.Anio), base=M.base, dif=A-base, mc=metaCat(c);
+  hojaKPI("🐷 Ahorro apartado", lab, A, "", `
+    <div class="card priv"><h2>¿Cómo vas?</h2>
+      ${base? `<div class="between"><span class="muted">🎯 Meta por catorcena</span><b>${mx2(base)}</b></div><div class="between"><span class="muted">${dif>=0?"Arriba de la meta":"Abajo de la meta"}</span><b class="${dif>=0?"pos":"neg"}">${dif>=0?"+":"−"}${mx2(Math.abs(dif))}</b></div>`:""}
+      ${x.N? `<div class="between"><span class="muted">% de tu ingreso de la catorcena</span><b>${(A/x.N*100).toFixed(1)}%</b></div>`:""}
+      ${mc&&M.meta? `<div class="between"><span class="muted">Llevas en ${c.Anio} · ${c.Num} cat.</span><b style="white-space:nowrap">${mx(mc.acum)} / ${mx(M.meta)}</b></div>`:""}
+      ${real==null? `<div class="small muted">Es el ahorro que capturaste en la catorcena; cuando registres la nómina repartida verás aquí a dónde se fue.</div>`:""}</div>
+    ${L.length? `<div class="card priv"><h2>¿A dónde se fue?</h2>${barsHTML(group(L,m=>"📈 "+m.Instrumento),A||sum(L))}</div>
+      <div class="card" style="padding:4px 12px"><div class="list">${L.map(m=>itemHTML(m,true)).join("")}</div></div>`:""}`);
+}
 function abrirZoom(k, titulo, rows, campo){
   const esIng=rows.length&&rows.every(m=>m.Tipo==="Ingreso");
   const T=sum(rows), subs=group(rows, m=>m.Subcategoria||"Sin subcategoría"), desc=group(rows, m=>m.Descripcion||"—").slice(0,10);
@@ -1266,8 +1302,8 @@ function rInicio(){
       <div class="ini-chips priv">${est}<button class="ini-chip" id="goDet" style="border:0;color:#fff;cursor:pointer">📋 Ver detalle ›</button>${x.AF? `<span class="ini-chip">🛟 Incluye ${mx(x.AF)} del fondo</span>`:""}</div>
       ${x.queda<0? (()=>{ const f=ahorrosAnio(c.Anio).fondo; const falta=Math.ceil(-x.queda); return f>=falta? `<button class="btn sm" id="cubrir" style="background:#fff;color:#2f3a8f;align-self:flex-start">🛟 Cubrir <span class="priv">${mx(falta)}</span> con el fondo <span class="priv">(disponible ${mx(f)})</span></button>` : `<div class="small" style="opacity:.85">El fondo no alcanza para cubrir la diferencia (disponible <span class="priv">${mx(f)}</span>).</div>`; })() : ""}</div>`;
     kpis=`<div class="ini-kp"><button class="ini-k" id="goIng"><span class="ic g">💼</span><span class="l">Ingreso catorcena ›</span><span class="v pos priv">${mx(x.N)}</span></button>
-      <div class="ini-k"><span class="ic r">🛒</span><span class="l">Gastado</span><span class="v neg">${mx(x.G)}</span></div>
-      <div class="ini-k"><span class="ic b">🐷</span><span class="l">Ahorro apartado</span><span class="v priv">${x.A==null? "—" : mx(x.A)}</span></div></div>
+      <button class="ini-k" id="goGas"><span class="ic r">🛒</span><span class="l">Gastado ›</span><span class="v neg">${mx(x.G)}</span></button>
+      <button class="ini-k" id="goAho"><span class="ic b">🐷</span><span class="l">Ahorro apartado ›</span><span class="v priv">${x.A==null? "—" : mx(x.A)}</span></button></div>
       ${rapido}
       ${(()=>{ const A=msiActivas(); if(!A.length) return ""; const T=A.reduce((s,x)=>s+x.pend,0), M=A.reduce((s,x)=>s+(+x.Mensualidad||0),0), V=A.reduce((s,x)=>s+x.venc,0);
         const px=A.map(x=>x.prox).filter(Boolean).sort()[0];
@@ -1298,6 +1334,8 @@ function rInicio(){
   $$("[data-q]",$("#p-inicio")).forEach(b=>b.onclick=()=>{ const m=S.mem[b.dataset.q]; openForm({Tipo:"Gasto", Descripcion:m.Descripcion, Categoria:m.Categoria, Subcategoria:m.Subcategoria, Vehiculo:m.Vehiculo, Cuenta:m.Cuenta}); });
   $("#verTodos").onclick=()=>go("movs");
   const ga=$("#goAhorro"); if(ga) ga.onclick=()=>openSub("ahorro");
+  const gg=$("#goGas"); if(gg) gg.onclick=()=>hojaGastadoCat(c);
+  const gah=$("#goAho"); if(gah) gah.onclick=()=>hojaAhorroCat(c);
   const gi=$("#goIng"); if(gi) gi.onclick=()=>{ S.ig={per:"cat",ref:S.hoy,tipo:"Todos",a:"",b:""}; openSub("ingresos"); };
   const cb=$("#cubrir"); if(cb && c){ cb.onclick=()=>{ const x=catRes(c), falta=Math.ceil(-x.queda); cb.disabled=true; cb.textContent="Guardando…";
     const o={ID:c.ID, ApoyoFondo:(+c.ApoyoFondo||0)+falta, PptoGastos:x.P+falta};
@@ -3412,7 +3450,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.21-54";
+const APP_BUILD="2026.11.21-55";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
