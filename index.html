@@ -2439,24 +2439,30 @@ function renderCtaDet(el){
   const n=S.ctaDet, c=S.cta[n]||{}, t=c.Tipo||"", [c1,c2]=cpCol(n,0);
   S.ctaPer=S.ctaPer||"cat"; const R=perRango(S.ctaPer)||perRango("cat"), [a,b,lab]=R;
   const g=gastosCuenta(n,a,b).sort((x,y)=>x.Fecha<y.Fecha?1:-1), T=sum(g);
-  const ent=S.movs.filter(m=>m.Fecha>=a&&m.Fecha<=b&&((m.Tipo==="Pago tarjeta"||m.Tipo==="Transferencia"||m.Tipo==="Ingreso")&&(m.CuentaDestino===n||(t==="Vales"&&m.Tipo==="Ingreso"&&m.Fuente===VALES))));
-  const sal=S.movs.filter(m=>m.Fecha>=a&&m.Fecha<=b&&(m.Tipo==="Pago tarjeta"||m.Tipo==="Transferencia")&&m.Cuenta===n);
+  // efectivo guardado como inversión (tipo Efectivo): se muestra junto con la cuenta Ahorro, o solo si se abrió directo
+  const efIns=(S.d.instrumentos||[]).filter(i=>i.Tipo==="Efectivo").map(i=>i.Instrumento), insDet= efIns.includes(n)? [n] : n===AHORRO? efIns : [];
+  const enP=m=>m.Fecha>=a&&m.Fecha<=b, deIns=m=>insDet.includes(m.Instrumento);
+  const ent=S.movs.filter(m=>enP(m)&&( ((m.Tipo==="Pago tarjeta"||m.Tipo==="Transferencia"||m.Tipo==="Ingreso")&&(m.CuentaDestino===n||(t==="Vales"&&m.Tipo==="Ingreso"&&m.Fuente===VALES)))
+      || (m.Tipo==="Inversión"&&m.CuentaDestino===n) || (deIns(m)&&(m.Tipo==="Ingreso"||(m.Tipo==="Inversión"&&m.MovInversion!=="Retiro"))) ));
+  const sal=S.movs.filter(m=>enP(m)&&( ((m.Tipo==="Pago tarjeta"||m.Tipo==="Transferencia")&&m.Cuenta===n) || (m.Tipo==="Inversión"&&m.Cuenta===n&&!deIns(m)) || (deIns(m)&&m.Tipo==="Inversión"&&m.MovInversion==="Retiro") ));
+  const siD=insDet.length? saldosInversion() : null, salIns=insDet.reduce((s,k)=>s+((siD[k]||{}).saldo||0),0);
   const porCat=group(g,"Categoria"), porDesc=group(g,m=>m.Descripcion||m.Subcategoria||"Sin concepto").slice(0,8);
   const pers=[["cat","Catorcena"],["catAnt","Catorcena anterior"],["mes","Este mes"],["mesAnt","Mes anterior"],["anio","Este año"]].filter(([k])=>perRango(k));
   el.innerHTML=`<div class="card" style="background:linear-gradient(135deg,${c1},${c2});color:#fff">
       <div class="small" style="opacity:.85">${esc(TIPO_TXT[t]||t)} · ${esc(lab)}</div>
       <div class="small" style="opacity:.85;margin-top:8px">Gastaste con ${esc(n)}</div>
       <div class="big">${mx2(T)}</div>
-      <div class="small" style="opacity:.85">${g.length} ${g.length===1?"compra":"compras"}${g.length? " · promedio "+mx(T/g.length):""}</div></div>
+      <div class="small" style="opacity:.85">${g.length} ${g.length===1?"compra":"compras"}${g.length? " · promedio "+mx(T/g.length):""}</div>
+      ${insDet.length? `<div class="small priv" style="opacity:.95;margin-top:8px;border-top:1px solid rgb(255 255 255 / .25);padding-top:8px">💵 Saldo hoy${S.cta[n]&&n!==insDet[0]? " (cuenta "+mx2(saldosCuentas()[n]||0)+" + guardado "+mx2(salIns)+")" : ""}: <b>${mx2((S.cta[n]&&!efIns.includes(n)? (saldosCuentas()[n]||0) : 0)+salIns)}</b></div>`:""}</div>
     <div class="filt"><div class="chips" style="overflow-x:auto;flex-wrap:nowrap">${pers.map(([k,l])=>`<button class="chip ${S.ctaPer===k?"on":""}" data-per="${k}">${l}</button>`).join("")}</div></div>
     ${g.length? `<div class="card"><h2>¿En qué se fue?</h2>${barsHTML(porCat,T,null,setDrill("cd-cat",g,n+" · "+lab))}</div>
       <div class="card"><h2>Conceptos que más pesan</h2>${barsHTML(porDesc,T)}</div>` : `<div class="card"><div class="empty">No hay gastos con ${esc(n)} en este periodo.</div></div>`}
-    ${ent.length||sal.length? `<div class="card"><h2>${t==="Crédito"||t==="Departamental"?"Pagos a la tarjeta":"Entradas y salidas"}</h2>${[...ent,...sal].sort((x,y)=>x.Fecha<y.Fecha?1:-1).map(m=>itemHTML(m,true)).join("")}</div>`:""}
+    ${ent.length||sal.length? `<div class="card"><div class="between"><h2>${t==="Crédito"||t==="Departamental"?"Pagos a la tarjeta":"Entradas y salidas"}</h2><span class="small priv"><b class="pos">+${mx(sum(ent))}</b> · <b class="neg">−${mx(sum(sal))}</b></span></div>${[...ent,...sal].sort((x,y)=>x.Fecha<y.Fecha?1:-1).map(m=>itemHTML(m,true)).join("")}</div>` : insDet.length? `<div class="card"><div class="empty">No hay entradas ni salidas en este periodo. Cambia el filtro para ver otras fechas.</div></div>`:""}
     ${g.length? `<div class="card"><h2>Todas las compras</h2><div class="list">${g.map(m=>itemHTML(m,true)).join("")}</div></div>`:""}
-    <div class="actions">${t==="Crédito"||t==="Departamental"? `<button class="btn" data-pagar="${esc(n)}">Registrar pago</button>`:""}<button class="btn primary" id="cdAdd">＋ Gasto con ${esc(n)}</button></div>`;
+    <div class="actions">${t==="Crédito"||t==="Departamental"? `<button class="btn" data-pagar="${esc(n)}">Registrar pago</button>`:""}${S.cta[n]? `<button class="btn primary" id="cdAdd">＋ Gasto con ${esc(n)}</button>`:""}</div>`;
   $$("[data-per]",el).forEach(x=>x.onclick=()=>{ S.ctaPer=x.dataset.per; renderSub(); });
   $$("[data-pagar]",el).forEach(x=>x.onclick=()=>openForm({Tipo:"Pago tarjeta", CuentaDestino:x.dataset.pagar},{dst:x.dataset.pagar}));
-  $("#cdAdd").onclick=()=>openForm({Tipo:"Gasto",Cuenta:n},{cta:n});
+  if($("#cdAdd")) $("#cdAdd").onclick=()=>openForm({Tipo:"Gasto",Cuenta:n},{cta:n});
   bindItems(el);
 }
 function conceptos(cat){
@@ -3406,7 +3412,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.21-53";
+const APP_BUILD="2026.11.21-54";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
