@@ -715,6 +715,8 @@ main.scrolled .filt .search{padding-top:9px;padding-bottom:9px}
       <div class="f"><label for="fTenP">💵 Propinas</label><input id="fTenP" type="number" inputmode="decimal" step="0.01" min="0" placeholder="$0"></div></div>
     <div id="fTenInfo"></div></div>
   <div class="f hide" id="fProyW"><label>¿De qué proyecto?</label><div class="chips" id="fProy"></div><div class="hint">O escribe uno nuevo en Concepto.</div></div>
+  <div class="f hide" id="fEnvW"><label for="fEnv">🚚 ¿Cuánto fue del envío? <span style="font-weight:400">(opcional)</span></label><input id="fEnv" placeholder="$0">
+    <div class="small muted" id="fEnvTxt">Va incluido en el monto total; en Ingresos verás cuánto fue de producto y cuánto de envío.</div></div>
   <div class="f"><label for="fDesc" id="fDescL">Concepto</label><input id="fDesc" list="dlDesc" autocomplete="off" placeholder="¿En qué fue? Ej. Estacionamiento plaza"><div class="hint" id="fDescH">Así lo verás en tu lista de movimientos.</div><div id="fDescSug"></div></div>
   <datalist id="dlDesc"></datalist>
   <div>
@@ -1051,6 +1053,13 @@ const NOMINA="Nómina (catorcena)", VALES="Vales de despensa";
 function catList(){ return S.d.catorcenas.filter(c=>c.Inicio<=S.hoy).sort((a,b)=>a.Inicio<b.Inicio?-1:1); }
 const FONDO="Fondo de ahorro", AHORRO="Ahorro"; let CAJA_T="Caja El Tenate";
 function esComidaCat(c){ return /comida|restaur|alimento|antojo|cafe|café/i.test(String(c||"")); }
+function esEnvioProy(f,n){ return esProy(f) && /perfum/i.test(n||""); }
+function envioDe(m){ return m.Tipo==="Ingreso"? (+m.Envio||0) : 0; }
+function envVis(){ const w=$("#fEnvW"); if(!w) return; const fu=$("#fFuente").value, d=$("#fDesc").value;
+  const on= F.t==="Ingreso" && esEnvioProy(fu, d&&d!==fu? d : F.proy);
+  w.classList.toggle("hide",!on); envTxt(); }
+function envTxt(){ const M=+$("#fMonto").value||0, E=+$("#fEnv").value||0, x=$("#fEnvTxt"); if(!x) return;
+  x.textContent= E&&M>=E? `Producto ${mx2(M-E)} + envío ${mx2(E)} = ${mx2(M)}` : E>M&&M? "El envío no puede ser mayor que el total." : "Va incluido en el monto total; en Ingresos verás cuánto fue de producto y cuánto de envío."; }
 function propinaDe(m){ return m.Tipo==="Gasto"? (+m.Propina||0) : 0; }
 function propinasHTML(rows,etq){ const L=rows.filter(m=>propinaDe(m)>0); if(!L.length) return "";
   const P=sum(L.map(m=>({Monto:propinaDe(m)}))), parc=L.filter(m=>m.Monto-propinaDe(m)>0.005), bp=sum(parc), pp=sum(parc.map(m=>({Monto:propinaDe(m)})));
@@ -1130,7 +1139,7 @@ function icon(m){ const t=m.Tipo; const c = t==="Gasto"?"g": t==="Ingreso"?"i": 
   return `<span class="ico em ${c}">${e}</span>`; }
 function itemHTML(m, conFecha){
   const sub = m.Tipo==="Gasto" ? [m.Categoria, m.Vehiculo, m.Cuenta, +m.Propina>0? "🤝 propina "+mx(+m.Propina):"", m.CubreFondo==="Sí"&&m.Cuenta!==FONDO? "🛟 lo cubre el fondo":""].filter(Boolean).join(" · ")
-    : m.Tipo==="Ingreso" ? [m.Fuente, m.CuentaDestino].filter(Boolean).join(" → ")
+    : m.Tipo==="Ingreso" ? [m.Fuente, m.CuentaDestino].filter(Boolean).join(" → ")+(+m.Envio>0? " · 🚚 envío "+mx(+m.Envio):"")
     : m.Tipo==="Inversión" ? [m.MovInversion, m.Instrumento].filter(Boolean).join(" · ")
     : [m.Cuenta, m.CuentaDestino].filter(Boolean).join(" → ");
   const cls = m.Tipo==="Gasto"?"neg": m.Tipo==="Ingreso"?"pos":"";
@@ -2122,7 +2131,7 @@ function openForm(m, lock){
   $("#fInvM").value = m.MovInversion || "Aportación";
   $("#fDesc").value = m.Descripcion || ""; $("#fSub").value = m.Subcategoria || ""; $("#fNota").value = m.Nota || "";
   $("#fMas").open = !!(m.Subcategoria||m.Nota) && !!F.edit;
-  $("#fKm").value = m.Km || ""; $("#fLt").value = m.Litros || ""; $("#fMsi").value = m.MesesMSI || ""; $("#fCFondo").checked = m.CubreFondo==="Sí"; $("#fProp").value = +m.Propina||"";
+  $("#fKm").value = m.Km || ""; $("#fLt").value = m.Litros || ""; $("#fMsi").value = m.MesesMSI || ""; $("#fCFondo").checked = m.CubreFondo==="Sí"; $("#fProp").value = +m.Propina||""; $("#fEnv").value = +m.Envio||"";
   F.veh = m.Vehiculo || "";
   F.cta = m.Cuenta !== undefined ? m.Cuenta : (F.t==="Gasto" ? (store("fc_lastCta")||"") : "");
   F.dst = m.CuentaDestino || "";
@@ -2179,7 +2188,8 @@ function tipo(t, keep){
   const esP=t==="Ingreso"&&esProy($("#fFuente").value), pn=esP? proyNombres() : [];
   $("#fProyW").classList.toggle("hide",!esP||!pn.length);
   $("#fProy").innerHTML=pn.map(n=>`<button type="button" class="chip ${F.proy===n?"on":""}" data-pr="${esc(n)}">🧩 ${esc(n)}</button>`).join("");
-  $$("#fProy .chip").forEach(c=>c.onclick=()=>{ F.proy=c.dataset.pr; $$("#fProy .chip").forEach(x=>x.classList.toggle("on",x===c)); descAuto(); });
+  $$("#fProy .chip").forEach(c=>c.onclick=()=>{ F.proy=c.dataset.pr; $$("#fProy .chip").forEach(x=>x.classList.toggle("on",x===c)); descAuto(); envVis(); });
+  envVis();
   descAuto();
   $("#fSplitW").classList.toggle("hide", t!=="Ingreso");
   $("#fSepW").classList.toggle("hide", !(t==="Ingreso"&&F.edit)); if(F.sep&&F.sep.on) sepPaint();
@@ -2542,6 +2552,10 @@ function renderIngresos(el){
     ${g.tipo==="Todos"&&R.length? `<div class="card priv"><h2>¿De dónde vino?</h2>${barsHTML(group(R,m=>igGrupo(m.Fuente)),T,null,setDrillFn("ig-g",R,"Ingresos · "+lab,m=>igGrupo(m.Fuente)))}</div>
       `:""}
     ${(()=>{ if(g.tipo==="Todos"||g.tipo==="El Tenate"||!R.length) return ""; const multi=new Set(R.map(m=>m.Fuente)).size>1, kf=m=>multi? m.Fuente : (m.Subcategoria||(m.Descripcion!==m.Fuente?m.Descripcion:"")||"Sin concepto"), G=group(R,kf); return G.length>1? `<div class="card priv"><h2>${esProy(g.tipo)?"🧩 Por proyecto":"Por concepto"}</h2>${barsHTML(G,T)}</div>` : ""; })()}
+    ${(()=>{ const pf=R.filter(m=>esEnvioProy(m.Fuente,m.Subcategoria||m.Descripcion)); if(!pf.length) return ""; const PT=sum(pf), EN=pf.reduce((s,m)=>s+envioDe(m),0);
+      return `<div class="card priv"><div class="between"><h2>🧴 Perfumes</h2><b class="pos">${mx(PT)}</b></div>
+      ${barsHTML([["🧴 Producto",PT-EN],["🚚 Envíos",EN]].filter(x=>x[1]>0),PT)}
+      <div class="small muted">${pf.length} ${pf.length===1?"venta":"ventas"}${EN? " · el envío es el "+(EN/PT*100).toFixed(1)+"% de lo cobrado":""}. Toca una venta en el Detalle para ajustar cuánto fue de envío.</div></div>`; })()}
     ${ten.length&&(g.tipo==="Todos"||g.tipo==="El Tenate")? `<div class="card priv"><div class="between"><h2>🚚 El Tenate</h2><b class="pos">${mx(sum(ten))}</b></div>
       ${(()=>{ const t=tenSum(ten); return barsHTML([["🚚 Ruta",t.ruta],["📱 App",t.app],["💵 Propinas",t.prop]].filter(x=>x[1]>0),sum(ten)); })()}
       <div class="small muted">Toca un ingreso en el Detalle para ajustar cuánto fue de ruta, app o propinas.</div>
@@ -2758,7 +2772,8 @@ function moneyInput(el){
   el.addEventListener("input",()=>{ const raw=d.get.call(el), f=fmt(raw); if(f!==raw){ const fromEnd=raw.length-(el.selectionEnd??raw.length); d.set.call(el,f); const pos=Math.max(1,f.length-fromEnd); try{ el.setSelectionRange(pos,pos); }catch(e){} } }, true);
   el.addEventListener("focus",()=>{ setTimeout(()=>{ try{ if(el.selectionStart!==el.selectionEnd) return; const n=d.get.call(el).length; el.setSelectionRange(n,n); }catch(e){} },0); });
 }
-["#fMonto","#fTenA","#fTenP","#fTenR","#fSepM","#fRepA","#fRepP","#fProp"].forEach(s=>moneyInput($(s)));
+["#fMonto","#fTenA","#fTenP","#fTenR","#fSepM","#fRepA","#fRepP","#fProp","#fEnv"].forEach(s=>moneyInput($(s)));
+$("#fEnv").addEventListener("input",envTxt); $("#fMonto").addEventListener("input",envTxt); $("#fDesc").addEventListener("input",envVis);
 $$("[data-pp]").forEach(b=>b.onclick=()=>{ const M=+$("#fMonto").value||0; if(!M) return toast("Primero escribe el monto total."); $("#fProp").value= b.dataset.pp==="all"? M : Math.round(M*(+b.dataset.pp)/(100+(+b.dataset.pp))*100)/100; $("#fProp").dispatchEvent(new Event("input")); });
 const propTxt=()=>{ const M=+$("#fMonto").value||0, P=+$("#fProp").value||0, c=$("#fCat").value||"la categoría";
   $("#fPropTxt").textContent= P&&M&&Math.abs(M-P)<0.005? `Todo el gasto (${mx2(M)}) fue propina, por ejemplo al viene-viene o al de la gasolinera. Cuenta en ${c}.` : P&&M>P? `${c} ${mx2(M-P)} + propina ${mx2(P)} (${(P/(M-P)*100).toFixed(0)}%) = ${mx2(M)}. Todo cuenta en ${c}.` : `Va incluida en el monto y cuenta en ${c}; en Análisis verás tus propinas aparte, por categoría.`; };
@@ -3082,6 +3097,8 @@ function submit(again){
     }
     if(esTenate(o.Fuente)){ tp=tenCalc(); if(tp.ruta<0){ if(sepX){ $("#fMonto").value=o.Monto+sepX.Monto; tenCalc(); } return e.textContent="App + propinas no pueden ser más que el total."; } o.Subcategoria=tenCod(tp); if(!o.Descripcion) o.Descripcion="El Tenate"; }
     if(esProy(o.Fuente)){ const n=o.Descripcion&&o.Descripcion!==o.Fuente? o.Descripcion : (F.proy||""); o.Subcategoria=n; if(!o.Descripcion) o.Descripcion=n||o.Fuente; }
+    o.Envio= esEnvioProy(o.Fuente,o.Subcategoria)? (Math.round((parseFloat($("#fEnv").value)||0)*100)/100||"") : "";
+    if(o.Envio && o.Envio>o.Monto+0.001) return e.textContent="El envío no puede ser mayor que el monto total (el monto ya lo incluye).";
     if(F.split){ const one=F.split.filter(r=>r.c&&parseFloat(r.m)>0); if(one.length===1 && Math.abs(parseFloat(one[0].m)-o.Monto)<0.01 && !F.split.some(r=>!r.c&&parseFloat(r.m)>0)){ o.CuentaDestino=one[0].c; F.split=null; } }
     if(F.split){ const ok=F.split.filter(r=>r.c&&parseFloat(r.m)>0); const rep=Math.round(ok.reduce((s,r)=>s+parseFloat(r.m),0)*100)/100;
       if(F.split.some(r=>!r.c&&parseFloat(r.m)>0)) return e.textContent = o.Fuente===NOMINA? "Elige a qué inversión va tu ahorro (segunda fila)." : "Elige a qué cuenta va cada parte.";
@@ -3204,7 +3221,7 @@ function insForm(nombre){
 }
 
 /* ================= Mejoras: avisos, dinero, cuadre, revisión, recurrentes, deshacer ================= */
-const GS_REQ="2026.11.20";
+const GS_REQ="2026.11.21";
 function gsViejo(){ return S.d && String(S.d.gsVersion||"") < GS_REQ; }
 function toastAct(msg,label,fn,ms){ const t=$("#toast"); t.innerHTML=`<span>${esc(msg)}</span><button class="tb" type="button">${esc(label)}</button>`; t.classList.add("on","act");
   $(".tb",t).onclick=()=>{ t.classList.remove("on","act"); fn(); }; clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on","act"), ms||6000); }
@@ -3389,7 +3406,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.20-52";
+const APP_BUILD="2026.11.21-53";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
