@@ -2319,8 +2319,8 @@ function cardsHTML(sel){
   let i=0; const v=sel.value;
   return '<div class="cpick">'+[...sel.querySelectorAll("optgroup")].map(g=>{
     const ops=[...g.querySelectorAll("option")];
-    return `<div class="cp-g">${esc(g.label)}</div><div class="cp-row">`+ops.map(o=>{
-      const n=o.value||o.textContent, lab=o.textContent, c=S.cta[n]||{}, t=c.Tipo||g.label, [c1,c2]=cpCol(lab,i++), s=sal[n]||0;
+    return `<div class="cp-g">${esc(g.label==="Ahorro"? "Efectivo sin invertir" : g.label)}</div><div class="cp-row">`+ops.map(o=>{
+      const n=o.value||o.textContent, lab=n===AHORRO? "Efectivo guardado" : o.textContent, c=S.cta[n]||{}, t=c.Tipo||g.label, [c1,c2]=cpCol(lab,i++), s=sal[n]||0;
       const sub=esc(ctaSub(n,t));
       return `<button type="button" class="cp ${n===v?"on":""} ${ops.length===1?"wide":""}" data-cp="${esc(n)}" style="--c1:${c1};--c2:${c2}">
         <div class="cp-top"><span class="cp-ico">${CP_ICO[t]||"💳"}</span><span class="cp-chk">${n===v?"✓":""}</span></div>
@@ -2332,7 +2332,7 @@ function cardTrigger(sel){
   const o=sel.options[sel.selectedIndex], n=o&&o.value;
   if(!n) return `<span class="dd-ic" style="--ic-bg:var(--bg)">💳</span><span class="dd-l ph">Elige una cuenta</span>`+CHEV;
   let sal={}; try{ sal=saldosCuentas(); }catch(e){}
-  const all=[...sel.options].filter(x=>x.value), idx=all.indexOf(o), c=S.cta[n]||{}, t=c.Tipo||(String(n).startsWith(INV_PRE)?"Inversión":""), lab=o.textContent, [c1,c2]=cpCol(lab,idx), s=sal[n]||0;
+  const all=[...sel.options].filter(x=>x.value), idx=all.indexOf(o), c=S.cta[n]||{}, t=c.Tipo||(String(n).startsWith(INV_PRE)?"Inversión":""), lab=n===AHORRO? "Efectivo guardado" : o.textContent, [c1,c2]=cpCol(lab,idx), s=sal[n]||0;
   const sub=esc(ctaSub(n,t));
   return `<span class="dd-card" style="--c1:${c1};--c2:${c2}">${CP_ICO[t]||"💳"}</span><span class="dd-l">${esc(lab)}<small>${sub}</small></span>`+CHEV;
 }
@@ -2366,9 +2366,9 @@ function ddSheet(title, search, body, onPick, trig){
   $("#pkScrim").classList.add("on"); requestAnimationFrame(()=>pk.classList.add("on"));
 }
 /* ===== Textos claros para cuentas ===== */
-const TIPO_TXT={"Ahorro":"Ahorro en efectivo, sin invertir","Inversión":"Va directo a tu inversión","Tenate":"Ingresos de El Tenate (quedan aquí hasta que los inviertas)","Efectivo":"Dinero en efectivo","Débito":"Tarjeta de débito","Crédito":"Tarjeta de crédito","Departamental":"Tarjeta de tienda","Vales":"Tarjeta de vales","Fondo":"Fondo de ahorro"};
+const TIPO_TXT={"Ahorro":"Efectivo sin invertir","Inversión":"Va directo a tu inversión","Tenate":"Ingresos de El Tenate (quedan aquí hasta que los inviertas)","Efectivo":"Dinero en efectivo","Débito":"Tarjeta de débito","Crédito":"Tarjeta de crédito","Departamental":"Tarjeta de tienda","Vales":"Tarjeta de vales","Fondo":"Fondo de ahorro"};
 function valesSaldo(){ return S.movs.filter(m=>(m.Tipo==="Ingreso"&&m.Fuente===VALES)||pagoVales(m)).reduce((s,m)=>s+(m.Tipo==="Ingreso"?m.Monto:-m.Monto),0); }
-function ctaSub(n,t){ if(t==="Tenate") return "Ingresos de El Tenate · por invertir "+mx2(Math.max(0,saldosCuentas()[n]||0)); if(t==="Ahorro") return "Ahorro en efectivo "+mx2(saldoAhorroCta()); if(t==="Inversión"){ const x=(typeof saldosInversion==="function"? saldosInversion() : {})[String(n).replace(INV_PRE,"")]; return "Inversión · saldo "+mx(x? x.saldo : 0); } return t==="Tenate" ? "Saldo "+mx2(saldosCuentas()[n]||0) : t==="Vales" ? "Saldo en vales "+mx2(valesSaldo()) : (TIPO_TXT[t]||t||""); }
+function ctaSub(n,t){ if(t==="Tenate") return "Ingresos de El Tenate · por invertir "+mx2(Math.max(0,saldosCuentas()[n]||0)); if(t==="Ahorro") return "Efectivo sin invertir · saldo "+mx2(saldoAhorroCta()); if(t==="Inversión"){ const x=(typeof saldosInversion==="function"? saldosInversion() : {})[String(n).replace(INV_PRE,"")]; return "Inversión · saldo "+mx(x? x.saldo : 0); } return t==="Tenate" ? "Saldo "+mx2(saldosCuentas()[n]||0) : t==="Vales" ? "Saldo en vales "+mx2(valesSaldo()) : (TIPO_TXT[t]||t||""); }
 function updVeh(){
   const isAuto=F.t==="Gasto"&&S.autoCats.has($("#fCat").value), txt=$("#fDesc").value+" "+$("#fSub").value;
   const gas=/gasolin|combustib|di[eé]sel|magna|premium/i.test(txt), serv=/servicio|afinaci|aceite|llanta|mantenim|verificaci|refacci|bater[ií]a|frenos/i.test(txt);
@@ -2493,16 +2493,16 @@ function renderCtaDet(el){
   const pers=[["cat","Catorcena"],["catAnt","Catorcena anterior"],["mes","Este mes"],["mesAnt","Mes anterior"],["anio","Este año"]].filter(([k])=>perRango(k));
   el.innerHTML=`<div class="card" style="background:linear-gradient(135deg,${c1},${c2});color:#fff">
       <div class="small" style="opacity:.85">${esc(TIPO_TXT[t]||t)} · ${esc(lab)}</div>
-      <div class="small" style="opacity:.85;margin-top:8px">Gastaste con ${esc(n)}</div>
+      <div class="small" style="opacity:.85;margin-top:8px">Gastaste con ${esc(n===AHORRO?"Efectivo guardado":n)}</div>
       <div class="big">${mx2(T)}</div>
       <div class="small" style="opacity:.85">${g.length} ${g.length===1?"compra":"compras"}${g.length? " · promedio "+mx(T/g.length):""}</div>
       ${insDet.length? `<div class="small priv" style="opacity:.95;margin-top:8px;border-top:1px solid rgb(255 255 255 / .25);padding-top:8px">💵 Saldo hoy${S.cta[n]&&n!==insDet[0]? " (cuenta "+mx2(saldosCuentas()[n]||0)+" + guardado "+mx2(salIns)+")" : ""}: <b>${mx2((S.cta[n]&&!efIns.includes(n)? (saldosCuentas()[n]||0) : 0)+salIns)}</b></div>`:""}</div>
     <div class="filt"><div class="chips" style="overflow-x:auto;flex-wrap:nowrap">${pers.map(([k,l])=>`<button class="chip ${S.ctaPer===k?"on":""}" data-per="${k}">${l}</button>`).join("")}</div></div>
     ${g.length? `<div class="card"><h2>¿En qué se fue?</h2>${barsHTML(porCat,T,null,setDrill("cd-cat",g,n+" · "+lab))}</div>
-      <div class="card"><h2>Conceptos que más pesan</h2>${barsHTML(porDesc,T)}</div>` : `<div class="card"><div class="empty">No hay gastos con ${esc(n)} en este periodo.</div></div>`}
+      <div class="card"><h2>Conceptos que más pesan</h2>${barsHTML(porDesc,T)}</div>` : `<div class="card"><div class="empty">No hay gastos con ${esc(n===AHORRO?"Efectivo guardado":n)} en este periodo.</div></div>`}
     ${ent.length||sal.length? `<div class="card"><div class="between"><h2>${t==="Crédito"||t==="Departamental"?"Pagos a la tarjeta":"Entradas y salidas"}</h2><span class="small priv"><b class="pos">+${mx(sum(ent))}</b> · <b class="neg">−${mx(sum(sal))}</b></span></div>${[...ent,...sal].sort((x,y)=>x.Fecha<y.Fecha?1:-1).map(m=>itemHTML(m,true)).join("")}</div>` : insDet.length? `<div class="card"><div class="empty">No hay entradas ni salidas en este periodo. Cambia el filtro para ver otras fechas.</div></div>`:""}
     ${g.length? `<div class="card"><h2>Todas las compras</h2><div class="list">${g.map(m=>itemHTML(m,true)).join("")}</div></div>`:""}
-    <div class="actions">${t==="Crédito"||t==="Departamental"? `<button class="btn" data-pagar="${esc(n)}">Registrar pago</button>`:""}${S.cta[n]? `<button class="btn primary" id="cdAdd">＋ Gasto con ${esc(n)}</button>`:""}</div>`;
+    <div class="actions">${t==="Crédito"||t==="Departamental"? `<button class="btn" data-pagar="${esc(n)}">Registrar pago</button>`:""}${S.cta[n]? `<button class="btn primary" id="cdAdd">＋ Gasto con ${esc(n===AHORRO?"Efectivo guardado":n)}</button>`:""}</div>`;
   $$("[data-per]",el).forEach(x=>x.onclick=()=>{ S.ctaPer=x.dataset.per; renderSub(); });
   $$("[data-pagar]",el).forEach(x=>x.onclick=()=>openForm({Tipo:"Pago tarjeta", CuentaDestino:x.dataset.pagar},{dst:x.dataset.pagar}));
   if($("#cdAdd")) $("#cdAdd").onclick=()=>openForm({Tipo:"Gasto",Cuenta:n},{cta:n});
@@ -3455,7 +3455,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.21-56";
+const APP_BUILD="2026.11.22-57";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
