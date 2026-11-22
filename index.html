@@ -1228,9 +1228,12 @@ function abrirZoom(k, titulo, rows, campo){
 }
 let zoomN=0;
 function cerrarZooms(){ $$(".zbox").forEach(b=>b.remove()); }
+// "Efectivo guardado": los gastos pagados con la cuenta Ahorro salen del efectivo guardado (la inversión tipo Efectivo)
+function efGuard(){ return (S.ins||[]).find(i=>i.Tipo==="Efectivo")||null; }
+function gastoDeGuardado(m){ return m.Tipo==="Gasto" && m.Cuenta===AHORRO && !!efGuard(); }
 function effects(m){
   const v=m.Monto, o=[];
-  if(m.Tipo==="Gasto") o.push([m.Cuenta,-v]);
+  if(m.Tipo==="Gasto"){ if(!gastoDeGuardado(m)) o.push([m.Cuenta,-v]); }
   else if(m.Tipo==="Ingreso") o.push([m.CuentaDestino,v]);
   else if(m.Tipo==="Pago tarjeta"||m.Tipo==="Transferencia"){ o.push([m.Cuenta,-v]); o.push([m.CuentaDestino,v]); }
   else if(m.Tipo==="Inversión"){ if(m.MovInversion==="Aportación") o.push([m.Cuenta,-v]); else if(m.MovInversion==="Retiro") o.push([m.Cuenta,v]); }
@@ -1267,7 +1270,9 @@ function saldosInversion(){
     const desde=last?last.Fecha:"0000";
     let s=last?+last.Saldo:0, flujo=0;
     const incluyeDia = last && !/app/i.test(String(last.Nota||""));
-    S.movs.forEach(m=>{ const dir=m.Tipo==="Ingreso"&&esInvDirecto(m); if((m.Tipo!=="Inversión"&&!dir)||m.Instrumento!==i.Instrumento||m.Fecha<desde||(m.Fecha===desde&&!incluyeDia)) return;
+    const esEG = i===efGuard();
+    S.movs.forEach(m=>{ if(esEG && gastoDeGuardado(m)){ if(m.Fecha<desde||(m.Fecha===desde&&!incluyeDia)) return; s-=m.Monto; flujo-=m.Monto; return; }
+      const dir=m.Tipo==="Ingreso"&&esInvDirecto(m); if((m.Tipo!=="Inversión"&&!dir)||m.Instrumento!==i.Instrumento||m.Fecha<desde||(m.Fecha===desde&&!incluyeDia)) return;
       if(m.Tipo==="Inversión"&&/Automático por ingreso/.test(m.Nota||"")) return; const v=m.MovInversion==="Retiro"?-m.Monto:m.Monto; s+=v; flujo+=v; });
     out[i.Instrumento]={i, saldo:s, foto:last, flujo, snaps};
   }
@@ -3455,7 +3460,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.22-57";
+const APP_BUILD="2026.11.22-58";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
