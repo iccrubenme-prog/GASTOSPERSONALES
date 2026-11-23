@@ -1141,9 +1141,9 @@ function icon(m){ const t=m.Tipo; const c = t==="Gasto"?"g": t==="Ingreso"?"i": 
   return `<span class="ico em ${c}">${e}</span>`; }
 function itemHTML(m, conFecha){
   const sub = m.Tipo==="Gasto" ? [m.Categoria, m.Vehiculo, m.Cuenta, +m.Propina>0? "🤝 propina "+mx(+m.Propina):"", m.CubreFondo==="Sí"&&m.Cuenta!==FONDO? "🛟 lo cubre el fondo":""].filter(Boolean).join(" · ")
-    : m.Tipo==="Ingreso" ? [m.Fuente, m.CuentaDestino].filter(Boolean).join(" → ")+(+m.Envio>0? " · 🚚 envío "+mx(+m.Envio):"")
+    : m.Tipo==="Ingreso" ? [m.Fuente, m.CuentaDestino].filter(Boolean).join(" → ")+(+m.Envio>0? " · 🚚 envío "+mx(+m.Envio):"")+(esTenate(m.Fuente)&&(tenParts(m).app||tenParts(m).prop)? " · "+tenLabel(m):"")
     : m.Tipo==="Inversión" ? [m.MovInversion, m.Instrumento].filter(Boolean).join(" · ")
-    : [m.Cuenta, m.CuentaDestino].filter(Boolean).join(" → ");
+    : [m.Cuenta||(m.Instrumento? "📈 "+m.Instrumento:""), m.CuentaDestino].filter(Boolean).join(" → ");
   const cls = m.Tipo==="Gasto"?"neg": m.Tipo==="Ingreso"?"pos":"";
   const fechaTxt = conFecha ? `<b style="color:var(--ink);font-weight:600">${sDate(m.Fecha)} ${m.Fecha.slice(2,4)}</b>${sub? " · ":""}` : "";
   const pend = S.pendSet && S.pendSet.has(m.ID);
@@ -1219,7 +1219,9 @@ function abrirZoom(k, titulo, rows, campo){
     <div class="between"><span class="muted">Total</span><b class="mid ${esIng?"pos":"neg"} ${esIng?"priv":""}">${mx(T)}</b></div>
     ${!esIng && campo!=="Categoria" && cats.length>1? `<div class="card"><h2>Por categoría</h2>${barsHTML(cats,T,null,dCat)}</div>`:""}
     ${!esIng && campo!=="Subcategoria" && subs.length>1? `<div class="card"><h2>Por subcategoría</h2>${barsHTML(subs,T,null,dSub)}</div>`:""}
-    ${esIng? `${(()=>{ const G=group(rows,m=>m.Fuente===NOMINA? "Nómina" : m.Descripcion||m.Fuente); return G.length>1? `<div class="card priv"><h2>¿De qué conceptos vino?</h2>${barsHTML(G.slice(0,10),T)}</div>` : ""; })()}<div class="card priv"><h2>¿Dónde se depositó?</h2>${barsHTML(group(rows,destLabel),T)}</div>`
+    ${esIng? `${(()=>{ const tn=rows.filter(m=>esTenate(m.Fuente)); if(!tn.length) return ""; const t=tenSum(tn), TT=sum(tn);
+        return `<div class="card priv"><h2>🚚 ¿Cómo se divide lo del Tenate?</h2>${barsHTML([["🚚 Ruta",t.ruta],["📱 App",t.app],["💵 Propinas",t.prop]].filter(x=>x[1]>0),TT)}
+        ${t.app||t.prop? "" : `<div class="small muted">Todo está como <b>ruta</b>: estos ingresos se capturaron sin separar app ni propinas. Toca uno abajo y llena 📱 App y 💵 Propinas; la ruta se calcula sola.</div>`}</div>`; })()}${(()=>{ const G=group(rows,m=>m.Fuente===NOMINA? "Nómina" : m.Descripcion||m.Fuente); return G.length>1? `<div class="card priv"><h2>¿De qué conceptos vino?</h2>${barsHTML(G.slice(0,10),T)}</div>` : ""; })()}<div class="card priv"><h2>¿Dónde se depositó?</h2>${barsHTML(group(rows,destLabel),T)}</div>`
       : campo!=="Descripcion"&&desc.length>1? `<div class="card"><h2>En qué se gastó más</h2>${barsHTML(desc,T,null,dDesc)}</div>`:""}
     ${meses.length>1? `<div class="card"><h2>Por mes</h2>${barsHTML(meses.map(([ym,v])=>[mLabel(ym),v]),T)}</div>`:""}
     <div class="card" style="padding:4px 12px"><div class="list">${rows.slice(0,60).map(m=>itemHTML(m,true)).join("")}</div>${rows.length>60? `<div class="small muted" style="padding:8px 0">Se muestran 60 de ${rows.length}.</div>`:""}</div></div>`;
@@ -1273,7 +1275,8 @@ function saldosInversion(){
     let s=last?+last.Saldo:0, flujo=0;
     const incluyeDia = last && !/app/i.test(String(last.Nota||""));
     const esEG = i===efGuard();
-    S.movs.forEach(m=>{ if(esEG && gastoDeGuardado(m)){ if(m.Fecha<desde||(m.Fecha===desde&&!incluyeDia)) return; s-=m.Monto; flujo-=m.Monto; return; }
+    S.movs.forEach(m=>{ if(m.Tipo==="Pago tarjeta"&&m.Instrumento===i.Instrumento&&!m.Cuenta){ if(m.Fecha<desde||(m.Fecha===desde&&!incluyeDia)) return; s-=m.Monto; flujo-=m.Monto; return; }
+      if(esEG && gastoDeGuardado(m)){ if(m.Fecha<desde||(m.Fecha===desde&&!incluyeDia)) return; s-=m.Monto; flujo-=m.Monto; return; }
       const dir=m.Tipo==="Ingreso"&&esInvDirecto(m); if((m.Tipo!=="Inversión"&&!dir)||m.Instrumento!==i.Instrumento||m.Fecha<desde||(m.Fecha===desde&&!incluyeDia)) return;
       if(m.Tipo==="Inversión"&&/Automático por ingreso/.test(m.Nota||"")) return; const v=m.MovInversion==="Retiro"?-m.Monto:m.Monto; s+=v; flujo+=v; });
     out[i.Instrumento]={i, saldo:s, foto:last, flujo, snaps};
@@ -2186,7 +2189,7 @@ function openForm(m, lock){
   $("#fMas").open = !!(m.Subcategoria||m.Nota) && !!F.edit;
   $("#fKm").value = m.Km || ""; $("#fLt").value = m.Litros || ""; $("#fMsi").value = m.MesesMSI || ""; $("#fCFondo").checked = m.CubreFondo==="Sí"; $("#fProp").value = +m.Propina||""; $("#fEnv").value = +m.Envio||"";
   F.veh = m.Vehiculo || "";
-  F.cta = m.Cuenta !== undefined ? m.Cuenta : (F.t==="Gasto" ? (store("fc_lastCta")||"") : "");
+  F.cta = m.Tipo==="Pago tarjeta"&&m.Instrumento&&!m.Cuenta? INV_PRE+m.Instrumento : m.Cuenta !== undefined ? m.Cuenta : (F.t==="Gasto" ? (store("fc_lastCta")||"") : "");
   F.dst = m.CuentaDestino || "";
   F.ticket = m.Ticket || null;
   if(!F.ticket && m.ID){ const its=(S.d.tickets||[]).filter(t=>t.MovID===m.ID); if(its.length) F.ticket={id:its[0].TicketID, tienda:its[0].Tienda, items:its.map(t=>({n:t.Articulo,m:+t.Monto}))}; }
@@ -2216,7 +2219,7 @@ function tipo(t, keep){
   const L = {Gasto:["Pagado con",""], Ingreso:["","Entra a"], "Pago tarjeta":["Pagado desde","Tarjeta que pagas"], Transferencia:["Sale de","Llega a"], "Inversión":[$("#fInvM").value==="Retiro"?"Cuenta que recibe":"Sale de",""]}[t];
   if(L[0]) $("#fCtaL").textContent=L[0]; if(L[1]) $("#fDstL").textContent=L[1];
   const LK=F.lock||{};
-  $("#fCta").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Efectivo","Débito","Crédito","Fondo","Tenate","Ahorro"] : null, LK.cta||cuenta, LK.cta);
+  $("#fCta").innerHTML = ctaOpts(t==="Pago tarjeta"? ["Efectivo","Débito","Crédito","Fondo","Tenate","Ahorro"] : null, LK.cta||cuenta, LK.cta) + (t==="Pago tarjeta"&&!LK.cta? insOptsPago(cuenta) : "");
   let dst = $("#fDst").value || F.dst;
   if(t==="Ingreso" && !dst){ const fu=$("#fFuente").value; dst = /vales/i.test(fu)? "Vales de despensa" : /tenate/i.test(fu)? CAJA_T : (S.d.cuentas.find(c=>c.Tipo==="Débito")||{}).Cuenta; }
   $("#fDst").innerHTML = (t==="Ingreso"&&!LK.dst? ingCtaOpts(dst) : ctaOpts(t==="Pago tarjeta"? ["Crédito","Departamental"] : null, LK.dst||dst, LK.dst)) + (t==="Ingreso"&&!LK.dst? insOpts(F.edit&&F.edit.Instrumento&&!F.edit.CuentaDestino? INV_PRE+F.edit.Instrumento : dst) : "");
@@ -2719,8 +2722,8 @@ function totalFiltro(rows){
 function insAcciones(ins){
   // Movimientos del instrumento: inversiones registradas + ingresos que entraron directo a él (ahorro de catorcena, El Tenate, extras…)
   const r=saldosInversion()[ins]||{saldo:0};
-  const L=S.movs.filter(m=>m.Instrumento===ins && ((m.Tipo==="Inversión" && !/Automático por ingreso/i.test(m.Nota||"")) || (m.Tipo==="Ingreso" && esInvDirecto(m))))
-    .map(m=>m.Tipo==="Ingreso"? Object.assign(Object.create(m),{MovInversion:"Aportación", _et: m.Fuente===NOMINA? "Ahorro de catorcena" : "Ingreso directo · "+(m.Fuente||"")}) : m)
+  const L=S.movs.filter(m=>m.Instrumento===ins && ((m.Tipo==="Inversión" && !/Automático por ingreso/i.test(m.Nota||"")) || (m.Tipo==="Ingreso" && esInvDirecto(m)) || (m.Tipo==="Pago tarjeta"&&!m.Cuenta)))
+    .map(m=>m.Tipo==="Ingreso"? Object.assign(Object.create(m),{MovInversion:"Aportación", _et: m.Fuente===NOMINA? "Ahorro de catorcena" : "Ingreso directo · "+(m.Fuente||"")}) : m.Tipo==="Pago tarjeta"? Object.assign(Object.create(m),{MovInversion:"Retiro", _et:"Pago a "+m.CuentaDestino}) : m)
     .sort((a,b)=>a.Fecha<b.Fecha?1:-1);
   // Solo consulta: las acciones (aportar, rendimiento, retirar) viven en "Opciones" de cada tarjeta
   const y=S.hoy.slice(0,4), LY=L.filter(m=>m.Fecha.startsWith(y)), tot=t=>sum(LY.filter(m=>m.MovInversion===t));
@@ -2914,6 +2917,7 @@ function igNomHTML(R,per){
 const INV_PRE="INV:";
 function ingTipos(){ const f=$("#fFuente").value; return ["Débito","Efectivo","Fondo",...(esTenate(f)?["Tenate"]:[]),...(f===VALES?["Vales"]:[])]; }
 function ingCtaOpts(sel){ const T=ingTipos(), c=S.cta[sel]; if(c&&!T.includes(c.Tipo)) T.push(c.Tipo); return ctaOpts(T,sel); }
+function insOptsPago(sel){ const L=(S.ins||[]).filter(i=>i.Tipo!=="Efectivo"); if(!L.length) return ""; return `<optgroup label="Inversión">${L.map(i=>{ const v=INV_PRE+i.Instrumento; return `<option value="${esc(v)}"${v===sel?" selected":""}>${esc(i.Instrumento)}</option>`; }).join("")}</optgroup>`; }
 function insOpts(sel){ if(!S.ins||!S.ins.length) return ""; return `<optgroup label="Inversión">${S.ins.map(i=>{ const v=INV_PRE+i.Instrumento; return `<option value="${esc(v)}"${v===sel?" selected":""}>${esc(i.Instrumento)}</option>`; }).join("")}</optgroup>`; }
 function destLabel(m){ return m.CuentaDestino || (m.Instrumento? "📈 "+m.Instrumento : "Sin cuenta"); }
 function quitarAutoInv(id,p){ const L=S.movs.filter(m=>m.Tipo==="Inversión"&&String(m.Nota||"").includes("Automático por ingreso "+id));
@@ -3181,7 +3185,8 @@ function submit(again){
     if(o.CuentaDestino && !String(o.CuentaDestino).startsWith(INV_PRE)) o.Instrumento="";
     if(String(o.CuentaDestino).startsWith(INV_PRE)){ if(F.edit){ const ins=o.CuentaDestino.slice(INV_PRE.length); o.CuentaDestino=""; o.Instrumento=ins; } else { const ap=aplicarDestInv(o); if(ap){ S.movs.push(ap); const pp=pend(); pp.push({op:"save",o:ap}); setPend(pp); } } }
     if(sepX){ S.movs.push(sepX); const pp=pend(); pp.push({op:"save",o:sepX}); setPend(pp); setTimeout(()=>toast("Separado: "+mx2(sepX.Monto)+" a "+sepX.Fuente),1600); } }
-  else if(t==="Pago tarjeta"||t==="Transferencia"){ o.Cuenta=v("#fCta"); o.CuentaDestino=v("#fDst"); if(!o.Cuenta||!o.CuentaDestino) return e.textContent="Elige origen y destino."; if(o.Cuenta===o.CuentaDestino&&t!=="Pago tarjeta") return e.textContent="Origen y destino deben ser distintos."; if(!o.Descripcion) o.Descripcion=t+" "+o.CuentaDestino; }
+  else if(t==="Pago tarjeta"||t==="Transferencia"){ o.Cuenta=v("#fCta"); o.CuentaDestino=v("#fDst"); if(!o.Cuenta||!o.CuentaDestino) return e.textContent="Elige origen y destino."; if(o.Cuenta===o.CuentaDestino&&t!=="Pago tarjeta") return e.textContent="Origen y destino deben ser distintos."; if(!o.Descripcion) o.Descripcion=t+" "+o.CuentaDestino;
+    o.Instrumento=""; if(t==="Pago tarjeta"&&String(o.Cuenta).startsWith(INV_PRE)){ o.Instrumento=o.Cuenta.slice(INV_PRE.length); o.Cuenta=""; o.Nota=(o.Nota&&!/Pagado desde inversión/.test(o.Nota)? o.Nota+" · ":(o.Nota||""))+(/Pagado desde inversión/.test(o.Nota||"")?"":"Pagado desde inversión"); } }
   else if(t==="Inversión"){ o.MovInversion=v("#fInvM"); o.Instrumento=v("#fIns"); if(!o.Instrumento) return e.textContent="Elige el instrumento."; if(o.MovInversion!=="Rendimiento"){ o.Cuenta=v("#fCta"); if(!o.Cuenta) return e.textContent="Elige la cuenta."; } if(!o.Descripcion) o.Descripcion=o.MovInversion+" "+o.Instrumento; }
   if(F.edit){ ["Origen","ConceptoExcel","Registrado","Usuario"].forEach(k=>{ if(F.edit[k]!==undefined) o[k]=F.edit[k]; }); }
   if(t==="Gasto" && F.ticket && S.cta[o.Cuenta]?.Tipo==="Vales"){ o.Ticket=F.ticket; guardarTicketLocal(o); }
@@ -3465,7 +3470,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.22-59";
+const APP_BUILD="2026.11.23-61";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
