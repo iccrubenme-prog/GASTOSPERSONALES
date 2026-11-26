@@ -1293,11 +1293,11 @@ function fechaLarga(f){ const d=new Date(f+"T12:00"); const t=d.toLocaleDateStri
 function ritmoIni(c){
   const real=porDia(c.Inicio,c.Fin); if(!real) return "";
   const L=catList(), i=L.findIndex(k=>k.ID===c.ID), ant=i>0? L[i-1] : null;
-  const y=S.hoy.slice(0,4), ym=S.hoy.slice(0,7), pm=addMonth(ym,-1);
-  const comps=[["📆","Promedio "+y, porDia(y+"-01-01", S.hoy)],["⏮️","Catorcena anterior", ant? porDia(ant.Inicio, ant.Fin) : null],
-    ["🗓️","Mes actual ("+MES[+ym.slice(5)-1]+")", porDia(ym+"-01", finMes(ym))],["📅","Mes anterior ("+MES[+pm.slice(5)-1]+")", porDia(pm+"-01", finMes(pm))]].filter(k=>k[2]);
+  const ref=c.Fin<S.hoy? c.Fin : S.hoy, pas=c.Fin<S.hoy, y=ref.slice(0,4), ym=ref.slice(0,7), pm=addMonth(ym,-1);
+  const comps=[["📆","Promedio "+y+(pas? " al "+sDate(ref):""), porDia(y+"-01-01", ref)],["⏮️","Catorcena anterior", ant? porDia(ant.Inicio, ant.Fin) : null],
+    ["🗓️",(pas?"Mes de cierre (":"Mes actual (")+MES[+ym.slice(5)-1]+")", porDia(ym+"-01", finMes(ym))],["📅","Mes anterior ("+MES[+pm.slice(5)-1]+")", porDia(pm+"-01", finMes(pm))]].filter(k=>k[2]);
   return `<div class="card"><div class="ini-h"><span class="ic b">⏱️</span><h2>Ritmo de gasto</h2></div>
-    <div class="ini-dia"><span style="font-size:24px">🧾</span><span class="grow" style="flex:1"><div class="small muted">Gastas en promedio (${real.d} día${real.d!==1?"s":""})</div><b>${mx(real.v)} por día</b></span></div>
+    <div class="ini-dia"><span style="font-size:24px">🧾</span><span class="grow" style="flex:1"><div class="small muted">${pas? "Gastaste en promedio en la catorcena "+(+c.Num) : "Gastas en promedio"} (${real.d} día${real.d!==1?"s":""})</div><b>${mx(real.v)} por día</b></span></div>
     <div class="ini-rt">${comps.map(([e,l,k])=>{ const d=k.v? (real.v-k.v)/k.v : 0, cl=d>0.005?"mas":d<-0.005?"menos":"igual";
       return `<div class="r"><span>${e} <span class="muted">vs ${esc(l)}</span> · <b>${mx(k.v)}</b>/día</span><span class="ini-pill ${cl}">${cl==="mas"?"▲":cl==="menos"?"▼":"="} ${Math.abs(Math.round(d*100))}% ${cl==="igual"?"":cl==="mas"?"más":"menos"}</span></div>`; }).join("")}</div></div>`;
 }
@@ -1333,7 +1333,7 @@ function rInicio(){
           <div class="ini-kp" style="grid-template-columns:1fr 1fr"><div class="ini-k"><span class="l">Debes a meses</span><span class="v">${mx(T)}</span></div><div class="ini-k"><span class="l">Pagas al mes</span><span class="v">${mx(M)}</span></div></div>
           <div class="small ${V?"neg":"muted"}">${A.length} compra${A.length>1?"s":""}${px? " · próximo pago "+sDate(px):""}${V? " · ⚠️ "+V+" mensualidad"+(V>1?"es":"")+" sin pago registrado":""}</div></button>`; })()}
       ${avisosHTML()}
-      ${pas? `<button class="card" id="iniAnal" style="text-align:left"><div class="ini-h"><span class="ic b">📊</span><h2>Ver por mes o año</h2><span class="small muted">Análisis ›</span></div><div class="small muted">Compara meses, años y catorcenas con sus gráficas.</div></button>` : ritmoIni(c)}
+      ${pas? ritmoIni(c) : ""}${pas? `<button class="card" id="iniAnal" style="text-align:left"><div class="ini-h"><span class="ic b">📊</span><h2>Ver por mes o año</h2><span class="small muted">Análisis ›</span></div><div class="small muted">Compara meses, años y catorcenas con sus gráficas.</div></button>` : ritmoIni(c)}
       ${(()=>{ const mc=metaCat(c), ay=ahorrosAnio(c.Anio), tot=totalDinero(), M=mc.M;
         return `<button class="card priv" id="goAhorro" style="text-align:left;gap:8px"><div class="ini-h"><span class="ic g">🐷</span><h2>Ahorro ${c.Anio}</h2><span class="small muted">Ver detalle ›</span></div>
           <div class="ini-ah"><div class="r"><span class="ic y">🏆</span><span class="t">Acumulado del año</span><b class="mid">${mx(ay.total)}</b></div>
@@ -3502,7 +3502,7 @@ function renderDinero(el){
       <div class="between" style="border-top:1px solid rgb(255 255 255 / .2);padding-top:6px"><span>= Neto</span><b style="font-size:18px">${mx2(NETO)}</b></div></div>
     <div class="card priv"><h2>💵 Para gastar</h2>
       ${ef.map(k=>row("💵",esc(k.Cuenta),"",b[k.Cuenta]||0)).join("")}
-      ${c? `<div class="dn-sub">${row("✅","Libre para gastar","Lo que queda de tu presupuesto",libre,libre<0?"neg":"pos")}${apart>0? row("💳","Apartado para pagar tarjetas","Lo que debes hoy en tus tarjetas",apart):""}${sobr>=1? row("💰","Sobrante en efectivo","Ya no se necesita para pagar tarjetas",sobr,"pos")+`<button class="btn sm" id="dnSobr" style="margin:4px 0 6px 44px">📈 Pasar sobrante a inversión</button>`:""}</div>`:""}
+      ${c? `<div class="dn-sub">${row("✅","Libre para gastar","Lo que queda de tu presupuesto",libre,libre<0?"neg":"pos")}${apart>0? row("💳","Apartado para pagar tarjetas","Lo que debes hoy en tus tarjetas",apart):""}${sobr>=1? row("💰","Sobrante en efectivo","Ya no se necesita para pagar tarjetas",sobr,"pos")+`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 6px 44px"><button class="btn sm" id="dnSobr">📈 Pasar a inversión</button><button class="btn sm" id="dnSobr0">✅ Cuadrar en $0</button></div><div class="small muted" style="margin:0 0 6px 44px">Si ese dinero ya no existe en tu efectivo, cuádralo: el saldo de Efectivo queda en lo libre + lo apartado para tarjetas. No crea gastos ni toca tu presupuesto.</div>`:""}</div>`:""}
       ${deb.map(k=>row("🏦",esc(k.Cuenta),"Débito",b[k.Cuenta]||0)).join("")}</div>
     <div class="card priv"><div class="between"><h2>📈 Inversiones y ahorro</h2><b>${mx2(INV)}</b></div>
       ${Object.entries(G).sort((a,b)=>b[1].t-a[1].t).map(([k,g])=>row(g.L[0].i.Tipo==="Efectivo"?"💵":"📈",esc(k),g.L.length>1? g.L.map(r=>esc(r.i.Instrumento)+" "+mx(r.saldo)).join(" · ") : esc(g.L[0].i.Tipo)+(+g.L[0].i.TasaAnual? " · "+g.L[0].i.TasaAnual+"%":""),g.t)).join("")}
@@ -3511,6 +3511,11 @@ function renderDinero(el){
     <div class="card priv"><div class="between"><h2>💳 Lo que debes</h2><b class="neg">${mx2(DEU)}</b></div>
       ${cr.filter(k=>Math.abs(b[k.Cuenta]||0)>=0.5).map(k=>{ const f=proxDia(k.DiaPago); return row(k.Tipo==="Crédito"?"💳":"🛍️",esc(k.Cuenta),f? "Pagar antes del "+sDate(f):"",Math.max(0,-(b[k.Cuenta]||0)),"neg"); }).join("")||'<div class="empty">Sin deudas 🎉</div>'}</div>
     <button class="btn" data-goto="cuadre">⚖️ Cuadrar con mis apps del banco</button>`;
+  { const s0=$("#dnSobr0",el); if(s0) s0.onclick=()=>{ const ec=S.d.cuentas.find(k=>k.Tipo==="Efectivo"); if(!ec) return; const nv=Math.round(Math.max(0,(b[ec.Cuenta]||0)-sobr)*100)/100;
+    if(!s0.dataset.ok){ s0.dataset.ok="1"; s0.textContent="¿Dejar Efectivo en "+mx2(nv)+"? Toca otra vez"; setTimeout(()=>{ if(s0.isConnected){ delete s0.dataset.ok; s0.textContent="✅ Cuadrar en $0"; } },5000); return; }
+    s0.disabled=true; const c=S.cta[ec.Cuenta], prev={s:c.SaldoInicial,f:c.FechaSaldo};
+    api("cuadrarCuenta",ec.Cuenta,nv,S.hoy).then(()=>{ c.SaldoInicial=nv; c.FechaSaldo=S.hoy; toast("Efectivo cuadrado en "+mx2(nv)+". El sobrante quedó en $0."); render(); })
+      .catch(er=>{ c.SaldoInicial=prev.s; c.FechaSaldo=prev.f; s0.disabled=false; s0.textContent="✅ Cuadrar en $0"; toast("No se pudo: "+(er.message||er)); }); }; }
   { const sb=$("#dnSobr",el); if(sb) sb.onclick=()=>moverAInversion("CTA:"+((S.d.cuentas.find(k=>k.Tipo==="Efectivo")||{}).Cuenta||"Efectivo"), sobr); }
   $$("[data-goto]",el).forEach(x=>x.onclick=()=>openSub(x.dataset.goto));
 }
@@ -3619,7 +3624,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.26-66";
+const APP_BUILD="2026.11.26-68";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
