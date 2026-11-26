@@ -2792,8 +2792,7 @@ function conceptoAuto(){
   const t=F.t, f=$("#fFuente").value, fe=$("#fFecha").value||S.hoy;
   if(t==="Ingreso"){
     if(f===NOMINA){ const c=catorcenaActual(fe); return c? `Nómina catorcena ${+c.Num} (${ddmm(c.Inicio)}–${ddmm(c.Fin)}/${c.Fin.slice(0,4)})` : f; }
-    if(f===VALES){ const prev=S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fuente===VALES&&m.Fecha<fe&&(!F.edit||m.ID!==F.edit.ID)).sort((a,b)=>a.Fecha<b.Fecha?1:-1)[0];
-      const a=prev? sumDia(prev.Fecha,1) : fe; return `Depósito vales (${ddmm(a)}–${ddmm(fe)}/${fe.slice(0,4)})`; }
+    if(f===VALES){ const b=sumDia(fe,27); return `Depósito vales (${ddmm(fe)}–${ddmm(b)}/${b.slice(0,4)})`; }   // periodo de 28 días desde el depósito
     if(esTenate(f)){ const a=parseFloat($("#fTenA").value)||0, p=parseFloat($("#fTenP").value)||0; return (a||p)? f+" · "+["Ruta",a&&"App",p&&"Propinas"].filter(Boolean).join(" + ") : f; }
     if(esProy(f)) return F.proy || f;
     return f;
@@ -3625,7 +3624,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.26-70";
+const APP_BUILD="2026.11.26-71";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
