@@ -565,6 +565,7 @@ details.mas .f{margin-top:6px}
 .iv-sub .iv-acts button{background:var(--surface)}
 .iv-sub .iv-chip{background:var(--surface)}
 .iv-submore{display:none;flex-direction:column;gap:8px}
+.plz{padding:12px 0;border-top:1px solid var(--line)} .plz:first-of-type{border-top:0} .plz-h{padding:8px 0;border-top:1px dashed var(--line)}
 .iv-sub.open .iv-submore{display:flex}
 .iv-card.open .iv-sub .iv-hint i{transform:none}.iv-card.open .iv-sub.open .iv-hint i{transform:rotate(180deg)}
 .iv-subh{cursor:pointer}
@@ -815,7 +816,7 @@ let toastT; function toast(m){ const t=$("#toast"); t.textContent=m; t.classList
 const API_URL = "https://script.google.com/macros/s/AKfycbwGIeHfWXEUl7U7PtOCsCBfqeAPuGp2Dvm7jEDhtK8vN2y29mITmKA7ss8lU7M7iolwYg/exec";
 /* Bloqueo con indicador mientras se guarda algo directo en la hoja (inversiones, saldos reales, arqueo, respaldo):
    evita tocar otras cosas antes de que la hoja confirme. Los gastos/ingresos no lo necesitan: van a una cola que se reintenta sola. */
-const BLOQ={cuadrarCuenta:"Cuadrando la cuenta…", saveInstrumento:"Guardando inversión…", deleteInstrumento:"Eliminando inversión…", addSaldoInversion:"Guardando saldo real…", saveArqueo:"Guardando arqueo…", respaldarAhora:"Guardando respaldo en tu Drive…"};
+const BLOQ={savePlazo:"Guardando inversión a plazo…", deletePlazo:"Eliminando…", cuadrarCuenta:"Cuadrando la cuenta…", saveInstrumento:"Guardando inversión…", deleteInstrumento:"Eliminando inversión…", addSaldoInversion:"Guardando saldo real…", saveArqueo:"Guardando arqueo…", respaldarAhora:"Guardando respaldo en tu Drive…"};
 let bloqN=0, bloqP=0, bloqT=null;
 const BQ_C=2*Math.PI*54;
 function bloqPinta(){ const o=$("#bloq"); if(!o) return; $(".bq-arc",o).style.strokeDashoffset=BQ_C*(1-bloqP); $(".bq-pct",o).textContent=Math.round(bloqP*100)+"%"; }
@@ -1864,6 +1865,7 @@ function renderSub(){
         <div class="iv-mix">${porTipo.map(([t,v],i)=>`<i style="width:${v/T*100}%;background:${tc(t,i)}"></i>`).join("")}</div>
         <div class="iv-leg">${porTipo.map(([t,v],i)=>`<span><b style="background:${tc(t,i)}"></b>${esc(t)} ${(v/T*100).toFixed(v/T<.01?1:0)}%</span>`).join("")}</div>
         <div class="iv-kpis"><div><small>✨ Rendimientos ${y}</small><b>${mx2(RY)}</b></div><div><small>✨ Este mes</small><b>${mx2(RM)}</b></div></div></div>
+      ${plazosCard()}
       ${(()=>{
         // Sub-inversiones: instrumentos con la misma "Grupo" en la hoja INSTRUMENTOS (ej. Klar 15% y Klar 13%) se muestran juntos
         const gk=r=>String(r.i.Grupo||"").trim()||r.i.Instrumento, G=new Map();
@@ -1899,7 +1901,7 @@ function renderSub(){
       if(!b.dataset.ok){ b.dataset.ok="1"; b.textContent="¿Seguro? Toca otra vez"; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.ok; b.textContent="🗑️ Eliminar"; } },4000); return; }
       b.disabled=true; b.textContent="Eliminando…";
       api("deleteInstrumento",n).then(r=>{ bloquear("Actualizando tus inversiones…"); return recargarSilencioso(r==="archivada"? n+" archivada (su historial se conserva)" : n+" eliminada").finally(desbloquear); }).catch(er=>{ b.disabled=false; b.textContent="🗑️ Eliminar"; toast("No se pudo: "+(er.message||er)); }); });
-    $("#insNueva",el).onclick=()=>insForm(null);
+    $("#insNueva",el).onclick=()=>insForm(null); bindPlazos(el);
     $$(".iv-card",el).forEach(cd=>cd.onclick=e=>{ if(e.target.closest(".iv-more")) return; const o=!cd.classList.contains("open"); $$(".iv-card.open",el).forEach(x=>x.classList.remove("open")); if(o) cd.classList.add("open"); });
     $$("[data-iv]",el).forEach(b=>b.onclick=()=>openForm({Tipo:"Inversión",Instrumento:b.dataset.n,MovInversion:b.dataset.iv},{ins:b.dataset.n}));
     $$("[data-ivupd]",el).forEach(b=>b.onclick=()=>{ const r=$(`[data-updrow="${CSS.escape(b.dataset.ivupd)}"]`,el); r.classList.toggle("hide"); if(!r.classList.contains("hide")) $("input",r).focus(); });
@@ -3042,6 +3044,131 @@ function moverAInversion(pre){
     L.forEach(x=>{ S.movs.push(x); p.push({op:"save",o:x}); }); sortMovs(); setPend(p); flush(); ddClose(); toast("Movido "+mx2(m)+" a "+st.d); render();
   };
 }
+/* ===================== Inversiones a plazo: seguimiento de vencimientos y rendimiento esperado vs real ===================== */
+const PLZ_ANIO=360;   // las SOFIPO calculan con año comercial de 360 días
+function plzList(){ return (S.d.plazos||[]).map(p=>Object.assign(p,{Monto:+p.Monto||0,PlazoDias:+p.PlazoDias||0,Tasa:+p.Tasa||0,RendEsperado:+p.RendEsperado||0})); }
+function plzRend(m,t,d){ return Math.round((+m||0)*(+t||0)/100*(+d||0)/PLZ_ANIO*100)/100; }
+function plzTasa(m,r,d){ return (+m)&&(+d)? Math.round((+r||0)/(+m)*PLZ_ANIO/(+d)*100*100)/100 : 0; }
+function plzVence(f,d){ if(!f||!(+d)) return ""; const [y,m,dd]=f.split("-").map(Number); return new Date(Date.UTC(y,m-1,dd+(+d))).toISOString().slice(0,10); }
+function plzActivas(){ return plzList().filter(p=>p.Estado!=="Cerrada").sort((a,b)=>(a.FechaVence||"")<(b.FechaVence||"")?-1:1); }
+function plzFaltan(p){ return daysBetween(S.hoy,p.FechaVence); }
+function plzTxtVence(p){ const d=plzFaltan(p); return d>1? "Vence "+sDate(p.FechaVence)+" "+p.FechaVence.slice(0,4)+" · faltan "+d+" días" : d===1? "Vence mañana" : d===0? "Vence hoy" : "Venció hace "+(-d)+" día"+(d===-1?"":"s"); }
+function plzInsOpts(){ return (S.ins||[]).filter(i=>i.Tipo!=="Efectivo").map(i=>i.Instrumento); }
+function plazosCard(){
+  const A=plzActivas(), C=plzList().filter(p=>p.Estado==="Cerrada").sort((a,b)=>(a.FechaCierre||"")<(b.FechaCierre||"")?1:-1), si=saldosInversion();
+  const TA=A.reduce((s,p)=>s+p.Monto,0), TE=A.reduce((s,p)=>s+p.RendEsperado,0);
+  const porIns={}; A.forEach(p=>porIns[p.Instrumento]=(porIns[p.Instrumento]||0)+p.Monto);
+  const avisoSaldo=Object.entries(porIns).filter(([n,v])=>v>((si[n]||{}).saldo||0)+1).map(([n,v])=>`<div class="small neg" style="margin-top:6px">⚠️ En ${esc(n)} tienes ${mx2(v)} a plazo, pero su saldo en la app es ${mx2((si[n]||{}).saldo||0)}. Registra la aportación o captura su saldo real para que cuadre.</div>`).join("");
+  const fila=p=>{ const d=plzFaltan(p), tr=Math.min(1,Math.max(0,daysBetween(p.FechaInicio,S.hoy)/p.PlazoDias)), gan=Math.round(p.RendEsperado*tr*100)/100, cls=d<0?"neg":d<=7?"warn":"muted";
+    return `<div class="plz" data-plz="${esc(p.ID)}"><div class="between"><span style="min-width:0"><b>${esc(p.Instrumento)}</b> <span class="iv-tag">${p.Tasa}% · ${p.PlazoDias} d</span></span><b class="priv">${mx2(p.Monto)}</b></div>
+      <div class="iv-track" style="height:6px;margin:6px 0"><i style="width:${Math.max(2,tr*100)}%;${d<=7?"background:"+(d<0?"var(--neg)":"#e0a100"):""}"></i></div>
+      <div class="between small"><span class="${cls}" style="font-weight:${d<=7?700:400}">${d<=7?"⏰ ":""}${plzTxtVence(p)}</span><span class="pos priv">+${mx2(p.RendEsperado)}</span></div>
+      <div class="between small muted"><span>Desde ${sDate(p.FechaInicio)} ${p.FechaInicio.slice(0,4)} · ganado a la fecha ≈ <span class="priv">${mx2(gan)}</span></span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px"><button class="btn sm ${d<=7?"primary":""}" data-plzcerrar="${esc(p.ID)}">${d<=0?"✅ Venció: registrar y reinvertir":"🏁 Registrar vencimiento"}</button><button class="btn sm" data-plzed="${esc(p.ID)}">✏️ Editar</button></div></div>`; };
+  const hist=p=>{ const rr=p.RendReal===""||p.RendReal==null? null : +p.RendReal, tr=rr==null? null : plzTasa(p.Monto,rr,p.PlazoDias), df=rr==null?0:rr-p.RendEsperado;
+    return `<div class="plz-h"><div class="between"><span><b>${esc(p.Instrumento)}</b> <span class="small muted">${sDate(p.FechaInicio)} ${p.FechaInicio.slice(2,4)} → ${sDate(p.FechaCierre||p.FechaVence)} ${(p.FechaCierre||p.FechaVence).slice(2,4)} · ${p.PlazoDias} d</span></span><b class="priv">${mx2(p.Monto)}</b></div>
+      <div class="between small priv"><span class="muted">Esperado ${mx2(p.RendEsperado)} (${p.Tasa}%)</span><span>Real <b class="pos">${rr==null?"—":mx2(rr)}</b>${tr==null?"":" ("+tr.toFixed(2)+"%)"}</span></div>
+      ${rr==null?"":`<div class="small ${df>=0?"pos":"neg"}" style="text-align:right">${df>=0?"▲ +":"▼ −"}${mx2(Math.abs(df))} vs esperado</div>`}</div>`; };
+  return `<div class="card"><div class="between"><h2>⏳ Inversiones a plazo</h2>${A.length?`<span class="small muted">${A.length}</span>`:""}</div>
+    ${A.length? `<div class="between small priv"><span class="muted">A plazo ${mx2(TA)}</span><span class="pos">Rendimiento esperado +${mx2(TE)}</span></div>${avisoSaldo}${A.map(fila).join("")}`
+      : `<div class="small muted">Registra aquí tus inversiones a plazo fijo para saber cuándo vencen, cuánto esperas ganar y cuánto te dieron en realidad. El dinero sigue contando en el saldo de su inversión.</div>`}
+    <button class="btn" id="plzNueva" style="width:100%;margin-top:10px;border:1.5px dashed var(--primary);background:var(--primary-soft);color:var(--primary);font-weight:800">➕ Nueva inversión a plazo</button>
+    ${C.length? `<details style="margin-top:10px"><summary class="small" style="cursor:pointer;font-weight:700">📜 Historial: esperado vs real (${C.length})</summary>${C.slice(0,40).map(hist).join("")}</details>`:""}</div>`;
+}
+function bindPlazos(el){
+  const n=$("#plzNueva",el); if(n) n.onclick=()=>plzForm(null);
+  $$("[data-plzed]",el).forEach(b=>b.onclick=e=>{ e.stopPropagation(); plzForm(plzList().find(p=>p.ID===b.dataset.plzed)); });
+  $$("[data-plzcerrar]",el).forEach(b=>b.onclick=e=>{ e.stopPropagation(); plzCerrar(plzList().find(p=>p.ID===b.dataset.plzcerrar)); });
+}
+// Campos enlazados: monto + plazo + (tasa % ⇄ rendimiento $)
+function plzCampos(pre, v){ return `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div class="f"><label>Monto</label><input id="${pre}M" inputmode="decimal" value="${v.Monto||""}"></div>
+    <div class="f"><label>Plazo (días)</label><input id="${pre}D" inputmode="numeric" value="${v.PlazoDias||""}"></div></div>
+  <div class="chips" style="flex-wrap:wrap;margin:-4px 0 8px">${[28,90,180,360].map(d=>`<button type="button" class="chip" data-${pre}d="${d}">${d} días</button>`).join("")}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div class="f"><label>Tasa anual %</label><input id="${pre}T" inputmode="decimal" value="${v.Tasa||""}"></div>
+    <div class="f"><label>Rendimiento esperado $</label><input id="${pre}R" inputmode="decimal" value="${v.RendEsperado||""}"></div></div>
+  <div class="small muted" id="${pre}X"></div>`; }
+function plzEnlazar(pk, pre, fIni){
+  const g=k=>$("#"+pre+k,pk), num=k=>parseFloat(String(g(k).value).replace(/[^0-9.]/g,""))||0; let ult="T";
+  const info=()=>{ const f=fIni(), d=num("D"); g("X").textContent= f&&d? "Vence el "+sDate(plzVence(f,d))+" "+plzVence(f,d).slice(0,4)+" · calculado con año de "+PLZ_ANIO+" días" : ""; };
+  const desdeT=()=>{ g("R").value= num("M")&&num("D")&&num("T")? plzRend(num("M"),num("T"),num("D")) : ""; info(); };
+  const desdeR=()=>{ g("T").value= num("M")&&num("D")&&num("R")? plzTasa(num("M"),num("R"),num("D")) : ""; info(); };
+  g("T").oninput=()=>{ ult="T"; desdeT(); }; g("R").oninput=()=>{ ult="R"; desdeR(); };
+  g("M").oninput=g("D").oninput=()=>{ ult==="T"? desdeT() : desdeR(); };
+  $$(`[data-${pre}d]`,pk).forEach(b=>b.onclick=()=>{ g("D").value=b.dataset[pre+"d"]; ult==="T"? desdeT() : desdeR(); });
+  moneyInput(g("M")); info();
+  return ()=>({Monto:num("M"),PlazoDias:Math.round(num("D")),Tasa:num("T"),RendEsperado:num("R")});
+}
+function plzForm(p){
+  const ins=plzInsOpts(), st={i:(p&&p.Instrumento)||ins[0]||""};
+  ddSheet(p? "Editar inversión a plazo" : "Nueva inversión a plazo", false, ()=>`
+    <div class="small muted" style="margin-bottom:6px">¿En qué inversión?</div>
+    <div class="chips" id="pzI" style="flex-wrap:wrap">${ins.map(n=>`<button type="button" class="chip" data-i="${esc(n)}">📈 ${esc(n)}</button>`).join("")}</div>
+    <div class="f" style="margin-top:10px"><label>Fecha en que se invirtió</label><input id="pzF" type="date" value="${(p&&p.FechaInicio)||S.hoy}"></div>
+    ${plzCampos("pz", p||{PlazoDias:360})}
+    <div class="f"><label>Nota (opcional)</label><input id="pzN" value="${esc((p&&p.Nota)||"")}"></div>
+    <div class="small neg" id="pzE"></div>
+    <button type="button" class="btn primary" id="pzOk" style="width:100%;margin-top:8px">${p?"Guardar cambios":"Guardar"}</button>
+    ${p? `<button type="button" class="btn" id="pzDel" style="width:100%;margin-top:8px;color:var(--neg)">🗑️ Eliminar este registro</button>`:""}
+    <div class="small muted" style="margin-top:8px">Solo es seguimiento: no mueve dinero. Si el dinero es nuevo, registra también la <b>aportación</b> a la inversión para que su saldo cuadre.</div>`, ()=>{}, null);
+  const pk=$("#pk"), paint=()=>$$("[data-i]",pk).forEach(b=>b.classList.toggle("on",b.dataset.i===st.i));
+  $$("[data-i]",pk).forEach(b=>b.onclick=()=>{ st.i=b.dataset.i; paint(); }); paint();
+  const leer=plzEnlazar(pk,"pz",()=>$("#pzF",pk).value);
+  $("#pzF",pk).onchange=()=>$("#pzD",pk).oninput();
+  $("#pzOk",pk).onclick=()=>{ const v=leer(), f=$("#pzF",pk).value, e=$("#pzE",pk);
+    if(!st.i) return e.textContent="Elige la inversión."; if(!f) return e.textContent="Pon la fecha."; if(!(v.Monto>0)) return e.textContent="Escribe el monto.";
+    if(!(v.PlazoDias>0)) return e.textContent="Escribe el plazo en días."; if(!(v.Tasa>0)&&!(v.RendEsperado>0)) return e.textContent="Escribe la tasa o el rendimiento esperado.";
+    const o=Object.assign({}, p||{}, v, {Instrumento:st.i, FechaInicio:f, FechaVence:plzVence(f,v.PlazoDias), Estado:(p&&p.Estado)||"Activa", Nota:$("#pzN",pk).value.trim()});
+    ddClose(); plzGuardar([o]).then(()=>toast(p?"Inversión a plazo actualizada":"Inversión a plazo registrada"));
+  };
+  if(p) $("#pzDel",pk).onclick=function(){ if(!this.dataset.ok){ this.dataset.ok="1"; this.textContent="¿Seguro? Toca otra vez"; return; }
+    ddClose(); api("deletePlazo",p.ID).then(()=>{ S.d.plazos=(S.d.plazos||[]).filter(x=>x.ID!==p.ID); toast("Registro eliminado"); render(); }).catch(er=>toast("No se pudo: "+(er.message||er))); };
+}
+function plzGuardar(L){ // guarda en orden; devuelve los IDs
+  const ids=[]; let pr=Promise.resolve();
+  L.forEach(o=>{ const prev=o.ID; pr=pr.then(()=>api("savePlazo",o)).then(id=>{ id=prev||id; o.ID=id; ids.push(id); const a=S.d.plazos=(S.d.plazos||[]); const i=a.findIndex(x=>x.ID===id); if(i>=0) a[i]=o; else a.push(o); }); });
+  return pr.then(()=>{ render(); return ids; }).catch(er=>{ toast("No se pudo guardar: "+(er.message||er)+(gsViejo()?" · Publica el nuevo Code.gs":"")); throw er; });
+}
+function plzCerrar(p){
+  const fc0= p.FechaVence&&p.FechaVence<=S.hoy? p.FechaVence : S.hoy;
+  ddSheet("Venció "+p.Instrumento, false, ()=>`
+    <div class="small muted">${mx2(p.Monto)} a ${p.PlazoDias} días al ${p.Tasa}% · desde ${sDate(p.FechaInicio)} ${p.FechaInicio.slice(0,4)}<br>Esperabas <b class="pos">+${mx2(p.RendEsperado)}</b></div>
+    <div class="f" style="margin-top:10px"><label>Fecha en que venció</label><input id="pcF" type="date" value="${fc0}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="f"><label>Rendimiento real $</label><input id="pcR" inputmode="decimal" value="${p.RendEsperado||""}"></div>
+      <div class="f"><label>Tasa real %</label><input id="pcT" inputmode="decimal" value="${p.Tasa||""}"></div></div>
+    <div class="small" id="pcX"></div>
+    <label class="chk" style="display:flex;gap:8px;align-items:flex-start;margin-top:8px"><input type="checkbox" id="pcMov" checked><span><b>Sumar el rendimiento al saldo de ${esc(p.Instrumento)}</b><div class="small muted">Registra un movimiento ✨ Rendimiento. Quítalo solo si ya lo registraste o capturaste el saldo real con él.</div></span></label>
+    <label class="chk" style="display:flex;gap:8px;align-items:flex-start;margin-top:8px"><input type="checkbox" id="pcRe" checked><span><b>Lo vuelvo a invertir a plazo</b></span></label>
+    <div id="pcReW" style="border-left:3px solid var(--primary);padding-left:10px;margin-top:6px">${plzCampos("pr", {Monto:Math.round((p.Monto+p.RendEsperado)*100)/100, PlazoDias:p.PlazoDias})}</div>
+    <div class="small neg" id="pcE"></div>
+    <button type="button" class="btn primary" id="pcOk" style="width:100%;margin-top:8px">Guardar</button>`, ()=>{}, null);
+  const pk=$("#pk"), g=k=>$("#pc"+k,pk), num=el=>parseFloat(String(el.value).replace(/[^0-9.]/g,""))||0;
+  const leerRe=plzEnlazar(pk,"pr",()=>g("F").value);
+  const info=()=>{ const rr=num(g("R")), df=rr-p.RendEsperado; g("X").innerHTML= rr? `Capital + rendimiento = <b>${mx2(p.Monto+rr)}</b> · <span class="${df>=0?"pos":"neg"}">${df>=0?"+":"−"}${mx2(Math.abs(df))} vs esperado</span>` : ""; };
+  const syncRe=()=>{ const m=$("#prM",pk); if(!m.dataset.tocado){ m.value=Math.round((p.Monto+num(g("R")))*100)/100; $("#prM",pk).oninput(); } };
+  $("#prM",pk).addEventListener("input",e=>{ if(e.isTrusted) $("#prM",pk).dataset.tocado="1"; });
+  g("R").oninput=()=>{ g("T").value= plzTasa(p.Monto,num(g("R")),p.PlazoDias)||""; info(); syncRe(); };
+  g("T").oninput=()=>{ g("R").value= plzRend(p.Monto,num(g("T")),p.PlazoDias)||""; info(); syncRe(); };
+  g("F").onchange=()=>$("#prD",pk).oninput();
+  g("Re").onchange=()=>$("#pcReW",pk).classList.toggle("hide",!g("Re").checked);
+  info(); $("#prD",pk).oninput();
+  g("Ok").onclick=()=>{ const rr=Math.round(num(g("R"))*100)/100, fc=g("F").value, e=g("E");
+    if(!fc) return e.textContent="Pon la fecha en que venció."; if(!(rr>=0)) return e.textContent="Escribe el rendimiento real.";
+    const cerr=Object.assign({},p,{Estado:"Cerrada",RendReal:rr,FechaCierre:fc}), L=[];
+    let nueva=null;
+    if(g("Re").checked){ const v=leerRe(); if(!(v.Monto>0)||!(v.PlazoDias>0)) return e.textContent="Completa el monto y el plazo de la reinversión.";
+      if(!(v.Tasa>0)&&!(v.RendEsperado>0)) return e.textContent="Escribe la tasa o el rendimiento esperado de la reinversión.";
+      nueva=Object.assign({},v,{Instrumento:p.Instrumento,FechaInicio:fc,FechaVence:plzVence(fc,v.PlazoDias),Estado:"Activa",Nota:"Reinversión de "+mx2(p.Monto)+" + "+mx2(rr)}); }
+    if(g("Mov").checked && rr>0) guardarMovRapido({ID:uid(),Tipo:"Inversión",Fecha:fc,Monto:rr,MovInversion:"Rendimiento",Instrumento:p.Instrumento,Cuenta:"",CuentaDestino:"",Categoria:"",Subcategoria:"",Fuente:"",Vehiculo:"",Km:"",Litros:"",MesesMSI:"",
+      Descripcion:"Rendimiento plazo "+p.Instrumento,Nota:"Inversión a plazo "+p.ID+" · "+p.PlazoDias+" días al "+p.Tasa+"%"});
+    ddClose();
+    const fin=nueva? plzGuardar([nueva]).then(ids=>{ cerr.ReinvertidoEn=ids[0]; return plzGuardar([cerr]); }) : plzGuardar([cerr]);
+    fin.then(()=>toast(nueva? "Listo: rendimiento registrado y reinversión guardada" : "Listo: inversión cerrada"));
+  };
+}
 /* ===== Distribución de ingresos: todo cuadra al 100% ===== */
 function ahorroPlan(c){ const v = c.AhorroCatorcena!==undefined ? c.AhorroCatorcena : c.MetaAhorro; return v===""||v==null ? null : +v; }
 function ahorroRealCat(c){ const L=S.movs.filter(m=>m.Tipo==="Ingreso"&&m.Fuente===NOMINA&&m.Fecha>=c.Inicio&&m.Fecha<=c.Fin);
@@ -3285,7 +3412,7 @@ function insForm(nombre){
 }
 
 /* ================= Mejoras: avisos, dinero, cuadre, revisión, recurrentes, deshacer ================= */
-const GS_REQ="2026.11.21";
+const GS_REQ="2026.11.25";
 function gsViejo(){ return S.d && String(S.d.gsVersion||"") < GS_REQ; }
 function toastAct(msg,label,fn,ms){ const t=$("#toast"); t.innerHTML=`<span>${esc(msg)}</span><button class="tb" type="button">${esc(label)}</button>`; t.classList.add("on","act");
   $(".tb",t).onclick=()=>{ t.classList.remove("on","act"); fn(); }; clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on","act"), ms||6000); }
@@ -3315,6 +3442,8 @@ function avisos(){
     L.push({c:p>=1?"bad":"warn",ic:"🎯",t:`${k} va en ${Math.round(p*100)}% del presupuesto del mes`,s:`${mx(gm[k])} de ${mx(v)}`,a:"sub:pres"}); });
   const vie=Object.values(saldosInversion()).filter(r=>r.saldo>=1&&r.i.Tipo!=="Efectivo"&&(!r.foto||daysBetween(r.foto.Fecha,S.hoy)>30));
   if(vie.length) L.push({c:"warn",ic:"🏦",t:`Actualiza el saldo real de ${vie.length} inversi${vie.length>1?"ones":"ón"}`,s:vie.slice(0,3).map(r=>r.i.Instrumento).join(", ")+(vie.length>3?"…":"")+" · hace más de 30 días",a:"sub:cuadre"});
+  plzActivas().forEach(p=>{ const d=plzFaltan(p); if(d<=7) L.push({c:d<0?"bad":"warn",ic:"⏳",t: d<0? `Venció tu inversión en ${p.Instrumento}` : d===0? `Hoy vence tu inversión en ${p.Instrumento}` : `Tu inversión en ${p.Instrumento} vence en ${d} día${d===1?"":"s"}`,
+    s:`${mx2(p.Monto)} al ${p.Tasa}% · registra el rendimiento real y reinvierte`,a:"plz:"+p.ID}); });
   { const ct=b[CAJA_T]||0; if(S.cta[CAJA_T]&&ct>=1) L.push({c:"warn",ic:"🚚",t:`Tienes ${mx2(ct)} del Tenate sin invertir`,s:"Está en "+CAJA_T+". Pásalo a una inversión para que se refleje en su saldo.",a:"tenmov"}); }
   recurrentes().slice(0,3).forEach(r=>L.push({c:"",ic:ddIco(r.m.Categoria||r.m.Descripcion),t:`¿Ya registraste ${r.m.Descripcion} este mes?`,s:`Lo registras cada mes cerca del día ${r.dia} · último ${mx2(r.m.Monto)}`,a:"rec:"+r.k}));
   return L;
@@ -3325,6 +3454,7 @@ function bindAvisos(root){
   $$("[data-av]",root).forEach(b=>b.onclick=()=>{ const a=b.dataset.av; if(!a) return;
     if(a==="mas") return go("mas");
     if(a==="tenmov") return moverAInversion("CTA:"+CAJA_T);
+    if(a.startsWith("plz:")){ const p=plzList().find(x=>x.ID===a.slice(4)); return p? plzCerrar(p) : openSub("inv"); }
     if(a.startsWith("sub:")) return openSub(a.slice(4));
     if(a.startsWith("pago:")){ const n=a.slice(5); return openForm({Tipo:"Pago tarjeta",CuentaDestino:n},{dst:n}); }
     if(a.startsWith("rec:")){ const m=S.mem[a.slice(4)]; if(m) openForm({Tipo:"Gasto",Descripcion:m.Descripcion,Categoria:m.Categoria,Subcategoria:m.Subcategoria,Vehiculo:m.Vehiculo,Cuenta:m.Cuenta,Monto:m.Monto}); }
@@ -3408,7 +3538,7 @@ function renderRevision(el){
   const sinCat=R.filter(m=>m.Tipo==="Gasto"&&!m.Categoria);
   const vistos={}, dup=[]; R.filter(m=>m.Tipo==="Gasto").forEach(m=>{ const k=m.Fecha+"|"+m.Monto+"|"+norm(m.Descripcion); if(vistos[k]){ if(!dup.includes(vistos[k])) dup.push(vistos[k]); dup.push(m); } else vistos[k]=m; });
   const cero=R.filter(m=>!(+m.Monto>0));
-  const pagos=R.filter(m=>m.Tipo==="Pago tarjeta"&&(!m.Cuenta||!m.CuentaDestino));
+  const pagos=R.filter(m=>m.Tipo==="Pago tarjeta"&&((!m.Cuenta&&!m.Instrumento)||!m.CuentaDestino));
   const ingSin=R.filter(m=>m.Tipo==="Ingreso"&&!m.CuentaDestino&&!m.Instrumento);
   const vie=Object.values(saldosInversion()).filter(r=>r.saldo>=1&&r.i.Tipo!=="Efectivo"&&(!r.foto||daysBetween(r.foto.Fecha,S.hoy)>30));
   const sec=(ic,t,L,nota)=>`<div class="card"><div class="between"><h2>${ic} ${t}</h2><span class="${L.length?"neg":"pos"}" style="font-weight:800">${L.length? L.length : "✓"}</span></div>${L.length? `<div class="small muted">${nota}</div><div class="list">${L.slice(0,15).map(m=>itemHTML(m,true)).join("")}</div>${L.length>15? `<div class="small muted">y ${L.length-15} más…</div>`:""}` : '<div class="small muted">Todo bien.</div>'}</div>`;
@@ -3470,7 +3600,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.23-61";
+const APP_BUILD="2026.11.25-63";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
