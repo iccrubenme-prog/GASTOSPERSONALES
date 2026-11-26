@@ -1797,7 +1797,7 @@ function renderSub(){
     // El presupuesto se gasta con efectivo Y con tarjeta: lo gastado con tarjeta sigue en Efectivo hasta que pagas la tarjeta.
     const cHoy=catorcenaActual(S.hoy), qHoy=cHoy? catRes(cHoy).queda : null;
     const ctaPres=act.find(c=>c.Tipo==="Efectivo");
-    const libreHoy = qHoy==null? null : Math.min(liq, qHoy), apartT = libreHoy==null? 0 : Math.max(0, liq-Math.max(0,libreHoy));
+    const libreHoy = qHoy==null? null : Math.min(liq, qHoy), restoT = libreHoy==null? 0 : Math.max(0, liq-Math.max(0,libreHoy)), apartT=Math.min(restoT,deudaT), sobrT=restoT-apartT;
     const fs=act.map(c=>c.FechaSaldo).filter(Boolean).sort()[0];
     let i=0;
     el.innerHTML = `<div class="filt"><div class="seg" id="ctPer">${[["cat","Catorcena"],["mes","Mes"],["mesAnt","Mes anterior"],["anio","Año"]].map(([k2,l])=>`<button data-p="${k2}" class="${F2.per===k2?"on":""}">${l}</button>`).join("")}</div>
@@ -1813,7 +1813,7 @@ function renderSub(){
           ? `<div><small>Deuda hoy</small><b class="${deuda>0?"neg":""}">${mx2(deuda)}</b></div><div><small>${lim? "Disponible de "+mx(lim) : "Gastado "+esc(pl.toLowerCase())}</small><b>${lim? mx2(Math.max(0,lim-deuda)) : mx(gp)}</b></div>`
           : t==="Tenate"? `<div class="priv" style="grid-column:1/-1"><small>📈 Pendiente de invertir hoy <span class="muted">(saldo, no depende del filtro)</span></small><b class="${s0>=1?"warn":"pos"}">${mx2(Math.max(0,s0))}</b><div class="small muted">${s0>=1? "Todo lo recibido − gastado − ya pasado a inversión o a efectivo. Pásalo a donde está realmente, o cuádralo en $0 si ya está contado en otro lado." : "Todo lo recibido ya está invertido o gastado ✅"}</div></div><div class="priv"><small>Recibido ${esc(pl.toLowerCase())}</small><b class="pos">${mx(sum(S.movs.filter(m=>m.Tipo==="Ingreso"&&esTenate(m.Fuente)&&m.Fecha>=pa&&m.Fecha<=pb)))}</b></div><div><small>Gastado ${esc(pl.toLowerCase())}</small><b>${mx(gp)}</b></div>`
           : ctaPres&&n===ctaPres.Cuenta&&libreHoy!=null? `<div class="priv"><small>Libre para gastar</small><b class="${libreHoy<0?"neg":""}">${mx2(libreHoy)}</b></div><div><small>Gastado ${esc(pl.toLowerCase())}</small><b>${mx(gp)}</b></div>
-              <div class="priv" style="grid-column:1/-1"><div class="between small"><span class="muted">💵 Dinero en la cuenta</span><b>${mx2(s0)}</b></div>${apartT>0? `<div class="between small"><span class="muted">💳 Apartado para pagar tarjetas</span><b>${mx2(apartT)}</b></div><div class="small muted">Lo que gastaste con tarjeta de tu presupuesto y aún no pagas. Al registrar el pago desde Efectivo, sale de aquí.</div>`:""}</div>`
+              <div class="priv" style="grid-column:1/-1"><div class="between small"><span class="muted">💵 Dinero en la cuenta</span><b>${mx2(s0)}</b></div>${apartT>0? `<div class="between small"><span class="muted">💳 Apartado para pagar tarjetas</span><b>${mx2(apartT)}</b></div><div class="small muted">Lo que debes hoy en tus tarjetas. Al registrar el pago desde Efectivo, sale de aquí.</div>`:""}${sobrT>=1? `<div class="between small"><span class="muted">💰 Sobrante (ya no se necesita para tarjetas)</span><b class="pos">${mx2(sobrT)}</b></div>`:""}</div>`
           : `<div class="priv"><small>${t==="Fondo"?"Disponible en el fondo":"Saldo hoy"}</small><b class="${s0<0?"neg":""}">${mx2(s0)}</b></div><div><small>Gastado ${esc(pl.toLowerCase())}</small><b>${mx(gp)}</b></div>`;
         const util = cr&&lim? `<div class="track"><div class="fill ${deuda>lim*.85?"over":deuda>lim*.6?"warn":""}" style="width:${Math.min(100,deuda/lim*100)}%"></div></div>`:"";
         const fechas = cr&&(c.DiaCorte||c.DiaPago)? `<div class="small muted">${c.DiaCorte? "✂️ Corte "+prox(c.DiaCorte):""}${c.DiaCorte&&c.DiaPago?" · ":""}${c.DiaPago? "📅 Pagar antes del "+prox(c.DiaPago):""}</div>`:"";
@@ -3015,10 +3015,11 @@ function nomSplitAuto(){
 }
 function ahorroEfectivo(){ return Object.values(saldosInversion()).filter(r=>r.i.Tipo==="Efectivo").reduce((a,r)=>a+r.saldo,0); }
 function saldoAhorroCta(){ return (S.cta[AHORRO]? (saldosCuentas()[AHORRO]||0) : 0) + ahorroEfectivo(); }
-function moverAInversion(pre){
+function moverAInversion(pre,amt){
   const si=saldosInversion(), ori=Object.values(si).filter(r=>r.i.Tipo==="Efectivo"&&r.saldo>0).map(r=>({k:"INS:"+r.i.Instrumento,l:r.i.Instrumento,v:r.saldo}));
   if(S.cta[AHORRO]){ const v=saldosCuentas()[AHORRO]||0; if(v>0) ori.push({k:"CTA:"+AHORRO,l:"Cuenta Ahorro",v}); }
   if(S.cta[CAJA_T]){ const v=saldosCuentas()[CAJA_T]||0; if(v>=0.01) ori.push({k:"CTA:"+CAJA_T,l:CAJA_T,v,ic:"🚚"}); }
+  S.d.cuentas.filter(k=>k.Tipo==="Efectivo"&&(k.Activa||"Sí")!=="No").forEach(k=>{ const v=saldosCuentas()[k.Cuenta]||0; if(v>=0.01) ori.push({k:"CTA:"+k.Cuenta,l:k.Cuenta,v,ic:"💵"}); });
   if(pre&&typeof pre!=="string") pre=null;
   const desE=Object.values(si).filter(r=>r.i.Tipo==="Efectivo").map(r=>r.i.Instrumento), des=[...Object.values(si).filter(r=>r.i.Tipo!=="Efectivo").map(r=>r.i.Instrumento), ...desE];
   const st={o:(pre&&ori.find(o=>o.k===pre)? pre : ori[0]&&ori[0].k), d:des[0]};
@@ -3030,7 +3031,7 @@ function moverAInversion(pre){
     <button type="button" class="btn primary" data-v="go" style="width:100%;margin-top:10px">Mover</button>`, v=>{}, null);
   const pk=$("#pk"), paint=()=>{ $$("[data-o]",pk).forEach(b=>b.classList.toggle("on",b.dataset.o===st.o)); $$("[data-d]",pk).forEach(b=>b.classList.toggle("on",b.dataset.d===st.d)); };
   $$("[data-o]",pk).forEach(b=>b.onclick=()=>{ st.o=b.dataset.o; paint(); }); $$("[data-d]",pk).forEach(b=>b.onclick=()=>{ st.d=b.dataset.d; paint(); }); paint();
-  moneyInput($("#mvM",pk)); const o0=ori.find(o=>o.k===st.o); if(o0) $("#mvM",pk).value=Math.round(o0.v*100)/100;
+  moneyInput($("#mvM",pk)); const o0=ori.find(o=>o.k===st.o); if(o0) $("#mvM",pk).value=Math.round((amt&&amt<o0.v? amt : o0.v)*100)/100;
   $("[data-v=go]",pk).onclick=()=>{
     const m=Math.round((parseFloat($("#mvM",pk).value)||0)*100)/100, o=ori.find(x=>x.k===st.o);
     if(!o||!st.d) return $("#mvE",pk).textContent="Elige de dónde sale y a qué inversión va.";
@@ -3479,7 +3480,9 @@ function renderDinero(el){
   const b=saldosCuentas(), c=catorcenaActual(S.hoy), q=c? catRes(c).queda : 0;
   const ef=S.d.cuentas.filter(k=>k.Tipo==="Efectivo"), deb=S.d.cuentas.filter(k=>k.Tipo==="Débito");
   const EF=ef.reduce((a,k)=>a+(b[k.Cuenta]||0),0), DEB=deb.reduce((a,k)=>a+(b[k.Cuenta]||0),0), LIQ=EF+DEB;
-  const libre=Math.min(LIQ,Math.max(q,0)), apart=Math.max(0,LIQ-libre);
+  const DEUt=S.d.cuentas.filter(k=>k.Tipo==="Crédito"||k.Tipo==="Departamental").reduce((a,k)=>a+Math.max(0,-(b[k.Cuenta]||0)),0);
+  // lo apartado para tarjetas no puede ser más de lo que debes hoy; si pagaste tarjetas con inversiones, lo demás es sobrante
+  const libre=Math.min(LIQ,Math.max(q,0)), resto=Math.max(0,LIQ-libre), apart=Math.min(resto,DEUt), sobr=resto-apart;
   const s=saldosInversion(), all=Object.values(s), gOf=r=>String(r.i.Grupo||"").trim()||r.i.Instrumento, G={};
   all.forEach(r=>{ if(Math.abs(r.saldo)<0.005) return; const k=gOf(r); (G[k]=G[k]||{t:0,L:[]}); G[k].t+=r.saldo; G[k].L.push(r); });
   const INV=all.reduce((a,r)=>a+r.saldo,0), VAL=valesSaldo(), FON=ahorrosAnio(S.hoy.slice(0,4)).fondo;
@@ -3491,7 +3494,7 @@ function renderDinero(el){
       <div class="between" style="border-top:1px solid rgb(255 255 255 / .2);padding-top:6px"><span>= Neto</span><b style="font-size:18px">${mx2(NETO)}</b></div></div>
     <div class="card priv"><h2>💵 Para gastar</h2>
       ${ef.map(k=>row("💵",esc(k.Cuenta),"",b[k.Cuenta]||0)).join("")}
-      ${c? `<div class="dn-sub">${row("✅","Libre para gastar","Lo que queda de tu presupuesto",libre,libre<0?"neg":"pos")}${apart>0? row("💳","Apartado para pagar tarjetas","Lo que gastaste con tarjeta y aún no pagas",apart):""}</div>`:""}
+      ${c? `<div class="dn-sub">${row("✅","Libre para gastar","Lo que queda de tu presupuesto",libre,libre<0?"neg":"pos")}${apart>0? row("💳","Apartado para pagar tarjetas","Lo que debes hoy en tus tarjetas",apart):""}${sobr>=1? row("💰","Sobrante en efectivo","Ya no se necesita para pagar tarjetas",sobr,"pos")+`<button class="btn sm" id="dnSobr" style="margin:4px 0 6px 44px">📈 Pasar sobrante a inversión</button>`:""}</div>`:""}
       ${deb.map(k=>row("🏦",esc(k.Cuenta),"Débito",b[k.Cuenta]||0)).join("")}</div>
     <div class="card priv"><div class="between"><h2>📈 Inversiones y ahorro</h2><b>${mx2(INV)}</b></div>
       ${Object.entries(G).sort((a,b)=>b[1].t-a[1].t).map(([k,g])=>row(g.L[0].i.Tipo==="Efectivo"?"💵":"📈",esc(k),g.L.length>1? g.L.map(r=>esc(r.i.Instrumento)+" "+mx(r.saldo)).join(" · ") : esc(g.L[0].i.Tipo)+(+g.L[0].i.TasaAnual? " · "+g.L[0].i.TasaAnual+"%":""),g.t)).join("")}
@@ -3500,6 +3503,7 @@ function renderDinero(el){
     <div class="card priv"><div class="between"><h2>💳 Lo que debes</h2><b class="neg">${mx2(DEU)}</b></div>
       ${cr.filter(k=>Math.abs(b[k.Cuenta]||0)>=0.5).map(k=>{ const f=proxDia(k.DiaPago); return row(k.Tipo==="Crédito"?"💳":"🛍️",esc(k.Cuenta),f? "Pagar antes del "+sDate(f):"",Math.max(0,-(b[k.Cuenta]||0)),"neg"); }).join("")||'<div class="empty">Sin deudas 🎉</div>'}</div>
     <button class="btn" data-goto="cuadre">⚖️ Cuadrar con mis apps del banco</button>`;
+  { const sb=$("#dnSobr",el); if(sb) sb.onclick=()=>moverAInversion("CTA:"+((S.d.cuentas.find(k=>k.Tipo==="Efectivo")||{}).Cuenta||"Efectivo"), sobr); }
   $$("[data-goto]",el).forEach(x=>x.onclick=()=>openSub(x.dataset.goto));
 }
 
@@ -3607,7 +3611,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.25-64";
+const APP_BUILD="2026.11.25-65";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
