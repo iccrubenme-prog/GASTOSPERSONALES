@@ -565,6 +565,7 @@ details.mas .f{margin-top:6px}
 .iv-sub .iv-acts button{background:var(--surface)}
 .iv-sub .iv-chip{background:var(--surface)}
 .iv-submore{display:none;flex-direction:column;gap:8px}
+.plz-k{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px} .plz-k>div{background:var(--bg);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:1px;min-width:0} .plz-k small{color:var(--muted);font-size:11px} .plz-k b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .plz-k .small{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .plz{padding:12px 0;border-top:1px solid var(--line)} .plz:first-of-type{border-top:0} .plz-h{padding:8px 0;border-top:1px dashed var(--line)}
 .iv-sub.open .iv-submore{display:flex}
 .iv-card.open .iv-sub .iv-hint i{transform:none}.iv-card.open .iv-sub.open .iv-hint i{transform:rotate(180deg)}
@@ -3056,21 +3057,27 @@ function plzTxtVence(p){ const d=plzFaltan(p); return d>1? "Vence "+sDate(p.Fech
 function plzInsOpts(){ return (S.ins||[]).filter(i=>i.Tipo!=="Efectivo").map(i=>i.Instrumento); }
 function plazosCard(){
   const A=plzActivas(), C=plzList().filter(p=>p.Estado==="Cerrada").sort((a,b)=>(a.FechaCierre||"")<(b.FechaCierre||"")?1:-1), si=saldosInversion();
-  const TA=A.reduce((s,p)=>s+p.Monto,0), TE=A.reduce((s,p)=>s+p.RendEsperado,0);
+  const plzGan=p=>Math.round(p.RendEsperado*Math.min(1,Math.max(0,daysBetween(p.FechaInicio,S.hoy)/p.PlazoDias))*100)/100;
+  const TA=A.reduce((s,p)=>s+p.Monto,0), TE=A.reduce((s,p)=>s+p.RendEsperado,0), TG=A.reduce((s,p)=>s+plzGan(p),0);
   const porIns={}; A.forEach(p=>porIns[p.Instrumento]=(porIns[p.Instrumento]||0)+p.Monto);
   const avisoSaldo=Object.entries(porIns).filter(([n,v])=>v>((si[n]||{}).saldo||0)+1).map(([n,v])=>`<div class="small neg" style="margin-top:6px">⚠️ En ${esc(n)} tienes ${mx2(v)} a plazo, pero su saldo en la app es ${mx2((si[n]||{}).saldo||0)}. Registra la aportación o captura su saldo real para que cuadre.</div>`).join("");
   const fila=p=>{ const d=plzFaltan(p), tr=Math.min(1,Math.max(0,daysBetween(p.FechaInicio,S.hoy)/p.PlazoDias)), gan=Math.round(p.RendEsperado*tr*100)/100, cls=d<0?"neg":d<=7?"warn":"muted";
     return `<div class="plz" data-plz="${esc(p.ID)}"><div class="between"><span style="min-width:0"><b>${esc(p.Instrumento)}</b> <span class="iv-tag">${p.Tasa}% · ${p.PlazoDias} d</span></span><b class="priv">${mx2(p.Monto)}</b></div>
       <div class="iv-track" style="height:6px;margin:6px 0"><i style="width:${Math.max(2,tr*100)}%;${d<=7?"background:"+(d<0?"var(--neg)":"#e0a100"):""}"></i></div>
       <div class="between small"><span class="${cls}" style="font-weight:${d<=7?700:400}">${d<=7?"⏰ ":""}${plzTxtVence(p)}</span><span class="pos priv">+${mx2(p.RendEsperado)}</span></div>
-      <div class="between small muted"><span>Desde ${sDate(p.FechaInicio)} ${p.FechaInicio.slice(0,4)} · ganado a la fecha ≈ <span class="priv">${mx2(gan)}</span></span></div>
+      <div class="between small muted"><span>Desde ${sDate(p.FechaInicio)} ${p.FechaInicio.slice(0,4)}</span></div>
+      <div class="plz-k priv"><div><small>Hoy vale</small><b>${mx2(p.Monto+gan)}</b><span class="small muted">+${mx(gan)} ganado</span></div>
+        <div><small>Al vencer</small><b>${mx2(p.Monto+p.RendEsperado)}</b><span class="small muted">+${mx(p.RendEsperado)} a ganar</span></div>
+        <div><small>Llevas</small><b class="pos">${p.RendEsperado? (gan/p.RendEsperado*100).toFixed(1) : "0.0"}%</b><span class="small muted">del rendimiento</span></div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px"><button class="btn sm ${d<=7?"primary":""}" data-plzcerrar="${esc(p.ID)}">${d<=0?"✅ Venció: registrar y reinvertir":"🏁 Registrar vencimiento"}</button><button class="btn sm" data-plzed="${esc(p.ID)}">✏️ Editar</button></div></div>`; };
   const hist=p=>{ const rr=p.RendReal===""||p.RendReal==null? null : +p.RendReal, tr=rr==null? null : plzTasa(p.Monto,rr,p.PlazoDias), df=rr==null?0:rr-p.RendEsperado;
     return `<div class="plz-h"><div class="between"><span><b>${esc(p.Instrumento)}</b> <span class="small muted">${sDate(p.FechaInicio)} ${p.FechaInicio.slice(2,4)} → ${sDate(p.FechaCierre||p.FechaVence)} ${(p.FechaCierre||p.FechaVence).slice(2,4)} · ${p.PlazoDias} d</span></span><b class="priv">${mx2(p.Monto)}</b></div>
       <div class="between small priv"><span class="muted">Esperado ${mx2(p.RendEsperado)} (${p.Tasa}%)</span><span>Real <b class="pos">${rr==null?"—":mx2(rr)}</b>${tr==null?"":" ("+tr.toFixed(2)+"%)"}</span></div>
       ${rr==null?"":`<div class="small ${df>=0?"pos":"neg"}" style="text-align:right">${df>=0?"▲ +":"▼ −"}${mx2(Math.abs(df))} vs esperado</div>`}</div>`; };
   return `<div class="card"><div class="between"><h2>⏳ Inversiones a plazo</h2>${A.length?`<span class="small muted">${A.length}</span>`:""}</div>
-    ${A.length? `<div class="between small priv"><span class="muted">A plazo ${mx2(TA)}</span><span class="pos">Rendimiento esperado +${mx2(TE)}</span></div>${avisoSaldo}${A.map(fila).join("")}`
+    ${A.length? `<div class="plz-k priv" style="margin-top:4px"><div><small>Invertido</small><b>${mx2(TA)}</b><span class="small pos">+${mx(TE)} a ganar</span></div>
+        <div><small>Hoy vale</small><b>${mx2(TA+TG)}</b><span class="small pos">+${mx(TG)} ganado</span></div>
+        <div><small>Al vencer</small><b>${mx2(TA+TE)}</b><span class="small muted">llevas ${TE? (TG/TE*100).toFixed(1):"0.0"}%</span></div></div>${avisoSaldo}${A.map(fila).join("")}`
       : `<div class="small muted">Registra aquí tus inversiones a plazo fijo para saber cuándo vencen, cuánto esperas ganar y cuánto te dieron en realidad. El dinero sigue contando en el saldo de su inversión.</div>`}
     <button class="btn" id="plzNueva" style="width:100%;margin-top:10px;border:1.5px dashed var(--primary);background:var(--primary-soft);color:var(--primary);font-weight:800">➕ Nueva inversión a plazo</button>
     ${C.length? `<details style="margin-top:10px"><summary class="small" style="cursor:pointer;font-weight:700">📜 Historial: esperado vs real (${C.length})</summary>${C.slice(0,40).map(hist).join("")}</details>`:""}</div>`;
@@ -3098,7 +3105,7 @@ function plzEnlazar(pk, pre, fIni){
   g("T").oninput=()=>{ ult="T"; desdeT(); }; g("R").oninput=()=>{ ult="R"; desdeR(); };
   g("M").oninput=g("D").oninput=()=>{ ult==="T"? desdeT() : desdeR(); };
   $$(`[data-${pre}d]`,pk).forEach(b=>b.onclick=()=>{ g("D").value=b.dataset[pre+"d"]; ult==="T"? desdeT() : desdeR(); });
-  moneyInput(g("M")); info();
+  ["M","R"].forEach(k=>{ moneyInput(g(k)); g(k).value=g(k).value; }); info();
   return ()=>({Monto:num("M"),PlazoDias:Math.round(num("D")),Tasa:num("T"),RendEsperado:num("R")});
 }
 function plzForm(p){
@@ -3146,7 +3153,7 @@ function plzCerrar(p){
     <div class="small neg" id="pcE"></div>
     <button type="button" class="btn primary" id="pcOk" style="width:100%;margin-top:8px">Guardar</button>`, ()=>{}, null);
   const pk=$("#pk"), g=k=>$("#pc"+k,pk), num=el=>parseFloat(String(el.value).replace(/[^0-9.]/g,""))||0;
-  const leerRe=plzEnlazar(pk,"pr",()=>g("F").value);
+  const leerRe=plzEnlazar(pk,"pr",()=>g("F").value); moneyInput(g("R")); g("R").value=g("R").value;
   const info=()=>{ const rr=num(g("R")), df=rr-p.RendEsperado; g("X").innerHTML= rr? `Capital + rendimiento = <b>${mx2(p.Monto+rr)}</b> · <span class="${df>=0?"pos":"neg"}">${df>=0?"+":"−"}${mx2(Math.abs(df))} vs esperado</span>` : ""; };
   const syncRe=()=>{ const m=$("#prM",pk); if(!m.dataset.tocado){ m.value=Math.round((p.Monto+num(g("R")))*100)/100; $("#prM",pk).oninput(); } };
   $("#prM",pk).addEventListener("input",e=>{ if(e.isTrusted) $("#prM",pk).dataset.tocado="1"; });
@@ -3600,7 +3607,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.25-63";
+const APP_BUILD="2026.11.25-64";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
