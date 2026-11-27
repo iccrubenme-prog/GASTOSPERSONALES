@@ -1285,7 +1285,11 @@ function saldosInversion(){
       if(esEG && gastoDeGuardado(m)){ if(m.Fecha<desde||(m.Fecha===desde&&!incluyeDia)) return; s-=m.Monto; flujo-=m.Monto; return; }
       const dir=m.Tipo==="Ingreso"&&esInvDirecto(m); if((m.Tipo!=="Inversión"&&!dir)||m.Instrumento!==i.Instrumento||m.Fecha<desde||(m.Fecha===desde&&!incluyeDia)) return;
       if(m.Tipo==="Inversión"&&/Automático por ingreso/.test(m.Nota||"")) return; const v=m.MovInversion==="Retiro"?-m.Monto:m.Monto; s+=v; flujo+=v; });
-    out[i.Instrumento]={i, saldo:s, foto:last, flujo, snaps};
+    // inversiones a plazo activas: el rendimiento neto (sin ISR) se va sumando día con día; si hay saldo real capturado, solo lo posterior
+    let dev=0; (S.d.plazos||[]).forEach(p=>{ if(p.Estado==="Cerrada"||p.Instrumento!==i.Instrumento||!p.FechaInicio) return; const q=Object.assign({},p,{Monto:+p.Monto||0,PlazoDias:+p.PlazoDias||0,RendEsperado:+p.RendEsperado||0});
+      dev+= plzDev(q,S.hoy) - (last&&last.Fecha>q.FechaInicio? plzDev(q,last.Fecha) : 0); });
+    dev=Math.round(dev*100)/100; s+=dev;
+    out[i.Instrumento]={i, saldo:s, foto:last, flujo, snaps, dev};
   }
   return out;
 }
@@ -2757,13 +2761,13 @@ function insAcciones(ins){
   // Movimientos del instrumento: inversiones registradas + ingresos que entraron directo a él (ahorro de catorcena, El Tenate, extras…)
   const r=saldosInversion()[ins]||{saldo:0};
   const L=S.movs.filter(m=>m.Instrumento===ins && ((m.Tipo==="Inversión" && !/Automático por ingreso/i.test(m.Nota||"")) || (m.Tipo==="Ingreso" && esInvDirecto(m)) || (m.Tipo==="Pago tarjeta"&&!m.Cuenta)))
-    .map(m=>m.Tipo==="Ingreso"? Object.assign(Object.create(m),{MovInversion:"Aportación", _et: m.Fuente===NOMINA? "Ahorro de catorcena" : "Ingreso directo · "+(m.Fuente||"")}) : m.Tipo==="Pago tarjeta"? Object.assign(Object.create(m),{MovInversion:"Retiro", _et:"Pago a "+m.CuentaDestino}) : m)
+    .map(m=>m.Tipo==="Ingreso"? Object.assign(Object.create(m),{MovInversion:"Aportación", _et: esPresInv(m)? "Presupuesto guardado para tarjetas" : m.Fuente===NOMINA? "Ahorro de catorcena" : "Ingreso directo · "+(m.Fuente||""), _pres:esPresInv(m)}) : m.Tipo==="Pago tarjeta"? Object.assign(Object.create(m),{MovInversion:"Retiro", _et:"Pago a "+m.CuentaDestino}) : m)
     .sort((a,b)=>a.Fecha<b.Fecha?1:-1);
   // Solo consulta: las acciones (aportar, rendimiento, retirar) viven en "Opciones" de cada tarjeta
   const y=S.hoy.slice(0,4), LY=L.filter(m=>m.Fecha.startsWith(y)), tot=t=>sum(LY.filter(m=>m.MovInversion===t));
   ddSheet(ins, false, ()=>`<div class="small muted" style="margin:-4px 2px 10px">Saldo <b class="priv">${mx2(r.saldo)}</b> · toca un movimiento para verlo o corregirlo</div>
     <div class="pk-g">En ${y}</div><div class="iv-kpis priv" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 0 6px">${[["⬆️ Aportado",tot("Aportación")],["✨ Ganado",tot("Rendimiento")],["⬇️ Retirado",tot("Retiro")]].map(([l,v])=>`<div style="background:var(--bg);border-radius:12px;padding:8px;min-width:0"><small style="color:var(--muted);font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l}</small><b style="font-size:14px;white-space:nowrap">${mx(v)}</b></div>`).join("")}</div>
-    ${L.length? `<div class="pk-g">Últimos movimientos</div><div class="list">${L.slice(0,20).map(m=>`<button type="button" class="ig-row" data-v="mov:${esc(m.ID)}"><span class="dd-ic" style="--ic-bg:${ddBg(m.MovInversion)}">${m.MovInversion==="Retiro"?"⬇️":m.MovInversion==="Rendimiento"?"✨":"⬆️"}</span><span class="grow" style="flex:1;min-width:0"><div class="t">${esc(m._et||m.MovInversion)}</div><div class="s">${sDate(m.Fecha)} ${m.Fecha.slice(0,4)}${m._et? " · aportación" : m.Cuenta? " · desde "+esc(m.Cuenta):""}</div></span><span class="amt ${m.MovInversion==="Retiro"?"neg":"pos"} priv">${m.MovInversion==="Retiro"?"−":"+"}${mx2(m.Monto)}</span></button>`).join("")}</div>`:`<div class="empty">Aún no hay movimientos de este instrumento. Regístralos desde <b>Opciones</b> en su tarjeta.</div>`}`,
+    ${L.length? `<div class="pk-g">Últimos movimientos</div><div class="list">${L.slice(0,20).map(m=>`<button type="button" class="ig-row" data-v="mov:${esc(m.ID)}"><span class="dd-ic" style="--ic-bg:${ddBg(m.MovInversion)}">${m._pres?"🛒":m.MovInversion==="Retiro"?"⬇️":m.MovInversion==="Rendimiento"?"✨":"⬆️"}</span><span class="grow" style="flex:1;min-width:0"><div class="t">${esc(m._et||m.MovInversion)}</div><div class="s">${sDate(m.Fecha)} ${m.Fecha.slice(0,4)}${m._pres? " · de tu nómina · no es ahorro" : m._et? " · aportación" : m.Cuenta? " · desde "+esc(m.Cuenta):""}</div></span><span class="amt ${m.MovInversion==="Retiro"?"neg":"pos"} priv">${m.MovInversion==="Retiro"?"−":"+"}${mx2(m.Monto)}</span></button>`).join("")}</div>`:`<div class="empty">Aún no hay movimientos de este instrumento. Regístralos desde <b>Opciones</b> en su tarjeta.</div>`}`,
     v=>{ if(v.startsWith("mov:")){ const m=S.movs.find(x=>x.ID===v.slice(4)); if(m) setTimeout(()=>openForm(m),250); } }, null);
 }
 function esGastoEf(m){ return m.Tipo==="Gasto"&&!pagoVales(m); }
@@ -3088,36 +3092,47 @@ function plzList(){ return (S.d.plazos||[]).map(p=>Object.assign(p,{Monto:+p.Mon
 function plzRend(m,t,d){ return Math.round((+m||0)*(+t||0)/100*(+d||0)/PLZ_ANIO*100)/100; }
 function plzTasa(m,r,d){ return (+m)&&(+d)? Math.round((+r||0)/(+m)*PLZ_ANIO/(+d)*100*100)/100 : 0; }
 function plzVence(f,d){ if(!f||!(+d)) return ""; const [y,m,dd]=f.split("-").map(Number); return new Date(Date.UTC(y,m-1,dd+(+d))).toISOString().slice(0,10); }
+// Retención de ISR: % anual sobre el capital (la SOFIPO la descuenta del rendimiento). Se calibra con tu último vencimiento real.
+const ISR_ANIO={2024:1.48,2025:0.50,2026:0.90,2027:0.90};
+function isrImplicita(p,real){ return p.Monto&&p.PlazoDias? Math.round(Math.max(0,(+p.RendEsperado||0)-(+real||0))/p.Monto*365/p.PlazoDias*100*10000)/10000 : 0; }
+function isrDefault(){ const C=plzList().filter(p=>p.Estado==="Cerrada"&&p.RendReal!==""&&p.RendReal!=null&&p.Monto&&p.PlazoDias&&(p.RetISR===""||p.RetISR==null)).sort((a,b)=>(a.FechaCierre||"")<(b.FechaCierre||"")?1:-1)[0];
+  if(C){ const r=isrImplicita(C,C.RendReal); if(r>0&&r<5) return r; }
+  const L=plzList().filter(p=>p.RetISR!==""&&p.RetISR!=null).sort((a,b)=>(a.FechaInicio||"")<(b.FechaInicio||"")?1:-1)[0]; if(L) return +L.RetISR;
+  return ISR_ANIO[+S.hoy.slice(0,4)]||0.9; }
+function plzISR(p){ return p.RetISR!==""&&p.RetISR!=null&&!isNaN(+p.RetISR)? +p.RetISR : isrDefault(); }
+function plzRet(p){ return Math.round((+p.Monto||0)*plzISR(p)/100*(+p.PlazoDias||0)/365*100)/100; }
+function plzNeto(p){ return Math.round(((+p.RendEsperado||0)-plzRet(p))*100)/100; }
+function plzDev(p,hasta){ const f=Math.min(1,Math.max(0,daysBetween(p.FechaInicio,hasta)/(p.PlazoDias||1))); return Math.round(plzNeto(p)*f*100)/100; }
 function plzActivas(){ return plzList().filter(p=>p.Estado!=="Cerrada").sort((a,b)=>(a.FechaVence||"")<(b.FechaVence||"")?-1:1); }
 function plzFaltan(p){ return daysBetween(S.hoy,p.FechaVence); }
 function plzTxtVence(p){ const d=plzFaltan(p); return d>1? "Vence "+sDate(p.FechaVence)+" "+p.FechaVence.slice(0,4)+" · faltan "+d+" días" : d===1? "Vence mañana" : d===0? "Vence hoy" : "Venció hace "+(-d)+" día"+(d===-1?"":"s"); }
 function plzInsOpts(){ return (S.ins||[]).filter(i=>i.Tipo!=="Efectivo").map(i=>i.Instrumento); }
 function plazosCard(){
   const A=plzActivas(), C=plzList().filter(p=>p.Estado==="Cerrada").sort((a,b)=>(a.FechaCierre||"")<(b.FechaCierre||"")?1:-1), si=saldosInversion();
-  const plzGan=p=>Math.round(p.RendEsperado*Math.min(1,Math.max(0,daysBetween(p.FechaInicio,S.hoy)/p.PlazoDias))*100)/100;
-  const TA=A.reduce((s,p)=>s+p.Monto,0), TE=A.reduce((s,p)=>s+p.RendEsperado,0), TG=A.reduce((s,p)=>s+plzGan(p),0);
+  const TA=A.reduce((s,p)=>s+p.Monto,0), TE=A.reduce((s,p)=>s+plzNeto(p),0), TG=A.reduce((s,p)=>s+plzDev(p,S.hoy),0);
   const porIns={}; A.forEach(p=>porIns[p.Instrumento]=(porIns[p.Instrumento]||0)+p.Monto);
   const avisoSaldo=Object.entries(porIns).filter(([n,v])=>v>((si[n]||{}).saldo||0)+1).map(([n,v])=>`<div class="small neg" style="margin-top:6px">⚠️ En ${esc(n)} tienes ${mx2(v)} a plazo, pero su saldo en la app es ${mx2((si[n]||{}).saldo||0)}. Registra la aportación o captura su saldo real para que cuadre.</div>`).join("");
-  const fila=p=>{ const d=plzFaltan(p), tr=Math.min(1,Math.max(0,daysBetween(p.FechaInicio,S.hoy)/p.PlazoDias)), gan=Math.round(p.RendEsperado*tr*100)/100, cls=d<0?"neg":d<=7?"warn":"muted";
+  const fila=p=>{ const d=plzFaltan(p), tr=Math.min(1,Math.max(0,daysBetween(p.FechaInicio,S.hoy)/p.PlazoDias)), gan=plzDev(p,S.hoy), net=plzNeto(p), ret=plzRet(p), cls=d<0?"neg":d<=7?"warn":"muted";
     return `<div class="plz" data-plz="${esc(p.ID)}"><div class="between"><span style="min-width:0"><b>${esc(p.Instrumento)}</b> <span class="iv-tag">${p.Tasa}% · ${p.PlazoDias} d</span></span><b class="priv">${mx2(p.Monto)}</b></div>
       <div class="iv-track" style="height:6px;margin:6px 0"><i style="width:${Math.max(2,tr*100)}%;${d<=7?"background:"+(d<0?"var(--neg)":"#e0a100"):""}"></i></div>
-      <div class="between small"><span class="${cls}" style="font-weight:${d<=7?700:400}">${d<=7?"⏰ ":""}${plzTxtVence(p)}</span><span class="pos priv">+${mx2(p.RendEsperado)}</span></div>
-      <div class="between small muted"><span>Desde ${sDate(p.FechaInicio)} ${p.FechaInicio.slice(0,4)}</span></div>
-      <div class="plz-k priv"><div><small>Hoy vale</small><b>${mx2(p.Monto+gan)}</b><span class="small muted">+${mx(gan)} ganado</span></div>
-        <div><small>Al vencer</small><b>${mx2(p.Monto+p.RendEsperado)}</b><span class="small muted">+${mx(p.RendEsperado)} a ganar</span></div>
-        <div><small>Llevas</small><b class="pos">${p.RendEsperado? (gan/p.RendEsperado*100).toFixed(1) : "0.0"}%</b><span class="small muted">del rendimiento</span></div></div>
+      <div class="between small"><span class="${cls}" style="font-weight:${d<=7?700:400}">${d<=7?"⏰ ":""}${plzTxtVence(p)}</span><span class="pos priv">+${mx2(net)} neto</span></div>
+      <div class="between small muted"><span>Desde ${sDate(p.FechaInicio)} ${p.FechaInicio.slice(0,4)} · bruto ${mx2(p.RendEsperado)} − ISR ${mx2(ret)} (${plzISR(p)}%)</span></div>
+      <div class="plz-k priv"><div><small>Hoy vale</small><b>${mx2(p.Monto+gan)}</b><span class="small pos">+${mx2(gan)} real</span></div>
+        <div><small>Al vencer</small><b>${mx2(p.Monto+net)}</b><span class="small muted">+${mx(net)} neto</span></div>
+        <div><small>Llevas</small><b class="pos">${net? (gan/net*100).toFixed(1) : "0.0"}%</b><span class="small muted">del rendimiento</span></div></div>
+      <div class="small muted" style="margin-top:6px">✨ El rendimiento real (ya sin ISR) se suma solo, día con día, al saldo de ${esc(p.Instrumento)}.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px"><button class="btn sm ${d<=7?"primary":""}" data-plzcerrar="${esc(p.ID)}">${d<=0?"✅ Venció: registrar y reinvertir":"🏁 Registrar vencimiento"}</button><button class="btn sm" data-plzed="${esc(p.ID)}">✏️ Editar</button></div></div>`; };
-  const hist=p=>{ const rr=p.RendReal===""||p.RendReal==null? null : +p.RendReal, tr=rr==null? null : plzTasa(p.Monto,rr,p.PlazoDias), df=rr==null?0:rr-p.RendEsperado;
+  const hist=p=>{ const rr=p.RendReal===""||p.RendReal==null? null : +p.RendReal, tr=rr==null? null : plzTasa(p.Monto,rr,p.PlazoDias), net=plzNeto(p), df=rr==null?0:rr-net, isr=rr==null? null : isrImplicita(p,rr);
     return `<div class="plz-h"><div class="between"><span><b>${esc(p.Instrumento)}</b> <span class="small muted">${sDate(p.FechaInicio)} ${p.FechaInicio.slice(2,4)} → ${sDate(p.FechaCierre||p.FechaVence)} ${(p.FechaCierre||p.FechaVence).slice(2,4)} · ${p.PlazoDias} d</span></span><b class="priv">${mx2(p.Monto)}</b></div>
-      <div class="between small priv"><span class="muted">Esperado ${mx2(p.RendEsperado)} (${p.Tasa}%)</span><span>Real <b class="pos">${rr==null?"—":mx2(rr)}</b>${tr==null?"":" ("+tr.toFixed(2)+"%)"}</span></div>
-      ${rr==null?"":`<div class="small ${df>=0?"pos":"neg"}" style="text-align:right">${df>=0?"▲ +":"▼ −"}${mx2(Math.abs(df))} vs esperado</div>`}</div>`; };
+      <div class="between small priv"><span class="muted">Bruto ${mx2(p.RendEsperado)} (${p.Tasa}%)</span><span>Real <b class="pos">${rr==null?"—":mx2(rr)}</b>${tr==null?"":" ("+tr.toFixed(2)+"%)"}</span></div>
+      ${rr==null?"":`<div class="between small priv"><span class="muted">ISR retenido ${mx2(Math.max(0,p.RendEsperado-rr))} (${isr}% anual)</span><span class="${Math.abs(df)<0.5?"muted":df>=0?"pos":"neg"}">${Math.abs(df)<0.5? "= neto esperado" : (df>=0?"▲ +":"▼ −")+mx2(Math.abs(df))+" vs neto"}</span></div>`}</div>`; };
   return `<div class="card"><div class="between"><h2>⏳ Inversiones a plazo</h2>${A.length?`<span class="small muted">${A.length}</span>`:""}</div>
-    ${A.length? `<div class="plz-k priv" style="margin-top:4px"><div><small>Invertido</small><b>${mx2(TA)}</b><span class="small pos">+${mx(TE)} a ganar</span></div>
-        <div><small>Hoy vale</small><b>${mx2(TA+TG)}</b><span class="small pos">+${mx(TG)} ganado</span></div>
+    ${A.length? `<div class="plz-k priv" style="margin-top:4px"><div><small>Invertido</small><b>${mx2(TA)}</b><span class="small pos">+${mx(TE)} neto</span></div>
+        <div><small>Hoy vale</small><b>${mx2(TA+TG)}</b><span class="small pos">+${mx2(TG)} real</span></div>
         <div><small>Al vencer</small><b>${mx2(TA+TE)}</b><span class="small muted">llevas ${TE? (TG/TE*100).toFixed(1):"0.0"}%</span></div></div>${avisoSaldo}${A.map(fila).join("")}`
       : `<div class="small muted">Registra aquí tus inversiones a plazo fijo para saber cuándo vencen, cuánto esperas ganar y cuánto te dieron en realidad. El dinero sigue contando en el saldo de su inversión.</div>`}
     <button class="btn" id="plzNueva" style="width:100%;margin-top:10px;border:1.5px dashed var(--primary);background:var(--primary-soft);color:var(--primary);font-weight:800">➕ Nueva inversión a plazo</button>
-    ${C.length? `<details style="margin-top:10px"><summary class="small" style="cursor:pointer;font-weight:700">📜 Historial: esperado vs real (${C.length})</summary>${C.slice(0,40).map(hist).join("")}</details>`:""}</div>`;
+    ${C.length? `<details style="margin-top:10px"><summary class="small" style="cursor:pointer;font-weight:700">📜 Historial: bruto, ISR y real (${C.length})</summary>${C.slice(0,40).map(hist).join("")}</details>`:""}</div>`;
 }
 function bindPlazos(el){
   const n=$("#plzNueva",el); if(n) n.onclick=()=>plzForm(null);
@@ -3132,18 +3147,21 @@ function plzCampos(pre, v){ return `
   <div class="chips" style="flex-wrap:wrap;margin:-4px 0 8px">${[28,90,180,360].map(d=>`<button type="button" class="chip" data-${pre}d="${d}">${d} días</button>`).join("")}</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
     <div class="f"><label>Tasa anual %</label><input id="${pre}T" inputmode="decimal" value="${v.Tasa||""}"></div>
-    <div class="f"><label>Rendimiento esperado $</label><input id="${pre}R" inputmode="decimal" value="${v.RendEsperado||""}"></div></div>
-  <div class="small muted" id="${pre}X"></div>`; }
+    <div class="f"><label>Rendimiento bruto $</label><input id="${pre}R" inputmode="decimal" value="${v.RendEsperado||""}"></div></div>
+  <div class="f" style="margin-top:10px"><label>Retención ISR % anual (sobre el capital)</label><input id="${pre}Q" inputmode="decimal" value="${v.RetISR!==""&&v.RetISR!=null? v.RetISR : isrDefault()}"></div>
+  <div class="small" id="${pre}X"></div>`; }
 function plzEnlazar(pk, pre, fIni){
   const g=k=>$("#"+pre+k,pk), num=k=>parseFloat(String(g(k).value).replace(/[^0-9.]/g,""))||0; let ult="T";
-  const info=()=>{ const f=fIni(), d=num("D"); g("X").textContent= f&&d? "Vence el "+sDate(plzVence(f,d))+" "+plzVence(f,d).slice(0,4)+" · calculado con año de "+PLZ_ANIO+" días" : ""; };
+  const info=()=>{ const f=fIni(), d=num("D"), x={Monto:num("M"),PlazoDias:d,RendEsperado:num("R"),RetISR:num("Q")}, ret=plzRet(x), net=plzNeto(x);
+    g("X").innerHTML= (num("R")? `Neto esperado <b class="pos">${mx2(net)}</b> = bruto ${mx2(x.RendEsperado)} − ISR ${mx2(ret)}<br>` : "")+(f&&d? "<span class=\"muted\">Vence el "+sDate(plzVence(f,d))+" "+plzVence(f,d).slice(0,4)+" · tasa con año de "+PLZ_ANIO+" días, ISR con 365</span>" : ""); };
   const desdeT=()=>{ g("R").value= num("M")&&num("D")&&num("T")? plzRend(num("M"),num("T"),num("D")) : ""; info(); };
   const desdeR=()=>{ g("T").value= num("M")&&num("D")&&num("R")? plzTasa(num("M"),num("R"),num("D")) : ""; info(); };
   g("T").oninput=()=>{ ult="T"; desdeT(); }; g("R").oninput=()=>{ ult="R"; desdeR(); };
   g("M").oninput=g("D").oninput=()=>{ ult==="T"? desdeT() : desdeR(); };
+  g("Q").oninput=info;
   $$(`[data-${pre}d]`,pk).forEach(b=>b.onclick=()=>{ g("D").value=b.dataset[pre+"d"]; ult==="T"? desdeT() : desdeR(); });
   ["M","R"].forEach(k=>{ moneyInput(g(k)); g(k).value=g(k).value; }); info();
-  return ()=>({Monto:num("M"),PlazoDias:Math.round(num("D")),Tasa:num("T"),RendEsperado:num("R")});
+  return ()=>({Monto:num("M"),PlazoDias:Math.round(num("D")),Tasa:num("T"),RendEsperado:num("R"),RetISR:num("Q")});
 }
 function plzForm(p){
   const ins=plzInsOpts(), st={i:(p&&p.Instrumento)||ins[0]||""};
@@ -3178,20 +3196,22 @@ function plzGuardar(L){ // guarda en orden; devuelve los IDs
 function plzCerrar(p){
   const fc0= p.FechaVence&&p.FechaVence<=S.hoy? p.FechaVence : S.hoy;
   ddSheet("Venció "+p.Instrumento, false, ()=>`
-    <div class="small muted">${mx2(p.Monto)} a ${p.PlazoDias} días al ${p.Tasa}% · desde ${sDate(p.FechaInicio)} ${p.FechaInicio.slice(0,4)}<br>Esperabas <b class="pos">+${mx2(p.RendEsperado)}</b></div>
+    <div class="small muted">${mx2(p.Monto)} a ${p.PlazoDias} días al ${p.Tasa}% · desde ${sDate(p.FechaInicio)} ${p.FechaInicio.slice(0,4)}<br>Bruto ${mx2(p.RendEsperado)} − ISR ${mx2(plzRet(p))} = esperabas <b class="pos">+${mx2(plzNeto(p))}</b> neto</div>
     <div class="f" style="margin-top:10px"><label>Fecha en que venció</label><input id="pcF" type="date" value="${fc0}"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div class="f"><label>Rendimiento real $</label><input id="pcR" inputmode="decimal" value="${p.RendEsperado||""}"></div>
-      <div class="f"><label>Tasa real %</label><input id="pcT" inputmode="decimal" value="${p.Tasa||""}"></div></div>
+      <div class="f"><label>Rendimiento real $ (lo que te pagaron)</label><input id="pcR" inputmode="decimal" value="${plzNeto(p)||""}"></div>
+      <div class="f"><label>Tasa real % (neta)</label><input id="pcT" inputmode="decimal" value="${plzTasa(p.Monto,plzNeto(p),p.PlazoDias)||""}"></div></div>
     <div class="small" id="pcX"></div>
     <label class="chk" style="display:flex;gap:8px;align-items:flex-start;margin-top:8px"><input type="checkbox" id="pcMov" checked><span><b>Sumar el rendimiento al saldo de ${esc(p.Instrumento)}</b><div class="small muted">Registra un movimiento ✨ Rendimiento. Quítalo solo si ya lo registraste o capturaste el saldo real con él.</div></span></label>
     <label class="chk" style="display:flex;gap:8px;align-items:flex-start;margin-top:8px"><input type="checkbox" id="pcRe" checked><span><b>Lo vuelvo a invertir a plazo</b></span></label>
-    <div id="pcReW" style="border-left:3px solid var(--primary);padding-left:10px;margin-top:6px">${plzCampos("pr", {Monto:Math.round((p.Monto+p.RendEsperado)*100)/100, PlazoDias:p.PlazoDias})}</div>
+    <div id="pcReW" style="border-left:3px solid var(--primary);padding-left:10px;margin-top:6px">${plzCampos("pr", {Monto:Math.round((p.Monto+plzNeto(p))*100)/100, PlazoDias:p.PlazoDias, RetISR:plzISR(p)})}</div>
     <div class="small neg" id="pcE"></div>
     <button type="button" class="btn primary" id="pcOk" style="width:100%;margin-top:8px">Guardar</button>`, ()=>{}, null);
   const pk=$("#pk"), g=k=>$("#pc"+k,pk), num=el=>parseFloat(String(el.value).replace(/[^0-9.]/g,""))||0;
   const leerRe=plzEnlazar(pk,"pr",()=>g("F").value); moneyInput(g("R")); g("R").value=g("R").value;
-  const info=()=>{ const rr=num(g("R")), df=rr-p.RendEsperado; g("X").innerHTML= rr? `Capital + rendimiento = <b>${mx2(p.Monto+rr)}</b> · <span class="${df>=0?"pos":"neg"}">${df>=0?"+":"−"}${mx2(Math.abs(df))} vs esperado</span>` : ""; };
+  const info=()=>{ const rr=num(g("R")), df=rr-plzNeto(p), isr=isrImplicita(p,rr); g("X").innerHTML= rr? `Capital + rendimiento = <b>${mx2(p.Monto+rr)}</b> · <span class="${Math.abs(df)<0.5?"muted":df>=0?"pos":"neg"}">${Math.abs(df)<0.5?"igual al neto esperado":(df>=0?"+":"−")+mx2(Math.abs(df))+" vs neto esperado"}</span><br><span class="muted">ISR que te retuvieron: ${mx2(Math.max(0,p.RendEsperado-rr))} (≈ ${isr}% anual sobre el capital). Se usará para tus siguientes inversiones.</span>` : "";
+    const pi=$("#prQ",pk); if(pi&&!pi.dataset.tocado&&isr>0&&isr<5){ pi.value=isr; pi.oninput(); } };
+  $("#prQ",pk).addEventListener("input",e=>{ if(e.isTrusted) $("#prQ",pk).dataset.tocado="1"; });
   const syncRe=()=>{ const m=$("#prM",pk); if(!m.dataset.tocado){ m.value=Math.round((p.Monto+num(g("R")))*100)/100; $("#prM",pk).oninput(); } };
   $("#prM",pk).addEventListener("input",e=>{ if(e.isTrusted) $("#prM",pk).dataset.tocado="1"; });
   g("R").oninput=()=>{ g("T").value= plzTasa(p.Monto,num(g("R")),p.PlazoDias)||""; info(); syncRe(); };
@@ -3206,8 +3226,10 @@ function plzCerrar(p){
     if(g("Re").checked){ const v=leerRe(); if(!(v.Monto>0)||!(v.PlazoDias>0)) return e.textContent="Completa el monto y el plazo de la reinversión.";
       if(!(v.Tasa>0)&&!(v.RendEsperado>0)) return e.textContent="Escribe la tasa o el rendimiento esperado de la reinversión.";
       nueva=Object.assign({},v,{Instrumento:p.Instrumento,FechaInicio:fc,FechaVence:plzVence(fc,v.PlazoDias),Estado:"Activa",Nota:"Reinversión de "+mx2(p.Monto)+" + "+mx2(rr)}); }
-    if(g("Mov").checked && rr>0) guardarMovRapido({ID:uid(),Tipo:"Inversión",Fecha:fc,Monto:rr,MovInversion:"Rendimiento",Instrumento:p.Instrumento,Cuenta:"",CuentaDestino:"",Categoria:"",Subcategoria:"",Fuente:"",Vehiculo:"",Km:"",Litros:"",MesesMSI:"",
-      Descripcion:"Rendimiento plazo "+p.Instrumento,Nota:"Inversión a plazo "+p.ID+" · "+p.PlazoDias+" días al "+p.Tasa+"%"});
+    // lo devengado ya se sumó día con día; si capturaste un saldo real durante el plazo, esa parte ya estaba en tu saldo
+    const fo=(saldosInversion()[p.Instrumento]||{}).foto, devF= fo&&fo.Fecha>p.FechaInicio&&fo.Fecha<fc? plzDev(p,fo.Fecha) : 0, mov=Math.round((rr-devF)*100)/100;
+    if(g("Mov").checked && mov>0) guardarMovRapido({ID:uid(),Tipo:"Inversión",Fecha:fc,Monto:mov,MovInversion:"Rendimiento",Instrumento:p.Instrumento,Cuenta:"",CuentaDestino:"",Categoria:"",Subcategoria:"",Fuente:"",Vehiculo:"",Km:"",Litros:"",MesesMSI:"",
+      Descripcion:"Rendimiento plazo "+p.Instrumento,Nota:"Inversión a plazo "+p.ID+" · "+p.PlazoDias+" días al "+p.Tasa+"% · neto de ISR"+(devF? " · "+mx2(devF)+" ya venían en tu saldo real del "+sDate(fo.Fecha):"")});
     ddClose();
     const fin=nueva? plzGuardar([nueva]).then(ids=>{ cerr.ReinvertidoEn=ids[0]; return plzGuardar([cerr]); }) : plzGuardar([cerr]);
     fin.then(()=>toast(nueva? "Listo: rendimiento registrado y reinversión guardada" : "Listo: inversión cerrada"));
@@ -3457,7 +3479,7 @@ function insForm(nombre){
 }
 
 /* ================= Mejoras: avisos, dinero, cuadre, revisión, recurrentes, deshacer ================= */
-const GS_REQ="2026.11.25";
+const GS_REQ="2026.11.26";
 function gsViejo(){ return S.d && String(S.d.gsVersion||"") < GS_REQ; }
 function toastAct(msg,label,fn,ms){ const t=$("#toast"); t.innerHTML=`<span>${esc(msg)}</span><button class="tb" type="button">${esc(label)}</button>`; t.classList.add("on","act");
   $(".tb",t).onclick=()=>{ t.classList.remove("on","act"); fn(); }; clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on","act"), ms||6000); }
@@ -3661,19 +3683,22 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.26-72";
+const APP_BUILD="2026.11.26-75";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
   return fetch("./index.html?v="+Date.now(),{cache:"no-store"}).then(r=>r.ok? r.text():"").then(t=>{
     const m=t.match(/APP_BUILD="([^"]+)"/); if(!m||m[1]===APP_BUILD) return false;
     const sp=$("#splash"), rb=$("#reentrar"), enEntrar=!sp.classList.contains("hide")&&!sp.classList.contains("out")&&!!rb&&!rb.classList.contains("hide");
-    if(auto||enEntrar){ try{ navigator.serviceWorker&&navigator.serviceWorker.getRegistration().then(r=>r&&r.update()); }catch(e){} setTimeout(()=>location.reload(),150); return true; }
+    if(auto||enEntrar){ try{ sessionStorage.setItem("fc_upd",APP_BUILD+"→"+m[1]); }catch(e){} try{ navigator.serviceWorker&&navigator.serviceWorker.getRegistration().then(r=>r&&r.update()); }catch(e){} setTimeout(()=>location.reload(),150); return true; }
     if(!verAviso){ verAviso=true; toastAct("Hay una versión nueva de la app","Actualizar",()=>location.reload(),15000); }
     return true;
   }).catch(()=>false);
 }
 checarVersion(true);
+// aviso después de una actualización automática (antes se recargaba en silencio y no te enterabas)
+setTimeout(()=>{ let u=""; try{ u=sessionStorage.getItem("fc_upd")||""; sessionStorage.removeItem("fc_upd"); }catch(e){}
+  if(u){ const nuevo=u.split("→")[1]; if(nuevo===APP_BUILD) toast("✅ App actualizada a la versión más reciente"); else toast("⚠️ No se pudo cargar la versión nueva. Cierra la app por completo y vuelve a abrirla."); } },1800);
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") checarVersion(false); });
 setInterval(()=>checarVersion(false),30*60*1000);
 
