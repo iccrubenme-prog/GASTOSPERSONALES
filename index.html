@@ -287,13 +287,49 @@ details.mas .f{margin-top:6px}
 .sp-line{stroke-dasharray:70;stroke-dashoffset:70;animation:spDraw 1.4s .3s ease forwards}
 .sp-dot{animation:spPulse 1.4s 1.2s ease-in-out infinite}
 .sp-title{font-size:30px;font-weight:800;letter-spacing:-.02em;animation:spUp .6s .15s ease both}
-.sp-title span{background:linear-gradient(90deg,#ffd36e,#9fe3c0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sp-title span{background:linear-gradient(90deg,#ffd36e,#9fe3c0,#fff,#ffd36e);-webkit-background-clip:text;background-clip:text;color:transparent}
 .sp-sub{font-size:14px;opacity:.8;margin-top:-6px;animation:spUp .6s .25s ease both}
 .sp-prog{width:240px;height:8px;border-radius:99px;background:rgb(255 255 255 / .16);overflow:hidden;margin-top:14px;animation:spUp .6s .35s ease both}
 .sp-fill{height:100%;width:4%;border-radius:99px;background:linear-gradient(90deg,#9fe3c0,#ffd36e);position:relative;transition:width .5s ease}
 .sp-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgb(255 255 255 / .6),transparent);animation:spShine 1.1s linear infinite}
 .sp-tip{font-size:12.5px;opacity:.7;max-width:280px;text-align:center;min-height:2.6em;transition:opacity .4s}
 #splash.listo .sp-prog,#splash.listo .sp-tip{display:none}
+/* ===== intro animada (≈3 s) ===== */
+.sp-stage{position:relative;width:210px;height:210px}
+.sp-glow{position:absolute;inset:-30px;border-radius:50%;background:radial-gradient(circle,rgb(255 211 110 / .35),transparent 62%);opacity:0;animation:spGlow 1.2s 1.3s ease-out forwards, spBreath 2.6s 2.5s ease-in-out infinite}
+.sp-logo2{position:relative;overflow:visible;filter:drop-shadow(0 12px 30px rgb(0 0 0 / .4))}
+.sp-ring{transform-origin:110px 110px;animation:spSpin 12s linear infinite, spFade .8s ease both}
+.sp-b{transform-box:fill-box;transform-origin:bottom;transform:scaleY(0);animation:spRise .7s cubic-bezier(.2,1.4,.4,1) forwards}
+.sp-b.b1{animation-delay:.25s}.sp-b.b2{animation-delay:.42s}.sp-b.b3{animation-delay:.59s}
+.sp-base{transform-box:fill-box;transform-origin:left;transform:scaleX(0);animation:spBase .5s .1s ease-out forwards}
+.sp-trend{stroke-dasharray:140;stroke-dashoffset:140;animation:spDraw .8s .85s ease-in-out forwards}
+.sp-coin{transform-box:fill-box;transform-origin:center;opacity:0;animation:spCoinIn 1s 1.15s cubic-bezier(.2,1.2,.3,1) forwards, spCoinFloat 2.6s 2.4s ease-in-out infinite}
+.sp-shine{animation:spSweep 1.1s 1.9s ease-in-out, spSweep 1.1s 4.4s ease-in-out}
+.sp-spark circle{transform-box:fill-box;transform-origin:center;opacity:0;animation:spPop .9s 1.85s ease-out forwards}
+.sp-spark circle:nth-child(2n){animation-delay:1.95s}
+.sp-coins{position:absolute;inset:0;pointer-events:none}
+.sp-coins i{position:absolute;top:-10px;font-style:normal;font-weight:900;font-size:16px;color:#ffd36e;opacity:0;animation:spRain 2.2s ease-in forwards}
+.sp-coins i:nth-child(1){left:8%;animation-delay:2.0s}.sp-coins i:nth-child(2){left:28%;animation-delay:2.25s;font-size:12px}
+.sp-coins i:nth-child(3){left:50%;animation-delay:2.1s}.sp-coins i:nth-child(4){left:68%;animation-delay:2.35s;font-size:13px}
+.sp-coins i:nth-child(5){left:86%;animation-delay:2.15s}.sp-coins i:nth-child(6){left:40%;animation-delay:2.5s;font-size:11px}
+.sp-title b{display:inline-block;opacity:0;transform:translateY(14px);animation:spLetter .45s calc(1.6s + var(--i)*.06s) cubic-bezier(.2,1.4,.4,1) forwards}
+.sp-title span{display:inline-block;opacity:0;animation:spLetter .5s 2.2s cubic-bezier(.2,1.4,.4,1) forwards, spTitleShine 3s 2.8s linear infinite;background-size:200% 100%}
+.sp-sub{animation:spUp .6s 2.5s ease both!important}
+.sp-prog{animation:spUp .6s .3s ease both}
+#splash.skip *{animation-delay:0s!important;animation-duration:.01s!important}
+@keyframes spRise{to{transform:scaleY(1)}}
+@keyframes spBase{to{transform:scaleX(1)}}
+@keyframes spFade{from{opacity:0}to{opacity:1}}
+@keyframes spCoinIn{0%{opacity:0;transform:translate(0,-140px) rotateY(0deg) scale(.6)}55%{opacity:1;transform:translate(0,6px) rotateY(540deg) scale(1.08)}75%{transform:translate(0,-6px) rotateY(700deg) scale(.98)}100%{opacity:1;transform:translate(0,0) rotateY(720deg) scale(1)}}
+@keyframes spCoinFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes spSweep{from{transform:rotate(20deg) translateX(0)}to{transform:rotate(20deg) translateX(130px)}}
+@keyframes spPop{0%{opacity:0;transform:scale(0)}40%{opacity:1;transform:scale(1.8)}100%{opacity:0;transform:scale(.4)}}
+@keyframes spGlow{to{opacity:1}}
+@keyframes spBreath{0%,100%{opacity:.75;transform:scale(1)}50%{opacity:1;transform:scale(1.06)}}
+@keyframes spRain{0%{opacity:0;transform:translateY(0) rotate(0)}15%{opacity:1}100%{opacity:0;transform:translateY(240px) rotate(260deg)}}
+@keyframes spLetter{to{opacity:1;transform:none}}
+@keyframes spTitleShine{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-delay:0s!important;animation-iteration-count:1!important}}
 @keyframes spSpin{to{transform:rotate(360deg)}}
 @keyframes spGrow{from{transform:scaleY(.45)}to{transform:scaleY(1)}}
 @keyframes spDraw{to{stroke-dashoffset:0}}
@@ -772,19 +808,40 @@ main.scrolled .filt .search{padding-top:9px;padding-bottom:9px}
   <div class="actions"><button type="button" class="btn danger hide" id="fDel">Eliminar</button><button type="button" class="btn" id="fAgain">Guardar y otro</button><button type="submit" class="btn primary">Guardar</button></div>
 </form>
 <div id="toast" role="status"></div>
-<div id="splash"><div class="sp-logo" aria-hidden="true">
-    <svg viewBox="0 0 120 120" width="120" height="120">
-      <defs><linearGradient id="spg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9fb0ff"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs>
-      <circle cx="60" cy="60" r="54" fill="none" stroke="rgb(255 255 255 / .14)" stroke-width="3"/>
-      <circle class="sp-orbit" cx="60" cy="60" r="54" fill="none" stroke="url(#spg)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="70 270"/>
-      <circle cx="60" cy="60" r="40" fill="rgb(255 255 255 / .1)"/>
-      <rect class="sp-bar b1" x="38" y="58" width="10" height="22" rx="3" fill="#fff"/>
-      <rect class="sp-bar b2" x="55" y="46" width="10" height="34" rx="3" fill="#fff"/>
-      <rect class="sp-bar b3" x="72" y="36" width="10" height="44" rx="3" fill="#9fe3c0"/>
-      <path class="sp-line" d="M36 52 L52 42 L66 46 L86 28" fill="none" stroke="#ffd36e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle class="sp-dot" cx="86" cy="28" r="4" fill="#ffd36e"/>
-    </svg></div>
-  <div class="sp-title">Finanzas <span>RME</span></div>
+<div id="splash"><div class="sp-stage" aria-hidden="true">
+    <div class="sp-glow"></div>
+    <svg class="sp-logo2" viewBox="0 0 220 220" width="210" height="210">
+      <defs>
+        <linearGradient id="spGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe9a3"/><stop offset=".5" stop-color="#ffc84a"/><stop offset="1" stop-color="#d98f0c"/></linearGradient>
+        <linearGradient id="spRim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff4cc"/><stop offset="1" stop-color="#a86a05"/></linearGradient>
+        <linearGradient id="spShineG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".85"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+        <clipPath id="spCoinClip"><circle cx="0" cy="0" r="40"/></clipPath>
+      </defs>
+      <circle class="sp-ring" cx="110" cy="110" r="100" fill="none" stroke="rgb(255 255 255 / .18)" stroke-width="2" stroke-dasharray="4 10"/>
+      <g class="sp-bars">
+        <rect class="sp-b b1" x="52" y="128" width="24" height="46" rx="6" fill="#fff"/>
+        <rect class="sp-b b2" x="86" y="104" width="24" height="70" rx="6" fill="#fff"/>
+        <rect class="sp-b b3" x="120" y="80" width="24" height="94" rx="6" fill="#9fe3c0"/>
+        <rect class="sp-base" x="44" y="182" width="132" height="5" rx="2.5" fill="#9fb0ff"/>
+      </g>
+      <path class="sp-trend" d="M46 120 L82 96 L108 104 L150 70" fill="none" stroke="#ffd36e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <g class="sp-coinwrap" transform="translate(160 60)">
+        <g class="sp-coin">
+          <circle r="46" fill="url(#spRim)"/><circle r="40" fill="url(#spGold)"/>
+          <circle r="34" fill="none" stroke="#fff3c9" stroke-width="2.5" opacity=".75"/>
+          <text y="16" text-anchor="middle" font-size="48" font-weight="900" fill="#8a5600" font-family="system-ui,Arial">$</text>
+          <g clip-path="url(#spCoinClip)"><rect class="sp-shine" x="-60" y="-50" width="26" height="100" fill="url(#spShineG)" transform="rotate(20)"/></g>
+        </g>
+      </g>
+      <g class="sp-spark">
+        <circle cx="160" cy="6" r="3" fill="#ffd36e"/><circle cx="214" cy="60" r="3" fill="#9fe3c0"/><circle cx="160" cy="114" r="3" fill="#fff"/>
+        <circle cx="106" cy="60" r="3" fill="#ffd36e"/><circle cx="198" cy="22" r="2.5" fill="#fff"/><circle cx="198" cy="98" r="2.5" fill="#ffd36e"/>
+        <circle cx="122" cy="98" r="2.5" fill="#9fe3c0"/><circle cx="122" cy="22" r="2.5" fill="#fff"/>
+      </g>
+    </svg>
+    <div class="sp-coins"><i>$</i><i>$</i><i>$</i><i>$</i><i>$</i><i>$</i></div>
+  </div>
+  <div class="sp-title"><b style="--i:0">F</b><b style="--i:1">i</b><b style="--i:2">n</b><b style="--i:3">a</b><b style="--i:4">n</b><b style="--i:5">z</b><b style="--i:6">a</b><b style="--i:7">s</b> <span>RME</span></div>
   <div class="sp-sub">Tu dinero, catorcena a catorcena</div>
   <div class="sp-prog" role="progressbar" aria-label="Cargando" aria-valuemin="0" aria-valuemax="100"><div class="sp-fill" id="spFill"></div></div>
   <small id="splashMsg">Cargando tu historial…</small>
@@ -913,7 +970,10 @@ function spStart(){
 }
 function spStop(){ clearInterval(spT); clearInterval(spTipT); }
 let spDoneT=[];
+const SP_T0=Date.now(); let SP_MIN=(()=>{ try{ const d=new Date().toISOString().slice(0,10); if(localStorage.getItem("fc_intro")===d) return 1600; localStorage.setItem("fc_intro",d); }catch(e){} return 3200; })();
+document.getElementById("splash").addEventListener("click",e=>{ if(e.target.closest("button,input,form")) return; SP_MIN=0; document.getElementById("splash").classList.add("skip"); });
 function spDone(){
+  const falta=SP_MIN-(Date.now()-SP_T0); if(falta>0){ spSet(100,"¡Listo!"); clearTimeout(spDone._t); spDone._t=setTimeout(spDone, Math.min(falta,400)); return; }
   spStop(); spSet(100,"¡Listo!");
   const s=$("#splash"); spDoneT.forEach(clearTimeout);
   // siempre termina oculta: evita que la portada se quede a medio desvanecer encima de la app (bloqueando el scroll)
@@ -2535,6 +2595,7 @@ function renderCtaDet(el){
       <div class="between" style="border-top:1px solid var(--line);padding-top:6px"><span><b>Deuda hoy en Finanzas RME</b></span><b class="neg">${mx2(deudaHoy)}</b></div>
       <div class="f" style="margin-top:8px"><label>¿Cuánto dice tu app de ${esc(n)} que debes hoy?</label><input id="cdReal" inputmode="decimal" placeholder="$0"></div>
       <div class="small" id="cdDif"></div>
+      <button class="btn sm hide" id="cdFijar" style="margin-top:8px">✅ Fijar mi deuda en este monto</button>
       <div class="small muted">Si no cuadra, revisa la lista de compras de este periodo contra los movimientos de tu app: ahí aparece lo que falta o sobra.</div></div>` : "";
   el.innerHTML=`<div class="card" style="background:linear-gradient(135deg,${c1},${c2});color:#fff">
       <div class="small" style="opacity:.85">${esc(TIPO_TXT[t]||t)} · ${esc(lab)}</div>
@@ -2550,7 +2611,16 @@ function renderCtaDet(el){
     ${g.length? `<div class="card"><h2>Todas las compras</h2><div class="list">${g.map(m=>itemHTML(m,true)).join("")}</div></div>`:""}
     <div class="actions">${t==="Crédito"||t==="Departamental"? `<button class="btn" data-pagar="${esc(n)}">Registrar pago</button>`:""}${S.cta[n]? `<button class="btn primary" id="cdAdd">＋ Gasto con ${esc(n===AHORRO?"Efectivo guardado":n)}</button>`:""}</div>`;
   $$("[data-per]",el).forEach(x=>x.onclick=()=>{ S.ctaPer=x.dataset.per; renderSub(); });
+  { const fb=$("#cdFijar",el); if(fb) fb.onclick=()=>{ const v=Math.round((parseFloat(String($("#cdReal",el).value).replace(/[^0-9.]/g,""))||0)*100)/100;
+      if(!fb.dataset.ok){ fb.dataset.ok="1"; fb.textContent="¿Dejar la deuda de "+n+" en "+mx2(v)+" desde hoy? Toca otra vez"; return; }
+      fb.disabled=true; const c=S.cta[n], prev={s:c.SaldoInicial,f:c.FechaSaldo}, ay=sumDia(S.hoy,-1);
+      // corte ayer: lo que registres hoy (antes o después de cuadrar) sigue sumando normal
+      let hoyD=0; S.movs.forEach(m=>{ if(m.Fecha===S.hoy) effects(m).forEach(([k,x])=>{ if(k===n) hoyD-=x; }); });
+      const base=Math.round((v-hoyD)*100)/100;
+      api("cuadrarCuenta",n,base,ay).then(()=>{ c.SaldoInicial=base; c.FechaSaldo=ay; toast("Listo: deuda de "+n+" fijada en "+mx2(v)+". No se creó ningún cargo ni cambió tu presupuesto."); renderSub(); })
+        .catch(er=>{ c.SaldoInicial=prev.s; c.FechaSaldo=prev.f; fb.disabled=false; toast("No se pudo: "+(er.message||er)); }); }; }
   { const ri=$("#cdReal",el); if(ri){ moneyInput(ri); ri.oninput=()=>{ const v=parseFloat(String(ri.value).replace(/[^0-9.]/g,"")); const d=Math.round((v-deudaHoy)*100)/100, o=$("#cdDif",el);
+      const fb=$("#cdFijar",el); if(fb){ fb.classList.toggle("hide", !(v>=0)||ri.value===""||Math.abs(d)<0.005); delete fb.dataset.ok; fb.textContent="✅ Fijar mi deuda en "+(v>=0? mx2(v):"este monto"); }
       o.innerHTML= !(v>=0)||ri.value===""? "" : Math.abs(d)<0.005? `<b class="pos">✅ Cuadra al centavo</b>` : d>0? `<b class="neg">Tu app dice ${mx2(d)} más</b>: falta registrar compras (o un pago se registró de más).` : `<b class="neg">Tu app dice ${mx2(-d)} menos</b>: falta registrar un pago (o hay una compra de más).`; }; } }
   $$("[data-pagar]",el).forEach(x=>x.onclick=()=>openForm({Tipo:"Pago tarjeta", CuentaDestino:x.dataset.pagar},{dst:x.dataset.pagar}));
   if($("#cdAdd")) $("#cdAdd").onclick=()=>openForm({Tipo:"Gasto",Cuenta:n},{cta:n});
@@ -3698,7 +3768,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.27-78";
+const APP_BUILD="2026.11.28-80";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
