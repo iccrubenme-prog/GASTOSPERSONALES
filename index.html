@@ -1147,7 +1147,7 @@ function icon(m){ const t=m.Tipo; const c = t==="Gasto"?"g": t==="Ingreso"?"i": 
     : t==="Pago tarjeta"? "💳" : t==="Transferencia"? "🔁" : t==="Inversión"? (m.MovInversion==="Rendimiento"?"✨": m.MovInversion==="Retiro"?"⬇️":"📈") : "📌";
   return `<span class="ico em ${c}">${e}</span>`; }
 function itemHTML(m, conFecha){
-  const sub = m.Tipo==="Gasto" ? [m.Categoria, m.Vehiculo, m.Cuenta, +m.Propina>0? "🤝 propina "+mx(+m.Propina):"", m.CubreFondo==="Sí"&&m.Cuenta!==FONDO? "🛟 lo cubre el fondo":""].filter(Boolean).join(" · ")
+  const sub = m.Tipo==="Gasto" ? [m.CubreFondo==="Sí"&&m.Cuenta!==FONDO? "🛟 Fondo":"", m.Categoria, m.Vehiculo, m.Cuenta, +m.Propina>0? "🤝 propina "+mx(+m.Propina):""].filter(Boolean).join(" · ")
     : m.Tipo==="Ingreso" ? [m.Fuente, m.CuentaDestino].filter(Boolean).join(" → ")+(+m.Envio>0? " · 🚚 envío "+mx(+m.Envio):"")+(esTenate(m.Fuente)&&(tenParts(m).app||tenParts(m).prop)? " · "+tenLabel(m):"")
     : m.Tipo==="Inversión" ? [m.MovInversion, m.Instrumento].filter(Boolean).join(" · ")
     : [m.Cuenta||(m.Instrumento? "📈 "+m.Instrumento:""), m.CuentaDestino].filter(Boolean).join(" → ");
@@ -3698,7 +3698,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.27-77";
+const APP_BUILD="2026.11.27-78";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
