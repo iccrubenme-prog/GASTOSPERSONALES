@@ -921,7 +921,7 @@ function spDone(){
 }
 /* ================= carga ================= */
 function recargarSilencioso(msg){
-  return api("getData").then(d=>{ S.d=d; build(); render(); renderMas(); if(msg) toast(msg); })
+  return api("getData").then(d=>{ S.d=d; build(); try{ plzAutoRend(); }catch(e){} render(); renderMas(); if(msg) toast(msg); })
     .catch(e=>toast("Se guardó, pero no pude actualizar la vista: "+(e.message||e)+". Toca 🔄 Actualizar datos."));
 }
 function load(){
@@ -1043,7 +1043,7 @@ $("#respaldo").onclick=()=>{ const b=$("#respaldo .s"); b.textContent="Guardando
 function hoyLocal(){ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
 // la fecha se toma del teléfono en cada pantalla, así el conteo de días cambia aunque la app quede abierta
 setInterval(()=>{ if(S.d && hoyLocal()!==S.hoy) render(); }, 60000);
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden && S.d){ render(); if(navigator.onLine) flush(); } });
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && S.d){ render(); if(navigator.onLine){ flush(); if(S.autoDia && S.autoDia!==S.hoy) recargarSilencioso(); } } });
 function render(){
   if(!S.d) return;
   const h=hoyLocal(); if(h!==S.hoy){ const cambioMes = S.mes===S.hoy.slice(0,7); S.hoy=h; if(cambioMes){ S.mes=h.slice(0,7); S.anMes=S.mes; } S.mvCat=null; S.anCat=null; }
@@ -3101,17 +3101,22 @@ function plzISR(p){ return p.RetISR!==""&&p.RetISR!=null&&!isNaN(+p.RetISR)? +p.
 function plzRet(p){ return Math.round((+p.Monto||0)*plzISR(p)/100*(+p.PlazoDias||0)/365*100)/100; }
 function plzNeto(p){ return Math.round(((+p.RendEsperado||0)-plzRet(p))*100)/100; }
 function plzDev(p,hasta){ const f=Math.min(1,Math.max(0,daysBetween(p.FechaInicio,hasta)/(p.PlazoDias||1))); return Math.round(plzNeto(p)*f*100)/100; }
-function plzTag(p){ return "Rend. automático plazo "+p.ID; }
+function plzTag(p){ return "Plazo "+p.ID; }
+function esAutoDe(m,p){ return m.MovInversion==="Rendimiento" && (m.Subcategoria===plzTag(p) || String(m.Nota||"").includes("Rend. automático plazo "+p.ID)); }
+const dmyF=f=>f.slice(8,10)+"/"+f.slice(5,7)+"/"+f.slice(0,4);
 // registra como movimientos ✨ Rendimiento lo que la inversión a plazo ha generado (neto de ISR); lo anterior a un saldo real capturado se fecha antes de él
 function plzAutoRend(){ const si=saldosInversion(), base={Tipo:"Inversión",MovInversion:"Rendimiento",Cuenta:"",CuentaDestino:"",Categoria:"",Subcategoria:"",Fuente:"",Vehiculo:"",Km:"",Litros:"",MesesMSI:""};
-  let n=0; plzActivas().forEach(p=>{ if(!p.FechaInicio||p.FechaInicio>S.hoy) return; const tag=plzTag(p), ya=S.movs.filter(m=>m.MovInversion==="Rendimiento"&&String(m.Nota||"").includes(tag));
+  let n=0; S.autoDia=S.hoy; plzActivas().forEach(p=>{ if(!p.FechaInicio||p.FechaInicio>S.hoy) return; const tag=plzTag(p), ya=S.movs.filter(m=>esAutoDe(m,p));
     const fo=(si[p.Instrumento]||{}).foto, hasta=p.FechaVence&&p.FechaVence<S.hoy? p.FechaVence : S.hoy;
     const tramo=(fecha,objetivo,previos)=>{ const dif=Math.round((objetivo-sum(previos))*100)/100; if(dif<1) return;
       const mismo=ya.find(m=>m.Fecha===fecha); const o= mismo? Object.assign({},mismo,{Monto:Math.round((mismo.Monto+dif)*100)/100})
-        : Object.assign({},base,{ID:uid(),Fecha:fecha,Monto:dif,Instrumento:p.Instrumento,Descripcion:"Rendimiento automático "+p.Instrumento,Nota:tag+" · neto de ISR ("+plzISR(p)+"% anual)"});
-      if(mismo) mismo.Monto=o.Monto; else ya.push(o); guardarMovRapido(o); n++; };
+        : Object.assign({},base,{ID:uid(),Fecha:fecha,Monto:dif,Instrumento:p.Instrumento,Subcategoria:tag,Descripcion:"Rendimiento automático "+p.Instrumento});
+      if(mismo) mismo.Monto=o.Monto; else ya.push(o); o._nuevo=1; n++; };
     if(fo&&fo.Fecha>p.FechaInicio&&fo.Fecha<=hasta){ const fA=sumDia(fo.Fecha,-1)<p.FechaInicio? p.FechaInicio : sumDia(fo.Fecha,-1); tramo(fA, plzDev(p,fo.Fecha), ya.filter(m=>m.Fecha<fo.Fecha)); }
-    tramo(hasta, plzDev(p,hasta), ya); });
+    tramo(hasta, plzDev(p,hasta), ya);
+    // numera y deja la nota como "Rendimiento automático 26/11/2026 - 1"; guarda solo lo que cambió
+    ya.sort((a,b)=>a.Fecha<b.Fecha?-1:a.Fecha>b.Fecha?1:0).forEach((m,k)=>{ const nota="Rendimiento automático "+dmyF(m.Fecha)+" - "+(k+1);
+      if(m._nuevo||m.Nota!==nota||m.Subcategoria!==tag){ const o=Object.assign({},m,{Nota:nota,Subcategoria:tag}); delete o._nuevo; guardarMovRapido(o); } }); });
   if(n) render(); }
 function plzActivas(){ return plzList().filter(p=>p.Estado!=="Cerrada").sort((a,b)=>(a.FechaVence||"")<(b.FechaVence||"")?-1:1); }
 function plzFaltan(p){ return daysBetween(S.hoy,p.FechaVence); }
@@ -3125,7 +3130,7 @@ function plazosCard(){
   const fila=p=>{ const d=plzFaltan(p), tr=Math.min(1,Math.max(0,daysBetween(p.FechaInicio,S.hoy)/p.PlazoDias)), gan=plzDev(p,S.hoy), net=plzNeto(p), ret=plzRet(p), cls=d<0?"neg":d<=7?"warn":"muted";
     return `<div class="plz" data-plz="${esc(p.ID)}"><div class="between"><span style="min-width:0"><b>${esc(p.Instrumento)}</b> <span class="iv-tag">${p.Tasa}% · ${p.PlazoDias} d</span></span><b class="priv">${mx2(p.Monto)}</b></div>
       <div class="iv-track" style="height:6px;margin:6px 0"><i style="width:${Math.max(2,tr*100)}%;${d<=7?"background:"+(d<0?"var(--neg)":"#e0a100"):""}"></i></div>
-      <div class="between small"><span class="${cls}" style="font-weight:${d<=7?700:400}">${d<=7?"⏰ ":""}${plzTxtVence(p)}</span><span class="pos priv">+${mx2(net)} neto</span></div>
+      <div class="between small"><span class="${cls}" style="font-weight:${d<=7?700:400}">${d<=7?"⏰ ":""}${plzTxtVence(p)}<br><span class="muted" style="font-weight:400">Llevas ${Math.max(0,Math.min(p.PlazoDias,daysBetween(p.FechaInicio,S.hoy)))} de ${p.PlazoDias} días</span></span><span class="pos priv">+${mx2(net)} neto</span></div>
       <div class="between small muted"><span>Desde ${sDate(p.FechaInicio)} ${p.FechaInicio.slice(0,4)} · bruto ${mx2(p.RendEsperado)} − ISR ${mx2(ret)} (${plzISR(p)}%)</span></div>
       <div class="plz-k priv"><div><small>Hoy vale</small><b>${mx2(p.Monto+gan)}</b><span class="small pos">+${mx2(gan)} real</span></div>
         <div><small>Al vencer</small><b>${mx2(p.Monto+net)}</b><span class="small muted">+${mx(net)} neto</span></div>
@@ -3237,7 +3242,7 @@ function plzCerrar(p){
       if(!(v.Tasa>0)&&!(v.RendEsperado>0)) return e.textContent="Escribe la tasa o el rendimiento esperado de la reinversión.";
       nueva=Object.assign({},v,{Instrumento:p.Instrumento,FechaInicio:fc,FechaVence:plzVence(fc,v.PlazoDias),Estado:"Activa",Nota:"Reinversión de "+mx2(p.Monto)+" + "+mx2(rr)}); }
     // lo devengado ya se sumó día con día; si capturaste un saldo real durante el plazo, esa parte ya estaba en tu saldo
-    const auto=sum(S.movs.filter(m=>m.MovInversion==="Rendimiento"&&String(m.Nota||"").includes(plzTag(p)))), mov=Math.round((rr-auto)*100)/100;
+    const auto=sum(S.movs.filter(m=>esAutoDe(m,p))), mov=Math.round((rr-auto)*100)/100;
     if(g("Mov").checked && Math.abs(mov)>=0.01) guardarMovRapido({ID:uid(),Tipo:"Inversión",Fecha:fc,Monto:mov,MovInversion:"Rendimiento",Instrumento:p.Instrumento,Cuenta:"",CuentaDestino:"",Categoria:"",Subcategoria:"",Fuente:"",Vehiculo:"",Km:"",Litros:"",MesesMSI:"",
       Descripcion:(mov<0?"Ajuste de rendimiento ":"Rendimiento al vencer ")+p.Instrumento,Nota:"Inversión a plazo "+p.ID+" · "+p.PlazoDias+" días al "+p.Tasa+"% · neto de ISR"+(auto? " · real "+mx2(rr)+" − "+mx2(auto)+" ya sumado automático":"")});
     ddClose();
@@ -3693,7 +3698,7 @@ function syncPill(on,txt){ let p=$("#syncPill");
 }
 
 /* ===== Detecta versión nueva de la app (el celular suele dejar la app abierta en segundo plano sin recargarla) ===== */
-const APP_BUILD="2026.11.26-76";
+const APP_BUILD="2026.11.27-77";
 let verAviso=false;
 function checarVersion(auto){
   if(location.protocol==="file:") return Promise.resolve(false);
